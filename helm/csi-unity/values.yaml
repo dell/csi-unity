@@ -1,0 +1,78 @@
+# "systemName" defines the name of the Unity system from which volumes will
+# be provisioned. This must either be set to the Unity system name or system ID.
+systemName: unity
+
+# "restGateway" defines the Unity REST API endpoint, with full URL, typically leveraging HTTPS.
+# You must set this for your Unity installations REST gateway.
+# restGateway: https://123.0.0.1
+
+# "storagePool" defines the Unity storage pool from which this driver will # provision volumes.
+# You must set this for the primary storage pool to be used
+# storagePool: sp
+
+
+# "volumeNamePrefix" defines a string prepended to each volume created by the CSI driver.
+volumeNamePrefix: csivol
+
+# "nodeNamePrefix" defines a string prepended to each registered by the CSI driver.
+nodeNamePrefix: csi-node
+
+# Where is the drv_cfg binary on the host?
+# By default, /bin/, but might be /var/vcap/packages/unity_kernel on PKS
+# IT IS RECOMMENDED YOU DO NOT CHANGE THIS.
+unitybinpath: /bin/csi-unity
+
+# Enable this to automatically delete all snapshots in a consistency group when a snap in the group is deleted
+enablesnapshotcgdelete: "false"
+
+# Enable list volume operation to include snapshots (since creating a volume from a snap actually results in a new snap)
+# It is recommend this be false unless Kubernetes needs this for some reason.
+enablelistvolumesnapshot: "false"
+
+# "unityInsecure" determines if the driver is going to validate unisphere certs while
+# connecting to the Unisphere RESTAPI interface
+# If it is set to false, then a secret unity-certs has to be created with a X.509 certificate of CA
+# which signed the Unisphere certificate
+unityInsecure: "true"
+
+# To set the debug log policy for CSI driver
+csiDebug: "false"
+
+# The default pull policy is IfNotPresent which causes the Kubelet to skip pulling an image
+# if it already exists. If you would like to always force a pull, use "Always"
+imagePullPolicy: IfNotPresent
+
+# The installation process will generate multiple storageclasses based on these parameters.
+# Only the primary storageclass for the driver will be marked default if specified.
+storageClass:
+  # "storageClass.name" defines the name of the storage class to be defined.
+  name: unity
+
+  # "storageClass.isDefault" defines whether the primary storage class should be the # default.
+  isDefault: "true"
+
+  # "storageClass.reclaimPolicy" defines what will happen when a volume is
+  # removed from the Kubernetes API. Valid values are "Retain" and "Delete".
+  reclaimPolicy: Delete
+
+# IT IS RECOMMENDED YOU DO NOT CHANGE THE IMAGES TO BE DOWNLOADED.
+images:
+  # "images.driver" defines the container images used for the driver container.
+  driver: dellemc/csi-unity:v1.0.0.000R
+
+  # "images.attacher" defines the container images used for the csi attacher
+  # container.
+  attacher: quay.io/k8scsi/csi-attacher:v1.1.1
+
+  # "images.provisioner" defines the container images used for the csi provisioner
+  # container.
+  #provisioner: quay.io/k8scsi/csi-provisioner:v0.4.2 #for CSI 0.3.0 only (obsolete)
+  provisioner: quay.io/k8scsi/csi-provisioner:v1.2.1
+
+  # "images.snapshotter" defines the container image used for the csi snapshotter
+  snapshotter: quay.io/k8scsi/csi-snapshotter:v1.0.1
+
+  # "images.registrar" defines the container images used for the csi registrar
+  # container.
+  registrar: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
+

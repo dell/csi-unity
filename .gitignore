@@ -1,0 +1,11 @@
+.build
+builds/
+.idea
+.idea/
+.vscode/
+*.exe
+vendor/
+bin/
+./csi-unity
+csi-unity.exe
+helm/myvalues.yaml

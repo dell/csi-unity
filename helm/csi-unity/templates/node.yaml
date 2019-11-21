@@ -1,0 +1,198 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Release.Name }}-node
+  namespace: {{ .Release.Namespace }}
+
+---
+
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ .Release.Name }}-node
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["create", "delete", "get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["persistentvolumesclaims"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments"]
+    verbs: ["get", "list", "watch", "update"]
+
+
+---
+
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ .Release.Name }}-node
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}-node
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ .Release.Name }}-node
+  apiGroup: rbac.authorization.k8s.io
+
+---
+
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: {{ .Release.Name }}-node
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-node
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-node
+    spec:
+      serviceAccountName: {{ .Release.Name }}-node
+      hostNetwork: true
+      containers:  
+        - name: driver
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true
+          image: {{ required "Must provide the Unity driver container image." .Values.images.driver }}
+          lifecycle:
+            preStop:
+              exec:
+                command: [
+                  "/bin/sh", "-c",
+                  "rm -rf /var/lib/kubelet/plugins/unity.emc.dell.com/*"
+                ]
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          env:
+            - name: CSI_ENDPOINT
+              value: unix:///var/lib/kubelet/plugins/unity.emc.dell.com/csi_sock
+            - name: X_CSI_MODE
+              value: node
+            - name: X_CSI_DEBUG
+              value: {{ .Values.csiDebug | default "false" | lower | quote }}
+            - name: X_CSI_PRIVATE_MOUNT_DIR
+              value: "/var/lib/kubelet/plugins/unity.emc.dell.com/disks"
+            - name: X_CSI_UNITY_NODENAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+            - name: X_CSI_UNITY_NODENAME_PREFIX
+              value: {{ .Values.nodeNamePrefix }}
+            - name: X_CSI_UNITY_NODE_ID_PATH
+              value: /machine-id
+            - name: X_CSI_UNITY_ENDPOINT
+              value: {{ required "Must provide a UNITY HTTPS endpoint." .Values.restGateway }}
+            - name: X_CSI_UNITY_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-creds
+                  key: username
+            - name: X_CSI_UNITY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-creds
+                  key: password
+            - name: X_CSI_UNITY_NODE_CHROOT_PATH
+              value: /noderoot
+            - name: X_CSI_UNITY_INSECURE
+              value: {{ .Values.unityInsecure | default "true" | lower | quote }}
+            - name: GOUNITY_DEBUG
+              value: {{ .Values.csiDebug | default "false" | lower | quote }}
+            - name: SSL_CERT_DIR
+              value: /certs
+          volumeMounts:
+            - name: driver-path
+              mountPath: /var/lib/kubelet/plugins/unity.emc.dell.com
+            - name: volumedevices-path
+              mountPath: /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices
+            - name: pods-path
+              mountPath: /var/lib/kubelet/pods
+              mountPropagation: "Bidirectional"
+            - name: dev
+              mountPath: /dev
+            - name: machine-id
+              mountPath: /machine-id
+            - name: noderoot
+              mountPath: /noderoot
+            - name: certs
+              mountPath: /certs
+              readOnly: true
+        - name: registrar
+          image: {{ required "Must provide the CSI node registrar container image." .Values.images.registrar }}
+          args:
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+            - --kubelet-registration-path=/var/lib/kubelet/plugins/unity.emc.dell.com/csi_sock
+          lifecycle:
+            preStop:
+              exec:
+                command: [
+                  "/bin/sh", "-c",
+                  "rm -rf /registration/unity.emc.dell.com /var/lib/kubelet/plugins/unity.emc.dell.com/csi_sock /csi/csi_sock"
+                ]
+          env:
+            - name: ADDRESS
+              value: /csi/csi_sock
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: registration-dir
+              mountPath: /registration
+            - name: driver-path
+              mountPath: /csi
+      volumes:
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry/
+            type: DirectoryOrCreate
+        - name: driver-path
+          hostPath:
+            path: /var/lib/kubelet/plugins/unity.emc.dell.com
+            type: DirectoryOrCreate
+        - name: volumedevices-path
+          hostPath:
+            path: /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices
+            type: DirectoryOrCreate
+        - name: pods-path
+          hostPath:
+            path: /var/lib/kubelet/pods
+            type: Directory
+        - name: dev
+          hostPath:
+            path: /dev
+            type: Directory
+        - name: machine-id
+          hostPath:
+            path: /etc/machine-id
+            type: File
+        - name: noderoot
+          hostPath:
+            path: /
+            type: Directory
+        - name: certs
+          secret:
+              secretName: {{ .Release.Name }}-certs

@@ -1,0 +1,26 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ required "Must provide a storage class name." .Values.storageClass.name}}
+  annotations:
+    storageclass.beta.kubernetes.io/is-default-class: {{ .Values.storageClass.isDefault | quote }}
+provisioner: csi-unity.dellemc.com
+reclaimPolicy: {{ required "Must provide a storage class reclaim policy." .Values.storageClass.reclaimPolicy }}
+allowVolumeExpansion: true
+parameters:
+  storagepool: {{ required "Must provide a Unity storage pool name." .Values.storagePool }}
+{{ if .Values.FsType }}
+  FsType: {{ .Values.FsType | default "ext4" | lower | quote }}
+{{ end }}
+{{ if .Values.volumeThinProvisioned }}
+  thinProvisioned: {{ .Values.volumeThinProvisioned | default "true" | lower | quote }}
+{{ end }}
+{{ if .Values.isVolumeDataReductionEnabled }}
+  isDataReductionEnabled: {{ .Values.isVolumeDataReductionEnabled | default "false" | lower | quote }}
+{{ end }}
+{{ if .Values.volumeTieringPolicy }}
+  tieringPolicy: {{ .Values.volumeTieringPolicy | default "0" | quote }}
+{{ end }}
+{{ if .Values.hostIOLimitName }}
+  hostIOLimitName: {{ .Values.hostIOLimitName | default "" | lower | quote }}
+{{ end }}

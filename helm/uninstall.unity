@@ -1,0 +1,4 @@
+#!/bin/bash
+helm delete --purge unity
+sleep 10
+kubectl get pods -n unity
