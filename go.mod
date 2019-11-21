@@ -7,7 +7,7 @@ require (
 	github.com/DATA-DOG/godog v0.7.13
 	github.com/container-storage-interface/spec v1.1.0
 	github.com/dell/gofsutil v1.1.0
-	github.com/dell/gounity v0.0.0-00010101000000-000000000000
+	github.com/dell/gounity v1.0.0
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/protobuf v1.3.2
 	github.com/rexray/gocsi v1.1.0
