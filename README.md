@@ -337,3 +337,12 @@ Test the deployment workflow of a simple pod on Unity storage.
     kubectl delete pvc testvolclaim1
     kubectl get pvc
     ```
+
+## Support
+The CSI Driver for Dell EMC Unity image available on Dockerhub is officially supported by Dell EMC.
+ 
+The source code available on Github is unsupported and provided solely under the terms of the license attached to the source code. For clarity, Dell EMC does not provide support for any source code modifications.
+ 
+For any CSI driver setup, configuration issues, questions or feedback, join the Dell EMC Container community athttps://www.dell.com/community/Containers/bd-p/Containers
+ 
+For any Dell EMC storage issues, please contact Dell support at: https://www.dell.com/support.
