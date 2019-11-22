@@ -9,7 +9,7 @@ Unity CSI plugins implement an interface between CSI enabled Container Orchestra
 
 ## Introduction
 The CSI Driver For Dell EMC Unity conforms to CSI spec 1.1
-   * Support for Kubernetes 1.15
+   * Support for Kubernetes 1.14
    * Will add support for other orchestrators over time
    * The CSI specification is documented here: https://github.com/container-storage-interface/spec. The driver uses CSI v1.1.
 
@@ -22,8 +22,8 @@ The CSI Driver For Dell EMC Unity conforms to CSI spec 1.1
 |Data protection | Creation of snapshots | Cloning, Create volume from snapshots|
 |Types of volumes | Static, Dynamic| |
 |Access mode | Single Node read/write | Multi Node access modes|
-|Kubernetes | v1.14, v1.15 | V1.13 or previous versions|
-|OS | RHEL 7.5, 7.6. CentOs 7.6 | Ubuntu, other Linux variants|
+|Kubernetes | v1.14 | V1.13 or previous versions|
+|OS | RHEL 7.6, CentOs 7.6 | Ubuntu, other Linux variants|
 |Unity | OE 5.0 | Previous versions|
 |Protocol | FC | iSCSI, NFS|
 
@@ -49,7 +49,8 @@ Before you install CSI Driver for Unity, verify the requirements that are mentio
 
 #### Requirements
 
-* Install Kubernetes. The CSI Driver for Unity works with Kubernetes version 1.14 or later with the Red Hat Enterprise Linux 7.6 host operating system.
+* This document assumes that Kubernetes has been installed using kubeadm.
+* The CSI Driver for Unity works with Kubernetes version 1.14 with the RedHat Enterprise Linux 7.6 host operating system.
 * Enable the Kubernetes feature gates
 * Configure Docker service
 * Install Helm and Tiller with a service account
@@ -155,7 +156,6 @@ Procedure
     | unityUsername | Username for accessing unity system <base64 encoded string> | true | - |
     | unityPassword | Password for accessing unity system <base64 encoded string> | true | - |
     | volumeNamePrefix | String to prepend to any volumes created by the driver | false | csivol |
-    | controllerCount | Number of driver controllers to create | false | 1 |
     | storageClass.name | Name of the storage class to be defined | false | unity |
     | storageClass.isDefault | Whether or not to make this storage class the default | false | true |
     | storageClass.reclaimPolicy | What should happen when a volume is removed | false | Delete |
@@ -167,7 +167,6 @@ Procedure
     | hostIOLimitName | To set unity host IO limit | false | "" |
     | ***Snapshot Class parameters*** | Following parameters are not present in values.yaml  |
     | snapshotRetentionDuration | TO set snapshot retention duration. Format:"1:23:52:50" (number of days:hours:minutes:sec)| false | "" |
-    | isSnapshotReadOnly | To set snapshot readonly parameter | false | false |
     
     Use the following command to convert username/password to base64 encoded string
     ```
@@ -180,7 +179,6 @@ Procedure
     ```
     storagePool: pool_1
     restGateway: "https://<Ip of Unity system>"  
-    systemName: unity  
     unityUsername: <Base64 encoded string>  
     unityPassword: <Base64 encoded string>
     images:
@@ -193,7 +191,7 @@ Procedure
     ```
     sh install.unity 
     Kubernetes version v1.14.2
-    Kubernetes master nodes: 10.247.97.151
+    Kubernetes master nodes: 10.*.*.*
     Kubernetes minion nodes:
     Verifying the iSCSI installation.
     Verifying the feature gates.
@@ -218,7 +216,7 @@ Procedure
     * unity-controller-0 with 4/4 containers ready, and status displayed as Running.
     * Agent pods with 2/2 containers and the status displayed as Running.
 
-    Finally, the script lists the created storageclasses such as, "unity". Additional storage classes can be created for different combinations of file system types and Unity storage pools. The script also creates volumesnapshotclasses such as, "unity-snapclass" and other snapshots classes.
+    Finally, the script lists the created storageclasses such as, "unity". Additional storage classes can be created for different combinations of file system types and Unity storage pools. The script also creates volumesnapshotclasses such as, "unity-snapclass".
 
 ## Test deploying a simple pod with Unity storage
 Test the deployment workflow of a simple pod on Unity storage.
