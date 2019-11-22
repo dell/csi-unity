@@ -23,7 +23,7 @@ The CSI Driver For Dell EMC Unity conforms to CSI spec 1.1
 |Types of volumes | Static, Dynamic| |
 |Access mode | Single Node read/write | Multi Node access modes|
 |Kubernetes | v1.14 | V1.13 or previous versions|
-|OS | RHEL 7.6, CentOs 7.6 | Ubuntu, other Linux variants|
+|OS | RHEL 7.5, 7.6. CentOs 7.6 | Ubuntu, other Linux variants|
 |Unity | OE 5.0 | Previous versions|
 |Protocol | FC | iSCSI, NFS|
 
@@ -49,8 +49,7 @@ Before you install CSI Driver for Unity, verify the requirements that are mentio
 
 #### Requirements
 
-* This document assumes that Kubernetes has been installed using kubeadm.
-* The CSI Driver for Unity works with Kubernetes version 1.14 with the RedHat Enterprise Linux 7.6 host operating system.
+* Install Kubernetes.
 * Enable the Kubernetes feature gates
 * Configure Docker service
 * Install Helm and Tiller with a service account
@@ -193,7 +192,6 @@ Procedure
     Kubernetes version v1.14.2
     Kubernetes master nodes: 10.*.*.*
     Kubernetes minion nodes:
-    Verifying the iSCSI installation.
     Verifying the feature gates.
     NAME:   unity
     LAST DEPLOYED: Wed Aug 14 01:23:35 2019
@@ -216,7 +214,7 @@ Procedure
     * unity-controller-0 with 4/4 containers ready, and status displayed as Running.
     * Agent pods with 2/2 containers and the status displayed as Running.
 
-    Finally, the script lists the created storageclasses such as, "unity". Additional storage classes can be created for different combinations of file system types and Unity storage pools. The script also creates volumesnapshotclasses such as, "unity-snapclass".
+    Finally, the script lists the created storageclasses such as, "unity". Additional storage classes can be created for different combinations of file system types and Unity storage pools. The script also creates volumesnapshotclass "unity-snapclass".
 
 ## Test deploying a simple pod with Unity storage
 Test the deployment workflow of a simple pod on Unity storage.
