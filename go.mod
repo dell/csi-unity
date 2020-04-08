@@ -2,9 +2,6 @@ module github.com/dell/csi-unity
 
 go 1.13
 
-// TODO: Remove these replace lines before releasing
-replace github.com/dell/gounity => ../gounity
-
 require (
 	github.com/DATA-DOG/godog v0.7.13
 	github.com/container-storage-interface/spec v1.1.0
