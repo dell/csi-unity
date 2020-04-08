@@ -2,26 +2,41 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/dell/csi-unity/core"
 	"github.com/dell/csi-unity/service/utils"
+	"github.com/dell/goiscsi"
 	"github.com/dell/gounity"
 	"github.com/rexray/gocsi"
 	csictx "github.com/rexray/gocsi/context"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	"net"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
 const (
 	// Name is the name of the Unity CSI.
-	Name = "csi-unity.dellemc.com"
 
 	// VendorVersion is the version of this Unity CSI.
 	VendorVersion = "0.0.0"
+
+	//Tcp dial default timeout in Milliseconds
+	TcpDialTimeout = 1000
+
+	IScsiPort = "3260"
 )
+
+var Name string
+
+//To maintain runid for Non debug mode. Note: CSI will not generate runid if CSI_DEBUG=false
+var runid int64
 
 // Manifest is the SP's manifest.
 var Manifest = map[string]string{
@@ -41,34 +56,30 @@ type Service interface {
 
 // Opts defines service configuration options.
 type Opts struct {
-	Endpoint    string
-	User        string
-	Password    string
-	SystemName  string
-	NodeName    string
-	PvtMountDir string
-	Insecure    bool
-	Thick       bool
-	AutoProbe   bool
-	UseCerts    bool // used for unit testing only
-	Debug       bool
+	Endpoint     string
+	User         string
+	Password     string
+	NodeName     string
+	LongNodeName string
+	PvtMountDir  string
+	Chroot       string
+	Insecure     bool
+	Thick        bool
+	AutoProbe    bool
+	UseCerts     bool // used for unit testing only
+	Debug        bool
 }
 
 type service struct {
-	opts  Opts
-	mode  string
-	unity *gounity.Client
+	opts        Opts
+	mode        string
+	unity       *gounity.Client
+	iscsiClient goiscsi.ISCSIinterface
 }
 
 // New returns a new CSI Service.
 func New() Service {
 	return &service{}
-}
-
-var log *logrus.Logger
-
-func SetLogger(l *logrus.Logger) {
-	log = l
 }
 
 // BeforeServe allows the SP to participate in the startup
@@ -78,13 +89,12 @@ func SetLogger(l *logrus.Logger) {
 // server from starting by returning a non-nil error.
 func (s *service) BeforeServe(
 	ctx context.Context, sp *gocsi.StoragePlugin, lis net.Listener) error {
-	SetLogger(utils.GetLogger())
+	log := utils.GetLogger()
 	defer func() {
 		fields := map[string]interface{}{
 			"endpoint":    s.opts.Endpoint,
 			"user":        s.opts.User,
 			"password":    "",
-			"systemname":  s.opts.SystemName,
 			"nodename":    s.opts.NodeName,
 			"insecure":    s.opts.Insecure,
 			"autoprobe":   s.opts.AutoProbe,
@@ -117,14 +127,12 @@ func (s *service) BeforeServe(
 	if pw, ok := csictx.LookupEnv(ctx, EnvPassword); ok {
 		opts.Password = pw
 	}
-	if name, ok := csictx.LookupEnv(ctx, EnvSystemName); ok {
-		opts.SystemName = name
-	}
 	if name, ok := csictx.LookupEnv(ctx, gocsi.EnvVarDebug); ok {
 		opts.Debug, _ = strconv.ParseBool(name)
 	}
 	if name, ok := csictx.LookupEnv(ctx, EnvNodeName); ok {
 		log.Info("X_CSI_UNITY_NODENAME:", name)
+		opts.LongNodeName = name
 		shortHostName := strings.Split(name, ".")[0]
 		opts.NodeName = shortHostName
 	}
@@ -155,7 +163,48 @@ func (s *service) BeforeServe(
 	} else {
 		opts.UseCerts = true
 	}
+
+	// setup the iscsi client
+	iscsiOpts := make(map[string]string, 0)
+	if chroot, ok := csictx.LookupEnv(ctx, EnvISCSIChroot); ok {
+		iscsiOpts[goiscsi.ChrootDirectory] = chroot
+		opts.Chroot = chroot
+	}
+	s.iscsiClient = goiscsi.NewLinuxISCSI(iscsiOpts)
+
 	s.opts = opts
 
+	return nil
+}
+
+func GetRunidLog(ctx context.Context) (context.Context, *logrus.Entry, string) {
+	var rid string
+	headers, ok := metadata.FromIncomingContext(ctx)
+	if ok {
+		reqid, ok := headers["csi.requestid"]
+		if ok && len(reqid) > 0 {
+			rid = reqid[0]
+		} else {
+			atomic.AddInt64(&runid, 1)
+			rid = fmt.Sprintf("%d", runid)
+		}
+	}
+	l := utils.GetLogger()
+	log := l.WithField(utils.RUNID, rid)
+	ctx = context.WithValue(ctx, utils.RUNIDLOG, log)
+	return ctx, log, rid
+}
+
+func (s *service) requireProbe(ctx context.Context) error {
+	rid, log := utils.GetRunidAndLogger(ctx)
+	if s.unity == nil {
+		if !s.opts.AutoProbe {
+			return status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Controller Service has not been probed"))
+		}
+		log.Debug("probing controller service automatically")
+		if err := s.controllerProbe(ctx); err != nil {
+			return status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "failed to probe/init plugin: %s", err.Error()))
+		}
+	}
 	return nil
 }

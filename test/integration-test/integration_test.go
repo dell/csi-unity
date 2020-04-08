@@ -113,6 +113,40 @@ func (f *feature) aBasicBlockVolumeRequest(volumeName string, size int) error {
 	return nil
 }
 
+//aBasicBlockVolumeRequest method with volume content source
+func (f *feature) aBasicBlockVolumeRequestWithVolumeContentSource(volumeName string, size int) error {
+	f.createVolumeRequest = nil
+	req := new(csi.CreateVolumeRequest)
+	params := make(map[string]string)
+	params["storagepool"] = os.Getenv("STORAGE_POOL")
+	req.Parameters = params
+	req.Name = volumeName
+	capacityRange := new(csi.CapacityRange)
+        capacityRange.RequiredBytes = int64(size * 1024 * 1024 * 1024)
+        req.CapacityRange = capacityRange
+	capability := new(csi.VolumeCapability)
+	mount := new(csi.VolumeCapability_MountVolume)
+	mountType := new(csi.VolumeCapability_Mount)
+	mountType.Mount = mount
+	capability.AccessType = mountType
+	accessMode := new(csi.VolumeCapability_AccessMode)
+	accessMode.Mode = csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER
+	capability.AccessMode = accessMode
+	f.capability = capability
+	capabilities := make([]*csi.VolumeCapability, 0)
+	capabilities = append(capabilities, capability)
+	req.VolumeCapabilities = capabilities
+	volumeContentSource_SnapshotSource := new(csi.VolumeContentSource_SnapshotSource)
+	volumeContentSource_SnapshotSource.SnapshotId = f.createSnapshotResponse.GetSnapshot().GetSnapshotId()
+	volumeContentSource_Snapshot := new(csi.VolumeContentSource_Snapshot)
+	volumeContentSource_Snapshot.Snapshot = volumeContentSource_SnapshotSource
+	volumeContentSource := new(csi.VolumeContentSource)
+	volumeContentSource.Type = volumeContentSource_Snapshot
+	req.VolumeContentSource = volumeContentSource
+	f.createVolumeRequest = req
+	return nil
+}
+
 //iCallCreateVolume - Test case to create volume
 func (f *feature) iCallCreateVolume() error {
 	volResp, err := f.createVolume(f.createVolumeRequest)
@@ -152,6 +186,21 @@ func (f *feature) whenICallDeleteVolume() error {
 		f.addError(err)
 	} else {
 		fmt.Printf("DeleteVolume %s completed successfully\n", f.volID)
+	}
+	return nil
+}
+
+//whenICallDeleteAllCreatedVolumes - Test case to delete all created volumes in a scenario
+func (f *feature) whenICallDeleteAllCreatedVolumes() error {
+	for i := 0; i < len(f.volIDList); i++ {
+		err := f.deleteVolume(f.volIDList[i])
+
+		if err != nil {
+			fmt.Printf("DeleteVolume %s:\n", err.Error())
+			f.addError(err)
+		} else {
+			fmt.Printf("DeleteVolume %s completed successfully\n", f.volID)
+		}
 	}
 	return nil
 }
@@ -647,11 +696,11 @@ func (f *feature) iCallGetCapacityWithPool(pool string) error {
 	f.getCapacityRequest = nil
 	req := new(csi.GetCapacityRequest)
 	params := make(map[string]string)
-	if pool == "id"{
+	if pool == "id" {
 		params["storagepool"] = os.Getenv("STORAGE_POOL")
-	}else if pool == "name"{
+	} else if pool == "name" {
 		params["storagepool"] = os.Getenv("STORAGE_POOL_NAME")
-	}else {
+	} else {
 		params["storagepool"] = "xyz"
 	}
 	req.Parameters = params
@@ -893,8 +942,10 @@ func FeatureContext(s *godog.Suite) {
 	f := &feature{}
 	s.Step(`^a CSI service$`, f.aCSIService)
 	s.Step(`^a basic block volume request "([^"]*)" "(\d+)"$`, f.aBasicBlockVolumeRequest)
+	s.Step(`^a basic block volume request with volume content source with name "([^"]*)" size "([^"]*)"$`, f.aBasicBlockVolumeRequestWithVolumeContentSource)
 	s.Step(`^I call CreateVolume$`, f.iCallCreateVolume)
 	s.Step(`^when I call DeleteVolume$`, f.whenICallDeleteVolume)
+	s.Step(`^When I call DeleteAllCreatedVolumes$`, f.whenICallDeleteAllCreatedVolumes)
 	s.Step(`^there are no errors$`, f.thereAreNoErrors)
 	s.Step(`^when I call PublishVolume$`, f.whenICallPublishVolume)
 	s.Step(`^when I call UnpublishVolume$`, f.whenICallUnpublishVolume)

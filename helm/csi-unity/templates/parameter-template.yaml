@@ -1,0 +1,39 @@
+{{- define "storageClass.parameters" }}
+  {{- if .Values.storagePool }}
+    storagepool: {{ .Values.storagePool }}
+  {{- else if .Values.storageClass.storagePool }}
+    storagepool: {{ .Values.storageClass.storagePool }}
+  {{- else }}
+    storagepool: {{ required "Must provide a Unity storage pool name (storagePool) ." }}
+  {{- end }}
+
+  {{- if .Values.FsType }}
+    FsType: {{ .Values.FsType | default "ext4" | lower | quote }}
+  {{- else if .Values.storageClass.FsType }}
+    FsType: {{ .Values.storageClass.FsType | default "ext4" | lower | quote }}
+  {{- end }}
+
+  {{- if .Values.volumeThinProvisioned }}
+    thinProvisioned: {{ .Values.volumeThinProvisioned | default "true" | lower | quote }}
+  {{- else if .Values.storageClass.thinProvisioned }}
+    thinProvisioned: {{ .Values.storageClass.thinProvisioned | default "true" | lower | quote }}
+  {{- end }}
+
+  {{- if .Values.isVolumeDataReductionEnabled }}
+    isDataReductionEnabled: {{ .Values.isVolumeDataReductionEnabled | default "false" | lower | quote }}
+  {{- else if .Values.storageClass.isDataReductionEnabled }}
+    isDataReductionEnabled: {{ .Values.storageClass.isDataReductionEnabled | default "false" | lower | quote }}
+  {{- end }}
+
+  {{- if .Values.volumeTieringPolicy }}
+    tieringPolicy: {{ .Values.volumeTieringPolicy | default "0" | quote }}
+  {{- else if .Values.storageClass.tieringPolicy }}
+    tieringPolicy: {{ .Values.storageClass.tieringPolicy | default "0" | quote }}
+  {{- end }}
+
+  {{- if .Values.hostIOLimitName }}
+    hostIOLimitName: {{ .Values.hostIOLimitName | default "" | quote }}
+  {{- else if .Values.storageClass.hostIOLimitName }}
+    hostIOLimitName: {{ .Values.storageClass.hostIOLimitName | default "" | quote }}
+  {{- end }}
+{{- end }}

@@ -4,4 +4,4 @@ metadata:
     name: unity
 spec:
     attachRequired: true
-    podInfoOnMountVersion: "v1"
+    podInfoOnMount: true

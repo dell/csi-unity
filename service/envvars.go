@@ -18,10 +18,6 @@ const (
 	// be verified
 	EnvInsecure = "X_CSI_UNITY_INSECURE"
 
-	// EnvSystemName is the name of the enviroment variable used to set the
-	// name of the Unity system to interact with
-	EnvSystemName = "X_CSI_UNITY_SYSTEMNAME"
-
 	// EnvNodeName is the name of the enviroment variable used to set the
 	// hostname where the node service is running
 	EnvNodeName = "X_CSI_UNITY_NODENAME"
@@ -35,4 +31,9 @@ const (
 	//EnvPvtMountDir is required to Node Publish a volume where the volume will be mounted
 	//inside this directory as a private mount
 	EnvPvtMountDir = "X_CSI_PRIVATE_MOUNT_DIR"
+
+	// EnvISCSIChroot is the path to which the driver will chroot before
+	// running any iscsi commands. This value should only be set when instructed
+	// by technical support.
+	EnvISCSIChroot = "X_CSI_ISCSI_CHROOT"
 )

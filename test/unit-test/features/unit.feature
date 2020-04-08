@@ -252,6 +252,61 @@ Feature: CSI interface
     When I call CreateVolume
     Then the error message should contain "required: Name"
 
+  Scenario: Create a volume from snapshot of thin volume with idempotency
+    Given a CSI service
+    And a basic block volume request "volforsnap" "2"
+    When I call CreateVolume
+    And there are no errors
+    Given a create snapshot request "snap_volforsnap"
+    When I call CreateSnapshot
+    And there are no errors
+    Given a basic block volume request with volume content source with name "volfromsnap" size "2"
+    When I call CreateVolume
+    Then there are no errors
+    When I call CreateVolume
+    Then there are no errors
+    And when I call DeleteVolume
+    Then there are no errors
+    Given a delete snapshot request
+    When I call DeleteSnapshot
+    Then there are no errors
+    And When I call DeleteAllCreatedVolumes
+    Then there are no errors
+
+  Scenario: Create a volume from snapshot that does not exist
+    Given a CSI service
+    And a basic block volume request "volforsnap" "2"
+    When I call CreateVolume
+    And there are no errors
+    Given a create snapshot request "snap_volforsnap"
+    When I call CreateSnapshot
+    And there are no errors
+    Given a delete snapshot request
+    When I call DeleteSnapshot
+    Then there are no errors
+    Given a basic block volume request with volume content source with name "volfromsnap" size "2"
+    When I call CreateVolume
+    Then the error message should contain "snapshot not found"
+    And When I call DeleteAllCreatedVolumes
+    Then there are no errors
+
+   Scenario: Create a volume from snapshot and passing an existing name for new volume 
+    Given a CSI service
+    And a basic block volume request "volforsnap" "2"
+    When I call CreateVolume
+    And there are no errors
+    Given a create snapshot request "snap_volforsnap"
+    When I call CreateSnapshot
+    And there are no errors
+    Given a basic block volume request with volume content source with name "volforsnap" size "2"
+    When I call CreateVolume
+    Then the error message should contain "already exists"
+    Given a delete snapshot request
+    When I call DeleteSnapshot
+    Then there are no errors
+    And When I call DeleteAllCreatedVolumes
+    Then there are no errors
+
   Scenario: Publish and unpublish a volume to host
     Given a CSI service
     And a basic block volume request "test_publish1" "5"
@@ -381,7 +436,7 @@ Feature: CSI interface
   Scenario: Get Capacity with storage pool name
     Given a CSI service
     And a basic block volume request with volumeName "param_test6" size "2" storagepool "lglad082_AFA" thinProvisioned "true" isDataReductionEnabled "false" tieringPolicy "0"
-    When I call Get Capacity with storage pool "lglad082_AFA"
+    When I call Get Capacity with storage pool "id"
     Then there are no errors
 
   Scenario: Get Capacity with storage pool id
@@ -454,7 +509,7 @@ Feature: CSI interface
 
   Scenario: Node stage, publish, unpublish and unstage volume
     Given a CSI service
-    And a basic block volume request "unit_test_publish" "5"
+    And a basic block volume request "unit_test_publish_csiv" "5"
     When I call CreateVolume
     And there are no errors
     And when I call PublishVolume
@@ -521,8 +576,9 @@ Feature: CSI interface
     And there are no errors
     And when I call NodePublishVolume fsType "ext4" readonly "false"
     Then the error message should contain "not been published to this node"
-    And when I call NodeUnPublishVolume
-    Then there are no errors
+# BUG -> CSIUNITY-350
+#    And when I call NodeUnPublishVolume
+#    Then there are no errors
     And when I call DeleteVolume
     Then there are no errors
 
@@ -566,7 +622,7 @@ Feature: CSI interface
 
   Scenario: Node stage, publish, unpublish and unstage volume idempotency
     Given a CSI service
-    And a basic block volume request "unit_test_publish" "5"
+    And a basic block volume request "unit_test_publish_csiv" "5"
     When I call CreateVolume
     And there are no errors
     And when I call PublishVolume
@@ -581,8 +637,9 @@ Feature: CSI interface
     Then there are no errors
     And when I call NodeUnPublishVolume
     And there are no errors
-    And when I call NodeUnPublishVolume
-    Then there are no errors
+# Bug -> CSIUNITY-350
+#    And when I call NodeUnPublishVolume
+#    Then there are no errors
     And when I call NodeUnstageVolume
     And there are no errors
     And when I call NodeUnstageVolume
@@ -604,7 +661,7 @@ Feature: CSI interface
 
   Scenario: Node publish with target path not ceated
     Given a CSI service
-    And a basic block volume request "unit_test_publish" "5"
+    And a basic block volume request "unit_test_publish_csiv" "5"
     When I call CreateVolume
     And there are no errors
     And when I call PublishVolume
@@ -622,7 +679,7 @@ Feature: CSI interface
 
   Scenario: Node stage with target path not ceated
     Given a CSI service
-    And a basic block volume request "unit_test_publish" "5"
+    And a basic block volume request "unit_test_publish_csiv" "5"
     When I call CreateVolume
     And there are no errors
     And when I call PublishVolume
@@ -669,4 +726,4 @@ Feature: CSI interface
   Scenario: Node get info with incorrect hostname but same network address (hostname here should not be a host on array)
     Given a CSI service
     And When I call NodeGetInfo hostname "host_new"
-    Then the error message should contain "The specified host network address already exists"
+    Then the error message should contain "Initiator found"

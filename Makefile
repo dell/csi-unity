@@ -9,11 +9,11 @@ endif
 
 .PHONY: go-vendor
 go-vendor:
-	git config core.hooksPath hooks
 	go mod vendor
 
 .PHONY: go-build
-go-build: go-vendor
+go-build: clean go-vendor
+	git config core.hooksPath hooks
 	rm -f core/core_generated.go
 	cd core && go generate
 	go build .
@@ -45,7 +45,6 @@ version:
 
 .PHONY: clean
 clean:
-	rm -rf bin
 	rm -f core/core_generated.go
 	go clean
 
