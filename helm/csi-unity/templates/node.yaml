@@ -75,6 +75,8 @@ spec:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
           image: {{ required "Must provide the Unity driver container image." .Values.images.driver }}
+          args:
+            - "--driver-name=csi-unity.dellemc.com"
           lifecycle:
             preStop:
               exec:
@@ -92,6 +94,8 @@ spec:
               value: {{ .Values.csiDebug | default "false" | lower | quote }}
             - name: X_CSI_PRIVATE_MOUNT_DIR
               value: "/var/lib/kubelet/plugins/unity.emc.dell.com/disks"
+            - name: X_CSI_ISCSI_CHROOT
+              value: {{ .Values.ISCSIChroot | default "/noderoot" }}
             - name: X_CSI_UNITY_NODENAME
               valueFrom:
                 fieldRef:
@@ -99,8 +103,6 @@ spec:
                   fieldPath: spec.nodeName
             - name: X_CSI_UNITY_NODENAME_PREFIX
               value: {{ .Values.nodeNamePrefix }}
-            - name: X_CSI_UNITY_NODE_ID_PATH
-              value: /machine-id
             - name: X_CSI_UNITY_ENDPOINT
               value: {{ required "Must provide a UNITY HTTPS endpoint." .Values.restGateway }}
             - name: X_CSI_UNITY_USER
@@ -113,8 +115,6 @@ spec:
                 secretKeyRef:
                   name: {{ .Release.Name }}-creds
                   key: password
-            - name: X_CSI_UNITY_NODE_CHROOT_PATH
-              value: /noderoot
             - name: X_CSI_UNITY_INSECURE
               value: {{ .Values.unityInsecure | default "true" | lower | quote }}
             - name: GOUNITY_DEBUG
@@ -131,8 +131,6 @@ spec:
               mountPropagation: "Bidirectional"
             - name: dev
               mountPath: /dev
-            - name: machine-id
-              mountPath: /machine-id
             - name: noderoot
               mountPath: /noderoot
             - name: certs
@@ -185,10 +183,6 @@ spec:
           hostPath:
             path: /dev
             type: Directory
-        - name: machine-id
-          hostPath:
-            path: /etc/machine-id
-            type: File
         - name: noderoot
           hostPath:
             path: /

@@ -3,7 +3,6 @@ package service
 import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/dell/csi-unity/core"
-	"github.com/golang/glog"
 	"golang.org/x/net/context"
 	"strings"
 )
@@ -12,7 +11,8 @@ func (s *service) Probe(
 	ctx context.Context,
 	req *csi.ProbeRequest) (
 	*csi.ProbeResponse, error) {
-	glog.V(5).Infof("Using probe")
+	ctx, log, _ := GetRunidLog(ctx)
+	log.Infof("Executing Probe with args: %+v", *req)
 	if !strings.EqualFold(s.mode, "node") {
 		if err := s.controllerProbe(ctx); err != nil {
 			return nil, err
@@ -42,8 +42,8 @@ func (s *service) GetPluginCapabilities(
 	ctx context.Context,
 	req *csi.GetPluginCapabilitiesRequest) (
 	*csi.GetPluginCapabilitiesResponse, error) {
-
-	glog.V(5).Infof("Using default capabilities")
+	ctx, log, _ := GetRunidLog(ctx)
+	log.Infof("Executing GetPluginCapabilities with args: %+v", *req)
 	return &csi.GetPluginCapabilitiesResponse{
 		Capabilities: []*csi.PluginCapability{
 			{

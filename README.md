@@ -19,13 +19,13 @@ The CSI Driver For Dell EMC Unity conforms to CSI spec 1.1
 |------------|-----------| --------------|
 |Provisioning | Persistent volumes creation, deletion, mounting, unmounting, listing | Volume expand |
 |Export, Mount | Mount volume as file system | Raw volumes, Topology|
-|Data protection | Creation of snapshots | Cloning, Create volume from snapshots|
+|Data protection | Creation of snapshots, Create volume from snapshots | Cloning volume |
 |Types of volumes | Static, Dynamic| |
 |Access mode | Single Node read/write | Multi Node access modes|
 |Kubernetes | v1.14 | V1.13 or previous versions|
 |OS | RHEL 7.5, 7.6. CentOs 7.6 | Ubuntu, other Linux variants|
 |Unity | OE 5.0 | Previous versions|
-|Protocol | FC | iSCSI, NFS|
+|Protocol | FC, iSCSI | NFS |
 
 ## Installation overview
 
@@ -148,13 +148,13 @@ Procedure
     The following table lists the primary configurable parameters of the Unity driver chart and their default values. More detailed information can be found in the [`values.yaml`](helm/csi-unity/values.yaml) file in this repository.
     
     | Parameter | Description | Required | Default |
-    | --------- | ----------- | -------- |-------- |
-    | systemName | Name of the Unity system   | false | unity |
+    | --------- | ----------- | -------- |-------- |    
     | restGateway | REST API gateway HTTPS endpoint Unity system | true | - |
     | storagePool | Unity Storage Pool CLI ID to use with in the Kubernetes storage class | true | - |
     | unityUsername | Username for accessing unity system <base64 encoded string> | true | - |
     | unityPassword | Password for accessing unity system <base64 encoded string> | true | - |
     | volumeNamePrefix | String to prepend to any volumes created by the driver | false | csivol |
+    | snapNamePrefix | String to prepend to any snapshot created by the driver | false | csi-snap |
     | storageClass.name | Name of the storage class to be defined | false | unity |
     | storageClass.isDefault | Whether or not to make this storage class the default | false | true |
     | storageClass.reclaimPolicy | What should happen when a volume is removed | false | Delete |
@@ -333,7 +333,113 @@ Test the deployment workflow of a simple pod on Unity storage.
     kubectl delete pvc testvolclaim1
     kubectl get pvc
     ```
+## Install CSI-Unity driver using dell-csi-operator in OpenShift
+CSI Driver for Dell EMC Unity can also be installed via the new Dell EMC Storage Operator. 
+The Dell EMC Storage CSI Operator is a Kubernetes Operator, which can be used to install and manage the CSI Drivers provided by Dell EMC for various storage platforms. This operator is available as a community operator for upstream Kubernetes and can be deployed using OperatorHub.io. It is also available as a community operator for OpenShift clusters and can be deployed using OpenShift Container Platform. Both these methods of installation use OLM (Operator Lifecycle Manager). 
+The operator can also be deployed directly by following the instructions available here - https://github.com/dell/dell-csi-operator 
+There are sample manifests provided which can be edited to do an easy installation of the driver. Please note that the deployment of the driver using the operator doesn’t use any Helm charts and the installation & configuration parameters will be slightly different from the ones specified via the Helm installer.
 
+Kubernetes Operators make it easy to deploy and manage entire lifecycle of complex Kubernetes applications. Operators use Custom Resource Definitions (CRD) which represents the application and use custom controllers to manage them.
+
+### Listing CSI-Unity drivers
+User can query for csi-unity driver using the following command
+`kubectl get csiunity --all-namespaces`
+
+### Procedure to create new CSI-Unity driver
+
+1. Create namespace
+   Run `kubectl create namespace unity` to create the unity namespace.
+   
+2. Create *unity-creds*
+   
+   Create a file called unity-creds.yaml with the following content
+     ```yaml
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: unity-creds
+      namespace: unity
+    type: Opaque
+    data:
+      # set username to the base64 encoded username
+      username: <base64 username>
+      # set password to the base64 encoded password
+      password: <base64 password>
+    ```
+   
+   Replace the values for the username and password parameters. These values can be optioned using base64 encoding as described in the following example:
+   ```
+   echo -n "myusername" | base64
+   echo -n "mypassword" | base64
+   ```
+   
+   Run `kubectl create -f unity-creds.yaml` command to create the secret
+ 
+3. Create a CR (Custom Resource) for unity using the sample provided below
+Create a new file `csiunity.yaml` with the following content.
+
+    ```yaml
+    apiVersion: storage.dell.com/v1
+    kind: CSIUnity
+    metadata:
+      name: unity
+      namespace: unity
+    spec:
+      driver:
+        configVersion: v1
+        replicas: 1
+        common:
+          image: "dellemc/csi-unity:v1.1.0.000R"
+          imagePullPolicy: IfNotPresent
+          envs:
+          - name: X_CSI_UNITY_DEBUG
+            value: "true"
+          - name: X_CSI_UNITY_ENDPOINT
+            value: "https://<Unisphere URL>"
+          - name: X_CSI_UNITY_INSECURE
+            value: "true"
+        storageClass:
+        - name: fc
+          default: true
+          reclaimPolicy: "Delete"
+          parameters:
+            storagepool: pool_1
+            protocol: "FC"
+        - name: iscsi
+          reclaimPolicy: "Delete"
+          parameters:
+            storagepool: pool_1
+            protocol: "iSCSI"
+        snapshotClass:
+          - name: snapshot
+            parameters:
+              retentionDuration: "1:1:1:1"
+    ```
+
+4.  Execute the following command to create unity custom resource
+    ```kubectl create -f csiunity.yaml```
+    The above command will deploy the csi-unity driver
+ 
+5. User can configure the following parameters in CR
+       
+   The following table lists the primary configurable parameters of the Unity driver chart and their default values.
+   
+   | Parameter | Description | Required | Default |
+   | --------- | ----------- | -------- |-------- |
+   | ***Common parameters for node and controller*** |
+   | CSI_ENDPOINT | Specifies the HTTP endpoint for Unity. | No | /var/run/csi/csi.sock |
+   | X_CSI_DEBUG | To enable debug mode | No | false |
+   | X_CSI_UNITY_ENDPOINT | Must provide a UNITY HTTPS unisphere url. | Yes | |
+   | X_CSI_UNITY_INSECURE | Specifies that the Unity's hostname and certificate chain | No | true |
+   | GOUNITY_DEBUG | To enable debug mode for gounity library| No | false |
+   | ***Controller parameters*** |
+   | X_CSI_MODE   | Driver starting mode | No | controller|
+   | X_CSI_UNITY_AUTOPROBE | To enable auto probing for driver | No | true |
+   | ***Node parameters*** |
+   | X_CSI_MODE   | Driver starting mode  | No | node|
+   | X_CSI_PRIVATE_MOUNT_DIR | Specifies the private directory to which a PVC will be mounted before binding the mount to the target directory. | No | /var/lib/kubelet/plugins/unity.emc.dell.com/disks |
+   | X_CSI_ISCSI_CHROOT | Path to which the driver will chroot before running any iscsi commands. | No | /noderoot |
+           
 ## Support
 The CSI Driver for Dell EMC Unity image available on Dockerhub is officially supported by Dell EMC.
  

@@ -1,4 +1,14 @@
 #!/bin/bash
-helm delete --purge unity
+
+helm version | grep "v3." --quiet
+if [ $? -eq 0 ]
+then
+    echo "Uninstalling using helm version 3"
+    helm delete -n unity unity
+else
+    echo "Uninstalling using helm version 2"
+    helm delete --purge unity
+fi
+
 sleep 10
 kubectl get pods -n unity

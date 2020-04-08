@@ -1,6 +1,10 @@
 #/bin/bash
 NS="unity"
 
+# Use relative path of script invocation
+cd "`dirname \"$0\"`"
+
+source ./common.bash
 # Verify the kubernetes installation has the feature gates needed.
 sh ./verify.kubernetes
 rc=$?
@@ -19,36 +23,28 @@ if [ $? -ne 0 ];
     kubectl create -f ./emptysecret.yaml
 fi
 
-# Check for required CustomResourceDefinitions
-kubectl get customresourcedefinitions | grep csidrivers --quiet
-if [ $? -ne 0 ]
-then
-    echo "installing csidriver CRD"; kubectl create -f csidriver.yaml
-fi
-
-kubectl get customresourcedefinitions | grep nodeinfo --quiet
-if [ $? -ne 0 ]
-then
-    echo "installing nodeinfo CRD"; kubectl create -f nodeinfo.yaml
-fi
-
 kubectl get customresourcedefinitions | grep snapshot --quiet
 if [ $? -ne 0 ]
 then
     echo "installing snapshot CRD"; kubectl create -f snapshot-crd.yaml
 fi
 
-helm install --values myvalues.yaml --name unity --namespace "$NS" ./csi-unity
-sleep 10
-kubectl get pods --namespace "$NS"
-sleep 5
-kubectl get pods --namespace "$NS"
-sleep 5
-kubectl get pods --namespace "$NS"
+helm version | grep "v3." --quiet
+if [ $? -eq 0 ]
+then
+    echo "Installing using helm version 3"
+    helm install unity --values myvalues.yaml  -n "$NS" ./csi-unity
+else
+    echo "Installing using helm version 2"
+    helm install --values myvalues.yaml --name unity --namespace unity ./csi-unity
+fi
+
+waitOnRunning
+
 echo "CSIDrivers:"
 kubectl get csidrivers
-echo "CSINodeInfos:"
-kubectl get csinodeinfos
+echo "CSINodes:"
+kubectl get csinode
 echo "StorageClasses:"
 kubectl get storageclass
 

@@ -5,8 +5,8 @@ metadata:
 snapshotter: csi-unity.dellemc.com
 parameters:
 {{ if .Values.snapshotRetentionDuration }}
-  retentionDuration: {{ .Values.snapshotRetentionDuration }}
+  retentionDuration: {{ .Values.snapshotRetentionDuration | default "" | quote  }}
+{{ else if .Values.snapshotClass.retentionDuration }}
+  retentionDuration: {{ .Values.snapshotClass.retentionDuration | default "" | quote  }}
 {{ end }}
-{{ if .Values.isSnapshotReadOnly }}
-  isReadOnly: {{ .Values.snapshotIsReadOnly | default "false" | lower | quote }}
-{{ end }}
+

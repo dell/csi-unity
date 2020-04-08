@@ -13,5 +13,4 @@ elif [[ ${CSI_ENDPOINT} == unix://* ]]; then
         echo "Removed endpoint $ENDPOINT"
     fi
 fi
-/sbin/mpathconf --enable
-/csi-unity
+exec /csi-unity "$@"

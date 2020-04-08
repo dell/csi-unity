@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
-
+	"flag"
+	"fmt"
 	"github.com/rexray/gocsi"
+	"os"
 
 	"github.com/dell/csi-unity/provider"
 	"github.com/dell/csi-unity/service"
@@ -11,6 +13,14 @@ import (
 
 // main is ignored when this package is built as a go plug-in.
 func main() {
+	driverName := flag.String("driver-name", "", "driver name")
+	flag.Parse()
+
+	if *driverName == "" {
+		fmt.Fprintf(os.Stderr, "driver-name argument is mandatory")
+		os.Exit(1)
+	}
+	service.Name = *driverName
 	gocsi.Run(
 		context.Background(),
 		service.Name,
