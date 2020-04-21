@@ -64,11 +64,6 @@ The Kubernetes feature gates must be enabled before installing CSI Driver for Un
 The Feature Gates section of Kubernetes home page lists the Kubernetes feature gates. The following Kubernetes feature gates must be enabled:
 
 * VolumeSnapshotDataSource
-* KubeletPluginsWatcher
-* CSINodeInfo
-* CSIDriverRegistry
-* BlockVolume
-* CSIBlockVolume
 
 ### Procedure
 
@@ -77,12 +72,6 @@ The Feature Gates section of Kubernetes home page lists the Kubernetes feature g
 
     ```
     VolumeSnapshotDataSource: true
-    KubeletPluginsWatcher: true
-    CSINodeInfo: true
-    CSIDriverRegistry: true
-    BlockVolume: true
-    CSIBlockVolume: true
-    ExpandCSIVolumes: true
     ```
 
 2. On the master node, set the feature gate settings of the kube-apiserver.yaml, kube-controllermanager.yaml and kube-scheduler.yaml file as follows:
@@ -92,13 +81,13 @@ The Feature Gates section of Kubernetes home page lists the Kubernetes feature g
     /etc/kubernetes/manifests/kube-scheduler.yaml*
 
     ```
-    - --feature-gates=VolumeSnapshotDataSource=true,KubeletPluginsWatcher=true,CSINodeInfo=true,CSIDriverRegistry=true,BlockVolume=true,CSIBlockVolume=true,ExpandCSIVolumes=true
+    - --feature-gates=VolumeSnapshotDataSource=true
     ```
 
 3. On each node (including master), edit the variable **KUBELET_KUBECONFIG_ARGS** of /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf file as follows:
 
     ```
-    Environment="KUBELET_KUBECONFIG_ARGS=--bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf --kubeconfig=/etc/kubernetes/kubelet.conf --feature-gates=VolumeSnapshotDataSource=true,KubeletPluginsWatcher=true,CSINodeInfo=true,CSIDriverRegistry=true,BlockVolume=true,CSIBlockVolume=true,ExpandCSIVolumes=true" 
+    Environment="KUBELET_KUBECONFIG_ARGS=--bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf --kubeconfig=/etc/kubernetes/kubelet.conf --feature-gates=VolumeSnapshotDataSource=true" 
     ```
 
 4. Restart the kublet on all nodes. 
@@ -134,7 +123,7 @@ The mount propagation in Docker must be configured on all Kubernetes nodes befor
 Install CSI Driver for Unity using this procedure.
 
 *Before you begin*
- * You must have the downloaded files, including the Helm chart from the source [git repository](<github.com/dell/csi-unity>), ready for this procedure.
+ * You must have the downloaded files, including the Helm chart from the source [git repository](https://github.com/dell/csi-unity), ready for this procedure.
  * In the top-level helm directory, there should be two shell scripts, *install.unity* and *uninstall.unity*. These scripts handle some of the pre and post operations that cannot be performed in the helm chart, such as creating Custom Resource Definitions (CRDs), if needed.
 
 Procedure
