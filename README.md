@@ -23,7 +23,7 @@ The CSI Driver For Dell EMC Unity conforms to CSI spec 1.1
 |Types of volumes | Static, Dynamic| |
 |Access mode | Single Node read/write | Multi Node access modes|
 |Kubernetes | v1.14 | V1.13 or previous versions|
-|OS | 7.6. CentOS 7.6 | Ubuntu, other Linux variants|
+|OS | RHEL 7.6, CentOS 7.6 | Ubuntu, other Linux variants|
 |Unity | OE 5.0 | Previous versions|
 |Protocol | FC, iSCSI | NFS |
 
