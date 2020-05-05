@@ -1,5 +1,15 @@
 #!/bin/bash
 
+lifecyclePresent=$(kubectl get daemonset unity-node -n unity -o yaml | grep -c lifecycle)
+if [ $lifecyclePresent -gt 0 ]; then
+    echo "Removing lifecycle hooks from daemonset"
+    kubectl patch daemonset unity-node -n unity --type json -p='[{"op": "replace", "path": "/spec/updateStrategy", "type":"OnDelete"}]'
+    kubectl patch daemonset unity-node -n unity --type json -p='[{"op": "remove", "path": "/spec/template/spec/containers/0/lifecycle"}]'
+    kubectl patch daemonset unity-node -n unity --type json -p='[{"op": "remove", "path": "/spec/template/spec/containers/1/lifecycle"}]'
+    sleep 5
+    kubectl delete pod -l app=unity-node -n unity --force --grace-period=0
+fi
+
 helm version | grep "v3." --quiet
 if [ $? -eq 0 ]
 then

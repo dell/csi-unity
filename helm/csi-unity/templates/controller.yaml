@@ -128,13 +128,6 @@ spec:
           args:
             - "--driver-name=csi-unity.dellemc.com"
           imagePullPolicy: {{ .Values.imagePullPolicy }}
-          lifecycle:
-            preStop:
-              exec:
-                command: [
-                  "/bin/sh", "-c",
-                  "rm -rf /var/run/csi/csi.sock"
-                ]
           env:
             - name: CSI_ENDPOINT
               value: /var/run/csi/csi.sock

@@ -57,6 +57,8 @@ metadata:
   name: {{ .Release.Name }}-node
   namespace: {{ .Release.Namespace }}
 spec:
+  updateStrategy:
+    type: RollingUpdate
   selector:
     matchLabels:
       app: {{ .Release.Name }}-node
@@ -77,13 +79,6 @@ spec:
           image: {{ required "Must provide the Unity driver container image." .Values.images.driver }}
           args:
             - "--driver-name=csi-unity.dellemc.com"
-          lifecycle:
-            preStop:
-              exec:
-                command: [
-                  "/bin/sh", "-c",
-                  "rm -rf /var/lib/kubelet/plugins/unity.emc.dell.com/*"
-                ]
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
             - name: CSI_ENDPOINT
@@ -142,13 +137,6 @@ spec:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
             - --kubelet-registration-path=/var/lib/kubelet/plugins/unity.emc.dell.com/csi_sock
-          lifecycle:
-            preStop:
-              exec:
-                command: [
-                  "/bin/sh", "-c",
-                  "rm -rf /registration/unity.emc.dell.com /var/lib/kubelet/plugins/unity.emc.dell.com/csi_sock /csi/csi_sock"
-                ]
           env:
             - name: ADDRESS
               value: /csi/csi_sock
