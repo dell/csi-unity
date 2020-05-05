@@ -23,7 +23,7 @@ The CSI Driver For Dell EMC Unity conforms to CSI spec 1.1
 |Types of volumes | Static, Dynamic| |
 |Access mode | Single Node read/write | Multi Node access modes|
 |Kubernetes | v1.14 | V1.13 or previous versions|
-|OS | RHEL 7.5, 7.6. CentOS 7.6 | Ubuntu, other Linux variants|
+|OS | RHEL 7.6, CentOS 7.6 | Ubuntu, other Linux variants|
 |Unity | OE 5.0 | Previous versions|
 |Protocol | FC, iSCSI | NFS |
 
@@ -64,11 +64,6 @@ The Kubernetes feature gates must be enabled before installing CSI Driver for Un
 The Feature Gates section of Kubernetes home page lists the Kubernetes feature gates. The following Kubernetes feature gates must be enabled:
 
 * VolumeSnapshotDataSource
-* KubeletPluginsWatcher
-* CSINodeInfo
-* CSIDriverRegistry
-* BlockVolume
-* CSIBlockVolume
 
 ### Procedure
 
@@ -77,12 +72,6 @@ The Feature Gates section of Kubernetes home page lists the Kubernetes feature g
 
     ```
     VolumeSnapshotDataSource: true
-    KubeletPluginsWatcher: true
-    CSINodeInfo: true
-    CSIDriverRegistry: true
-    BlockVolume: true
-    CSIBlockVolume: true
-    ExpandCSIVolumes: true
     ```
 
 2. On the master node, set the feature gate settings of the kube-apiserver.yaml, kube-controllermanager.yaml and kube-scheduler.yaml file as follows:
@@ -92,13 +81,13 @@ The Feature Gates section of Kubernetes home page lists the Kubernetes feature g
     /etc/kubernetes/manifests/kube-scheduler.yaml*
 
     ```
-    - --feature-gates=VolumeSnapshotDataSource=true,KubeletPluginsWatcher=true,CSINodeInfo=true,CSIDriverRegistry=true,BlockVolume=true,CSIBlockVolume=true,ExpandCSIVolumes=true
+    - --feature-gates=VolumeSnapshotDataSource=true
     ```
 
 3. On each node (including master), edit the variable **KUBELET_KUBECONFIG_ARGS** of /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf file as follows:
 
     ```
-    Environment="KUBELET_KUBECONFIG_ARGS=--bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf --kubeconfig=/etc/kubernetes/kubelet.conf --feature-gates=VolumeSnapshotDataSource=true,KubeletPluginsWatcher=true,CSINodeInfo=true,CSIDriverRegistry=true,BlockVolume=true,CSIBlockVolume=true,ExpandCSIVolumes=true" 
+    Environment="KUBELET_KUBECONFIG_ARGS=--bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf --kubeconfig=/etc/kubernetes/kubelet.conf --feature-gates=VolumeSnapshotDataSource=true" 
     ```
 
 4. Restart the kublet on all nodes. 
@@ -134,7 +123,7 @@ The mount propagation in Docker must be configured on all Kubernetes nodes befor
 Install CSI Driver for Unity using this procedure.
 
 *Before you begin*
- * You must have the downloaded files, including the Helm chart from the source [git repository](<github.com/dell/csi-unity>), ready for this procedure.
+ * You must have the downloaded files, including the Helm chart from the source [git repository](https://github.com/dell/csi-unity), ready for this procedure.
  * In the top-level helm directory, there should be two shell scripts, *install.unity* and *uninstall.unity*. These scripts handle some of the pre and post operations that cannot be performed in the helm chart, such as creating Custom Resource Definitions (CRDs), if needed.
 
 Procedure
@@ -216,13 +205,77 @@ Procedure
 
     Finally, the script lists the created storageclasses such as, "unity". Additional storage classes can be created for different combinations of file system types and Unity storage pools. The script also creates volumesnapshotclass "unity-snapclass".
 
+## Upgrade CSI Driver for Unity
+
+Preparing myvalues.yaml is same as explained above.
+
+Run the `sh upgrade.unity` command to proceed with the upgrading process.
+
+Note: Upgrading CSI Unity driver is possible within the same version of Helm. (Ex: Helm V2 to Helm V2)
+ 
+A successful upgrade should emit messages that look similar to the following samples:
+
+    ```
+    $ ./upgrade.unity 
+    Kubernetes version v1.14.10
+    Kubernetes master nodes: 10.*.*.*
+    Kubernetes minion nodes:
+    Verifying the feature gates.
+    node-1's password: 
+    lifecycle present :2
+    Removing lifecycle hooks from daemonset
+    daemonset.extensions/unity-node patched
+    daemonset.extensions/unity-node patched
+    daemonset.extensions/unity-node patched
+    warning: Immediate deletion does not wait for confirmation that the running resource has been terminated. The resource may continue to run on the cluster indefinitely.
+    pod "unity-node-s28n6" force deleted
+    Thu Apr 23 05:25:49 EDT 2020
+    running 2 / 2
+    NAME                 READY   STATUS    RESTARTS   AGE
+    unity-controller-0   4/4     Running   0          48s
+    unity-node-tl66n     2/2     Running   0          10s
+    Upgrading using helm version 3
+    Release "unity" has been upgraded. Happy Helming!
+    NAME: unity
+    LAST DEPLOYED: Thu Apr 23 05:25:49 2020
+    NAMESPACE: unity
+    STATUS: deployed
+    REVISION: 2
+    TEST SUITE: None
+    Thu Apr 23 05:26:00 EDT 2020
+    running 2 / 2
+    NAME                 READY   STATUS    RESTARTS   AGE
+    unity-controller-0   4/4     Running   0          7s
+    unity-node-7hzfv     2/2     Running   0          8s
+    CSIDrivers:
+    NAME       CREATED AT
+    unity      2020-04-23T09:25:01Z
+    CSINodes:
+    NAME                   CREATED AT
+    node1   2020-03-30T06:44:01Z
+    StorageClasses:
+    NAME                 PROVISIONER                AGE
+    unity (default)      csi-unity.dellemc.com      59s
+    unity-iscsi          csi-unity.dellemc.com      59s
+    ```
+
+## Migrate from Helm 2 to Helm 3
+1. Get the latest code from github.com/dell/csi-unity by executing the following command.
+    `git clone -b v1.1.0.1 https://github.com/dell/csi-unity.git`
+2. Uninstall the CSI Driver for Dell EMC Unity v1.0 or v1.1 using the uninstall.unity script under csi-unity/helm using Helm 2.
+3. Go to https://helm.sh/docs/topics/v2_v3_migration/ and follow the instructions to migrate from Helm 2 to Helm 3.
+4. Once Helm 3 is ready, install the CSI Driver for Dell EMC Unity v1.1.0.1 using install.unity script under csi-unity/helm.
+5. List the pods with the following command (to verify the status)
+
+   `kubectl get pods -n unity`
+
 ## Test deploying a simple pod with Unity storage
 Test the deployment workflow of a simple pod on Unity storage.
 
 1. **Verify Unity system for Host**
 
     After helm deployment `CSI Driver for Node` will create new Host(s) in the Unity system depending on the number of node in kubernetes cluster.
-    Verify Unity system for new Hosts and Initattors
+    Verify Unity system for new Hosts and Initiators
     
 2. **Creating a volume:**
 
@@ -334,9 +387,12 @@ Test the deployment workflow of a simple pod on Unity storage.
     kubectl get pvc
     ```
 ## Install CSI-Unity driver using dell-csi-operator in OpenShift
-CSI Driver for Dell EMC Unity can also be installed via the new Dell EMC Storage Operator. 
-The Dell EMC Storage CSI Operator is a Kubernetes Operator, which can be used to install and manage the CSI Drivers provided by Dell EMC for various storage platforms. This operator is available as a community operator for upstream Kubernetes and can be deployed using OperatorHub.io. It is also available as a community operator for OpenShift clusters and can be deployed using OpenShift Container Platform. Both these methods of installation use OLM (Operator Lifecycle Manager). 
-The operator can also be deployed directly by following the instructions available here - https://github.com/dell/dell-csi-operator 
+CSI Driver for Dell EMC Unity can also be installed via the new Dell EMC Storage Operator.
+
+The Dell EMC Storage CSI Operator is a Kubernetes Operator, which can be used to install and manage the CSI Drivers provided by Dell EMC for various storage platforms. This operator is available as a community operator for upstream Kubernetes and can be deployed using OperatorHub.io. It is also available as a community operator for OpenShift clusters and can be deployed using OpenShift Container Platform. Both these methods of installation use OLM (Operator Lifecycle Manager).
+ 
+The operator can also be deployed directly by following the instructions available here - https://github.com/dell/dell-csi-operator
+ 
 There are sample manifests provided which can be edited to do an easy installation of the driver. Please note that the deployment of the driver using the operator doesn’t use any Helm charts and the installation & configuration parameters will be slightly different from the ones specified via the Helm installer.
 
 Kubernetes Operators make it easy to deploy and manage entire lifecycle of complex Kubernetes applications. Operators use Custom Resource Definitions (CRD) which represents the application and use custom controllers to manage them.
@@ -445,6 +501,6 @@ The CSI Driver for Dell EMC Unity image available on Dockerhub is officially sup
  
 The source code available on Github is unsupported and provided solely under the terms of the license attached to the source code. For clarity, Dell EMC does not provide support for any source code modifications.
  
-For any CSI driver setup, configuration issues, questions or feedback, join the Dell EMC Container community athttps://www.dell.com/community/Containers/bd-p/Containers
+For any CSI driver setup, configuration issues, questions or feedback, join the Dell EMC Container community at https://www.dell.com/community/Containers/bd-p/Containers
  
 For any Dell EMC storage issues, please contact Dell support at: https://www.dell.com/support.
