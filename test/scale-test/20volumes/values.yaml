@@ -1,0 +1,2 @@
+StorageClassName: unity-iscsi
+replicas: 3

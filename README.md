@@ -9,7 +9,7 @@ Unity CSI plugins implement an interface between CSI enabled Container Orchestra
 
 ## Introduction
 The CSI Driver For Dell EMC Unity conforms to CSI spec 1.1
-   * Support for Kubernetes 1.14
+   * Support for Kubernetes 1.14 and 1.16
    * Will add support for other orchestrators over time
    * The CSI specification is documented here: https://github.com/container-storage-interface/spec. The driver uses CSI v1.1.
 
@@ -19,17 +19,21 @@ The CSI Driver For Dell EMC Unity conforms to CSI spec 1.1
 |------------|-----------| --------------|
 |Provisioning | Persistent volumes creation, deletion, mounting, unmounting, listing | Volume expand |
 |Export, Mount | Mount volume as file system | Raw volumes, Topology|
-|Data protection | Creation of snapshots, Create volume from snapshots | Cloning volume |
+|Data protection | Creation of snapshots, Create volume from snapshots(FC/iSCSI) | Cloning volume, Create volume from snapshots(NFS) |
 |Types of volumes | Static, Dynamic| |
-|Access mode | Single Node read/write | Multi Node access modes|
-|Kubernetes | v1.14 | V1.13 or previous versions|
-|OS | RHEL 7.6, CentOS 7.6 | Ubuntu, other Linux variants|
+|Access mode | RWO(FC/iSCSI), RWO/RWX/ROX(NFS) | RWX/ROX(FC/iSCSI)|
+|Kubernetes | v1.14, v1.16 | V1.13 or previous versions|
+|Installer | Helm v3.x,v2.x | Operator |
+|OpenShift | v4.3 (Helm installation only) | v4.2 |
+|OS | RHEL 7.6, RHEL 7.7, CentOS 7.6, CentOS 7.7 | Ubuntu, other Linux variants|
 |Unity | OE 5.0 | Previous versions|
-|Protocol | FC, iSCSI | NFS |
+|Protocol | FC, iSCSI, NFS |  |
 
 ## Installation overview
 
 The Helm chart installs CSI Driver for Unity using a shell script (helm/install.unity). This script installs the CSI driver container image along with the required Kubernetes sidecar containers.
+
+** Note: Linux user should have root privileges to install this CSI Driver.**
 
 The controller section of the Helm chart installs the following components in a Stateful Set in the namespace unity:
 
@@ -49,11 +53,12 @@ Before you install CSI Driver for Unity, verify the requirements that are mentio
 
 #### Requirements
 
-* Install Kubernetes.
+* Install Kubernetes
 * Enable the Kubernetes feature gates
 * Configure Docker service
-* Install Helm and Tiller with a service account
+* Install Helm v2 with Tiller with a service account or Helm v3
 * Deploy Unity using Helm
+* To use iSCSI and NFS protocol, iSCSI initiator and NFS utility packages need to be installed
 
 ## Enable Kubernetes feature gates
 
@@ -128,7 +133,7 @@ Install CSI Driver for Unity using this procedure.
 
 Procedure
 
-1. Collect information from the Unity System like IP address, username  and password. Make a note of the value for these parameters as they must be entered in the myvalues.yaml file.
+1. Collect information from the Unity Systems like Unique ArrayId, IP address, username  and password. Make a note of the value for these parameters as they must be entered in the secret.json and myvalues.yaml file.
 
 2. Copy the csi-unity/values.yaml into a file in the same directory as the install.unity named myvalues.yaml, to customize settings for installation.
 
@@ -137,66 +142,143 @@ Procedure
     The following table lists the primary configurable parameters of the Unity driver chart and their default values. More detailed information can be found in the [`values.yaml`](helm/csi-unity/values.yaml) file in this repository.
     
     | Parameter | Description | Required | Default |
-    | --------- | ----------- | -------- |-------- |    
-    | restGateway | REST API gateway HTTPS endpoint Unity system | true | - |
-    | storagePool | Unity Storage Pool CLI ID to use with in the Kubernetes storage class | true | - |
-    | unityUsername | Username for accessing unity system <base64 encoded string> | true | - |
-    | unityPassword | Password for accessing unity system <base64 encoded string> | true | - |
+    | --------- | ----------- | -------- |-------- |
+    | certSecretCount | Represents number of certificate secrets, which user is going to create for ssl authentication. (unity-cert-0..unity-cert-n). Value should be between 1 and 10 | false | 1 |
+    | syncNodeInfoInterval | Time interval to add node info to array. Default 15 minutes. Minimum value should be 1 minute | false | 15 |
     | volumeNamePrefix | String to prepend to any volumes created by the driver | false | csivol |
     | snapNamePrefix | String to prepend to any snapshot created by the driver | false | csi-snap |
-    | storageClass.name | Name of the storage class to be defined | false | unity |
-    | storageClass.isDefault | Whether or not to make this storage class the default | false | true |
-    | storageClass.reclaimPolicy | What should happen when a volume is removed | false | Delete |
+    | csiDebug |  To set the debug log policy for CSI driver | false | "false" |
+    | imagePullPolicy |  The default pull policy is IfNotPresent which causes the Kubelet to skip pulling an image if it already exists. | false | IfNotPresent |
+    | ***Storage Array List*** | Following parameters is a list of parameters to provide multiple storage arrays |
+    | storageArrayList[i].name | Name of the storage class to be defined. A suffix of ArrayId and protocol will be added to the name. No suffix will be added to default array. | false | unity |
+    | storageArrayList[i].isDefaultArray | To handle the existing volumes created in csi-unity v1.0, 1.1 and 1.1.0.1. The user needs to provide "isDefaultArray": true in secret.json. This entry should be present only for one array and that array will be marked default for existing volumes. | false | "false" |
     | ***Storage Class parameters*** | Following parameters are not present in values.yaml |
-    | FsType | To set File system type. Possible values are ext3,ext4,xfs | false | ext4 |
-    | volumeThinProvisioned | To set volume thinProvisioned | false | true |    
-    | isVolumeDataReductionEnabled | To set volume data reduction | false | false |
-    | volumeTieringPolicy | To set volume tiering policy | false | 0 |
-    | hostIOLimitName | To set unity host IO limit | false | "" |
+    | storageArrayList[i].storageClass.storagePool | Unity Storage Pool CLI ID to use with in the Kubernetes storage class | true | - |
+    | storageArrayList[i].storageClass.thinProvisioned | To set volume thinProvisioned | false | "true" |    
+    | storageArrayList[i].storageClass.isDataReductionEnabled | To set volume data reduction | false | "false" |
+    | storageArrayList[i].storageClass.volumeTieringPolicy | To set volume tiering policy | false | 0 |
+    | storageArrayList[i].storageClass.FsType | Block volume related parameter. To set File system type. Possible values are ext3,ext4,xfs. Supported for FC/iSCSI protocol only. | false | ext4 |
+    | storageArrayList[i].storageClass.hostIOLimitName | Block volume related parameter.  To set unity host IO limit. Supported for FC/iSCSI protocol only. | false | "" |    
+    | storageArrayList[i].storageClass.nasServer | NFS related parameter. NAS Server CLI ID for filesystem creation. | true | "" |
+    | storageArrayList[i].storageClass.hostIoSize | NFS related parameter. To set filesystem host IO Size. | false | "8192" |
+    | storageArrayList[i].storageClass.reclaimPolicy | What should happen when a volume is removed | false | Delete |
     | ***Snapshot Class parameters*** | Following parameters are not present in values.yaml  |
-    | snapshotRetentionDuration | TO set snapshot retention duration. Format:"1:23:52:50" (number of days:hours:minutes:sec)| false | "" |
+    | storageArrayList[i] .snapshotClass.retentionDuration | TO set snapshot retention duration. Format:"1:23:52:50" (number of days:hours:minutes:sec)| false | "" |
     
-    Use the following command to convert username/password to base64 encoded string
-    ```
-    echo -n 'admin' | base64
-    echo -n 'password' | base64 
-    ```
-    
-    Example *myvalues.yaml*
+   Note: User should provide all boolean values with double quotes. This applicable only for myvalues.yaml. Ex: "true"/"false"
+   
+   Example *myvalues.yaml*
     
     ```
-    storagePool: pool_1
-    restGateway: "https://<Ip of Unity system>"  
-    unityUsername: <Base64 encoded string>  
-    unityPassword: <Base64 encoded string>
-    images:
-       driver: <docker image>
+    csiDebug: "true"
+    volumeNamePrefix : csivol
+    snapNamePrefix: csi-snap
+    imagePullPolicy: Always
+    certSecretCount: 1
+    syncNodeInfoInterval: 5
+    storageClassProtocols:
+       - protocol: "FC"
+       - protocol: "iSCSI"
+       - protocol: "NFS"
+    storageArrayList:
+       - name: "APM00******1"
+         isDefaultArray: "true"
+         storageClass:
+           storagePool: pool_1
+           FsType: ext4
+           nasServer: "nas_1"
+           thinProvisioned: "true"
+           isDataReductionEnabled: true
+           hostIOLimitName: "value_from_array"
+           tieringPolicy: "2"
+         snapshotClass:
+           retentionDuration: "2:2:23:45"
+       - name: "APM001******2"
+         storageClass:
+           storagePool: pool_1
+           reclaimPolicy: Delete
+           hostIoSize: "8192"
+           nasServer: "nasserver_2"
     ```
-	
+
+4. Prepare the secret.json for driver configuration.
+    The following table lists driver configuration parameters for multiple storage arrays.
+    
+    | Parameter | Description | Required | Default |
+    | --------- | ----------- | -------- |-------- |   
+    | username | Username for accessing unity system  | true | - |
+    | password | Password for accessing unity system  | true | - |
+    | restGateway | REST API gateway HTTPS endpoint Unity system| true | - |
+    | arrayId | ArrayID for unity system | true | - |
+    | insecure | "unityInsecure" determines if the driver is going to validate unisphere certs while connecting to the Unisphere REST API interface If it is set to false, then a secret unity-certs has to be created with a X.509 certificate of CA which signed the Unisphere certificate | true | true |
+    | isDefaultArray | An array having isDefaultArray=true is for backward compatibility. This parameter should occur once in the list. | false | false |
+    
+    Ex: secret.json
+    ```json5
+       {
+         "storageArrayList": [
+           {
+             "username": "user",
+             "password": "password",
+             "restGateway": "https://10.1.1.1",
+             "arrayId": "APM00******1",
+             "insecure": true,
+             "isDefaultArray": true
+           },
+           {
+             "username": "user",
+             "password": "password",
+             "restGateway": "https://10.1.1.2",
+             "arrayId": "APM00******2",
+             "insecure": true
+           }
+         ]
+       }
+    ```
+    `kubectl create secret generic unity-creds -n unity --from-file=config=secret.json`
+
+    Use the following command to replace or update the secret
+    
+    `kubectl create secret generic unity-creds -n unity --from-file=config=secret.json -o yaml --dry-run | kubectl replace -f -`
+    
+    Note: The user needs to validate the JSON syntax and array related key/values while replacing the unity-creds secret.
+    The driver will continue to use previous values in case of an error found in the JSON file.
+    
 4. Run the `sh install.unity` command to proceed with the installation.
 
     A successful installation should emit messages that look similar to the following samples:
     ```
     sh install.unity 
-    Kubernetes version v1.14.2
+    Kubernetes version v1.16.8
     Kubernetes master nodes: 10.*.*.*
     Kubernetes minion nodes:
     Verifying the feature gates.
-    NAME:   unity
-    LAST DEPLOYED: Wed Aug 14 01:23:35 2019
+    Installing using helm version 3
+    NAME: unity
+    LAST DEPLOYED: Thu May 14 05:05:42 2020
     NAMESPACE: unity
-    STATUS: DEPLOYED
-    [....]
+    STATUS: deployed
+    REVISION: 1
+    TEST SUITE: None
+    Thu May 14 05:05:53 EDT 2020
+    running 2 / 2
     NAME                 READY   STATUS    RESTARTS   AGE
-    unity-controller-0   4/4     Running   0          21s
-    unity-node-kzv49     2/2     Running   0          21s
+    unity-controller-0   4/4     Running   0          11s
+    unity-node-mkbxc     2/2     Running   0          11s
     CSIDrivers:
-    No resources found.
-    CSINodeInfos:
-    No resources found.
+    NAME    CREATED AT
+    unity   2020-05-14T09:05:42Z
+    CSINodes:
+    NAME       CREATED AT
+    <nodename>   2020-04-16T20:59:16Z
     StorageClasses:
-    NAME              PROVISIONER   AGE
-    unity (default)   csi-unity     21s
+    NAME                         PROVISIONER             AGE
+    unity (default)              csi-unity.dellemc.com   11s
+    unity-iscsi                  csi-unity.dellemc.com   11s
+    unity-nfs                    csi-unity.dellemc.com   11s
+    unity-<array-id>-fc          csi-unity.dellemc.com   11s
+    unity-<array-id>-iscsi       csi-unity.dellemc.com   11s
+    unity-<array-id>-nfs         csi-unity.dellemc.com   11s
     ```
     Results
     At the end of the script, the kubectl get pods -n unity is called to GET the status of the pods and you will see the following:
@@ -205,19 +287,67 @@ Procedure
 
     Finally, the script lists the created storageclasses such as, "unity". Additional storage classes can be created for different combinations of file system types and Unity storage pools. The script also creates volumesnapshotclass "unity-snapclass".
 
+## Certificate validation for Unisphere REST API calls 
+
+This topic provides details about setting up the certificate validation for the CSI Driver for Dell EMC Unity.
+ 
+Before you begin As part of the CSI driver installation, the CSI driver requires a secret with the name unity-certs-0 to unity-certs-n based on ".Values.certSecretCount" parameter present in the namespace unity.
+
+This secret contains the X509 certificates of the CA which signed the Unisphere SSL certificate in PEM format.
+ 
+If the install script does not find the secret, it creates one empty secret with the name unity-certs-0.
+
+The CSI driver exposes an install parameter in secret.json, which is like storageArrayList[i].insecure, which determines if the driver performs client-side verification of the Unisphere certificates.
+ 
+The storageArrayList[i].insecure parameter set to true by default, and the driver does not verify the Unisphere certificates.
+
+If the storageArrayList[i].insecure set to false, then the secret unity-certs-n must contain the CA certificate for Unisphere.
+ 
+If this secret is empty secret, then the validation of the certificate fails, and the driver fails to start.
+ 
+If the storageArrayList[i].insecure parameter set to false and a previous installation attempt created the empty secret, then this secret must be deleted and re-created using the CA certs.
+ 
+If the Unisphere certificate is self-signed or if you are using an embedded Unisphere, then perform the following steps.
+
+   1. To fetch the certificate, run the following command.
+      `openssl s_client -showcerts -connect <Unisphere IP:Port> </dev/null 2>/dev/null | openssl x509 -outform PEM > ca_cert_0.pem`
+      Ex. openssl s_client -showcerts -connect 1.1.1.1:443 </dev/null 2>/dev/null | openssl x509 -outform PEM > ca_cert_0.pem
+   2. Run the following command to create the cert secret with index '0'
+         `kubectl create secret generic unity-certs-0 --from-file=cert-0=ca_cert0.pem -n unity`
+      Use the following command to replace the secret
+          `kubectl create secret generic unity-certs-0 -n unity --from-file=cert-0=ca_cert0.pem -o yaml --dry-run | kubectl replace -f -` 
+   3. Repeat step-1 & 2 to create multiple cert secrets with incremental index (ex: unity-certs-1, unity-certs-2, etc)
+
+Note: User can add multiple certificates in the same secret. The certificate file should not exceed more than 1Mb due to kubernetes secret size limitation.
+
+Note: Whenever certSecretCount parameter changes in myvalues.yaml user needs to uninstall and install the driver.
+
 ## Upgrade CSI Driver for Unity
 
-Preparing myvalues.yaml is same as explained above.
+Preparing myvalues.yaml is the same as explained above.
 
+**Note** Supported upgrade path is from CSI Driver for Dell EMC Unity v1.1.0.1 to CSI Driver for Dell EMC Unity v1.2. If user is in v1.0 or v1.1, please upgrade to v1.1.0.1 before upgrading to v1.2 to avoid problems.
+
+Delete the unity-creds secret and recreate again using secret.json as explained above.
+
+
+Execute the following command to not to delete the unity-creds secret by helm
+
+```kubectl annotate secret unity-creds -n unity "helm.sh/resource-policy"=keep```
+
+Make sure unity-certs-* secrets are created properly before upgrading the driver.
+ 
 Run the `sh upgrade.unity` command to proceed with the upgrading process.
 
-Note: Upgrading CSI Unity driver is possible within the same version of Helm. (Ex: Helm V2 to Helm V2)
+**Note**: Upgrading CSI Unity driver is possible within the same version of Helm. (Ex: Helm V2 to Helm V2)
+
+**Note**: Sometimes user might get a warning saying "updates to parameters are forbidden" when we try to upgrade from previous versions. Delete the storage classes and upgrade the driver.
  
 A successful upgrade should emit messages that look similar to the following samples:
 
     ```
     $ ./upgrade.unity 
-    Kubernetes version v1.14.10
+    Kubernetes version v1.16.8
     Kubernetes master nodes: 10.*.*.*
     Kubernetes minion nodes:
     Verifying the feature gates.
@@ -228,36 +358,42 @@ A successful upgrade should emit messages that look similar to the following sam
     daemonset.extensions/unity-node patched
     daemonset.extensions/unity-node patched
     warning: Immediate deletion does not wait for confirmation that the running resource has been terminated. The resource may continue to run on the cluster indefinitely.
-    pod "unity-node-s28n6" force deleted
-    Thu Apr 23 05:25:49 EDT 2020
+    pod "unity-node-t1j5h" force deleted
+    Thu May 14 05:05:53 EDT 2020
     running 2 / 2
     NAME                 READY   STATUS    RESTARTS   AGE
-    unity-controller-0   4/4     Running   0          48s
-    unity-node-tl66n     2/2     Running   0          10s
+    unity-controller-0   4/4     Running   0          12s
+    unity-node-n14gj     2/2     Running   0          12s
     Upgrading using helm version 3
     Release "unity" has been upgraded. Happy Helming!
     NAME: unity
-    LAST DEPLOYED: Thu Apr 23 05:25:49 2020
+    LAST DEPLOYED: Thu May 14 05:05:53 2020
     NAMESPACE: unity
     STATUS: deployed
     REVISION: 2
     TEST SUITE: None
-    Thu Apr 23 05:26:00 EDT 2020
+    Thu May 14 05:06:02 EDT 2020
     running 2 / 2
     NAME                 READY   STATUS    RESTARTS   AGE
-    unity-controller-0   4/4     Running   0          7s
-    unity-node-7hzfv     2/2     Running   0          8s
+    unity-controller-0   4/4     Running   0          11s
+    unity-node-rn6px     2/2     Running   0          11s
     CSIDrivers:
     NAME       CREATED AT
     unity      2020-04-23T09:25:01Z
     CSINodes:
     NAME                   CREATED AT
-    node1   2020-03-30T06:44:01Z
+    <nodename>   2020-04-16T20:59:16Z
     StorageClasses:
     NAME                 PROVISIONER                AGE
-    unity (default)      csi-unity.dellemc.com      59s
-    unity-iscsi          csi-unity.dellemc.com      59s
+    unity (default)              csi-unity.dellemc.com   11s
+    unity-iscsi                  csi-unity.dellemc.com   11s
+    unity-nfs                    csi-unity.dellemc.com   11s
+    unity-<array-id>-fc          csi-unity.dellemc.com   11s
+    unity-<array-id>-iscsi       csi-unity.dellemc.com   11s
+    unity-<array-id>-nfs         csi-unity.dellemc.com   11s
     ```
+
+    User has to re-create existing custom-storage classes (if any) according to latest (v1.2) format.
 
 ## Migrate from Helm 2 to Helm 3
 1. Get the latest code from github.com/dell/csi-unity by executing the following command.
@@ -274,12 +410,17 @@ Test the deployment workflow of a simple pod on Unity storage.
 
 1. **Verify Unity system for Host**
 
-    After helm deployment `CSI Driver for Node` will create new Host(s) in the Unity system depending on the number of node in kubernetes cluster.
+    After helm deployment `CSI Driver for Node` will create new Host(s) in the Unity system depending on the number of nodes in kubernetes cluster.
     Verify Unity system for new Hosts and Initiators
     
 2. **Creating a volume:**
 
-    Create a file (`pvc.yaml`) with the following content
+    Create a file (`pvc.yaml`) with the following content.
+    
+    **Note**: Use default FC, iSCSI, NFS storage class or create custom storage classes to create volumes. NFS protocol supports ReadWriteOnce, ReadOnlyMany and ReadWriteMany access modes. FC/iSCSI protocol supports ReadWriteOnce access mode only.
+
+    **Note**: Additional 1.5 GB is added to the required size of NFS based volume/pvc. This is due to unity array requirement, which consumes this 1.5 GB for storing metadata. This makes minimum PVC size for NFS protocol via driver as 1.5 GB, which is 3 GB when created directly on the array.
+
     ```
     apiVersion: v1
     kind: PersistentVolumeClaim
@@ -299,8 +440,9 @@ Test the deployment workflow of a simple pod on Unity storage.
     kubectl create -f $PWD/pvc.yaml
     ```
 
-    Result: After executing the above command PVC will be created in the default namespace, and the user can see the pvc by executing `kubectl get pvc`. 
-    Note: Verify unity system for the new volume
+    Result: After executing the above command, PVC will be created in the default namespace, and the user can see the pvc by executing `kubectl get pvc`. 
+    
+    **Note**: Verify unity system for the new volume
 
 3. **Attach the volume to Host**
 
@@ -310,7 +452,7 @@ Test the deployment workflow of a simple pod on Unity storage.
     apiVersion: v1
     kind: Pod
     metadata:
-      name: ngnix-pv-pod
+      name: nginx-pv-pod
     spec:
       containers:
         - name: task-pv-container
@@ -333,7 +475,8 @@ Test the deployment workflow of a simple pod on Unity storage.
     ```
 
     Result: After executing the above command, new nginx pod will be successfully created and started in the default namespace.
-    Note: Verify unity system for volume to be attached to the Host where the nginx container is running
+
+    **Note**: Verify unity system for volume to be attached to the Host where the nginx container is running
 
 4. **Create Snapshot**
 
@@ -360,7 +503,7 @@ Test the deployment workflow of a simple pod on Unity storage.
     
     The spec.source section contains the volume that will be snapped in the default namespace. For example, if the volume to be snapped is testvolclaim1, then the created snapshot is named testvolclaim1-snap1. Verify the unity system for new snapshot under the lun section.
     
-    Note:
+    **Note**:
     
     * User can see the snapshots using `kubectl get volumesnapshot`
     * Notice that this VolumeSnapshot class has a reference to a snapshotClassName:unity-snapclass. The CSI Driver for Unity installation creates this class as its default snapshot class. 
@@ -376,7 +519,7 @@ Test the deployment workflow of a simple pod on Unity storage.
     ```
 6.  **To Unattach the volume from Host**
 
-    Delete the nginx application to unattach the volume from host
+    Delete the Nginx application to unattach the volume from host
     
     `kubectl delete -f nginx.yaml`
 7. **To delete the volume**
@@ -386,16 +529,103 @@ Test the deployment workflow of a simple pod on Unity storage.
     kubectl delete pvc testvolclaim1
     kubectl get pvc
     ```
+## Static volume creation
+Static provisioning is a feature that is native to Kubernetes and that allows cluster administrators to make existing storage devices available to a cluster.
+As a cluster administrator, you must know the details of the storage device, its supported configurations, and mount options.
+
+To make existing storage available to a cluster user, you must manually create the storage device, a PV, and a PVC.
+
+1. Create a volume or select existing volume from Unity Array
+
+2. Create Persistent Volume explained below
+```yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: static-pv
+spec:
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 5Gi
+  csi:
+    driver: csi-unity.dellemc.com
+    volumeHandle: csivol-vol-name-FC-apm001234567-sv_12
+  persistentVolumeReclaimPolicy: Delete
+  claimRef:
+    namespace: default
+    name: myclaim
+  storageClassName: unity
+```
+
+"volumeHandle" is the critical parameter while creating the PV. "volumeHandle" is defined as four sections.
+
+*\<volume-name\>-\<protocol>-\<arrayid>-\<volume id>*
+
+* volume-name: Name of the volume. Can have any number of "-"
+* Possible values for "Protocol" are "FC", "ISCSI" and "NFS"
+* arrayid: arrayid defined in lower case  
+* volume id: Represents the the LUN cli-id or Filesystem ID (not the resource-id incase of filesystem)
+
+3. Create Persistence Volume Claim
+```yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: myclaim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+```
+ 
+4. Create Pod
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mypod
+  namespace: default
+spec:
+  containers:
+    - name: nginx
+      image: nginx
+      ports:
+        - containerPort: 80
+          name: "http-server"
+      volumeMounts:
+        - mountPath: "/usr/share/nginx/html"
+          name: myclaim
+  volumes:
+    - name: myclaim
+      persistentVolumeClaim:
+        claimName: myclaim
+```
+
+
+## Dynamically update the unity-creds secrets
+
+Users can dynamically add delete array information from secret. Whenever an update happens the driver updates the "Host" information in an array.
+User can update secret using the following command.
+
+    `kubectl create secret generic unity-creds -n unity --from-file=config=secret.json -o yaml --dry-run | kubectl replace -f - `
+
+* Note: * Updating unity-certs-x secrets is a manual process, unlike unity-creds. Users have to re-install the driver in case of updating/adding the SSL certificates or changing the certSecretCount parameter.
+
 ## Install CSI-Unity driver using dell-csi-operator in OpenShift
 CSI Driver for Dell EMC Unity can also be installed via the new Dell EMC Storage Operator.
+
+Note: Currently, csi-unity v1.1.0.1 is supported using csi-operator. Use helm-v3 to install csi-driver v1.2 for OpenShift 
 
 The Dell EMC Storage CSI Operator is a Kubernetes Operator, which can be used to install and manage the CSI Drivers provided by Dell EMC for various storage platforms. This operator is available as a community operator for upstream Kubernetes and can be deployed using OperatorHub.io. It is also available as a community operator for OpenShift clusters and can be deployed using OpenShift Container Platform. Both these methods of installation use OLM (Operator Lifecycle Manager).
  
 The operator can also be deployed directly by following the instructions available here - https://github.com/dell/dell-csi-operator
  
-There are sample manifests provided which can be edited to do an easy installation of the driver. Please note that the deployment of the driver using the operator doesn’t use any Helm charts and the installation & configuration parameters will be slightly different from the ones specified via the Helm installer.
+There are sample manifests provided, which can be edited to do an easy installation of the driver. Please note that the deployment of the driver using the operator doesn’t use any Helm charts and the installation & configuration parameters will be slightly different from the ones specified via the Helm installer.
 
-Kubernetes Operators make it easy to deploy and manage entire lifecycle of complex Kubernetes applications. Operators use Custom Resource Definitions (CRD) which represents the application and use custom controllers to manage them.
+Kubernetes Operators make it easy to deploy and manage the entire lifecycle of complex Kubernetes applications. Operators use Custom Resource Definitions (CRD), which represents the application and use custom controllers to manage them.
 
 ### Listing CSI-Unity drivers
 User can query for csi-unity driver using the following command
@@ -459,12 +689,12 @@ Create a new file `csiunity.yaml` with the following content.
           default: true
           reclaimPolicy: "Delete"
           parameters:
-            storagepool: pool_1
+            storagePool: pool_1
             protocol: "FC"
         - name: iscsi
           reclaimPolicy: "Delete"
           parameters:
-            storagepool: pool_1
+            storagePool: pool_1
             protocol: "iSCSI"
         snapshotClass:
           - name: snapshot
@@ -493,9 +723,60 @@ Create a new file `csiunity.yaml` with the following content.
    | X_CSI_UNITY_AUTOPROBE | To enable auto probing for driver | No | true |
    | ***Node parameters*** |
    | X_CSI_MODE   | Driver starting mode  | No | node|
-   | X_CSI_PRIVATE_MOUNT_DIR | Specifies the private directory to which a PVC will be mounted before binding the mount to the target directory. | No | /var/lib/kubelet/plugins/unity.emc.dell.com/disks |
    | X_CSI_ISCSI_CHROOT | Path to which the driver will chroot before running any iscsi commands. | No | /noderoot |
-           
+
+## Install csi-unity driver in OpenShift using HELM v3.x
+
+1. Clone the git repository. ( `git clone https://github.com/dell/csi-unity.git`)
+
+2. Change the directory to ./helm
+
+3. Create a namespace "unity" in kubernetes cluster
+
+4. Create unity-cert-0 to unity-cert-n secrets as explained in the previous sections.
+
+5. Create unity-creds secret using the secret.json explained in the previous sections.
+
+6. Create clusterrole (unity-node) with the following yaml
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+ name: unity-node
+rules:
+ - apiGroups:
+     - security.openshift.io
+   resourceNames:
+     - privileged
+   resources:
+     - securitycontextconstraints
+   verbs:
+     - use
+```
+
+7. Create clusterrolebinding (unity-node) with the following yaml
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: unity-node
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: unity-node
+subjects:
+  - kind: ServiceAccount
+    name: unity-node
+    namespace: unity
+```
+
+8. Execute the following command to install the driver.
+
+`helm install unity --values myvalues.yaml --values csi-unity/k8s-1.16-values.yaml -n unity ./csi-unity`
+
+Note: Preparing myvalues.yaml and secret.json is same as explained in the previous sections
+
 ## Support
 The CSI Driver for Dell EMC Unity image available on Dockerhub is officially supported by Dell EMC.
  

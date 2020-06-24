@@ -22,32 +22,27 @@ import (
 )
 
 //GetVolumeResponseFromVolume Utility method to convert Unity Rest type Volume to CSI standard Volume Response
-func GetVolumeResponseFromVolume(volume *types.Volume, protocol string) *csi.CreateVolumeResponse {
+func GetVolumeResponseFromVolume(volume *types.Volume, arrayId, protocol string) *csi.CreateVolumeResponse {
 	content := volume.VolumeContent
-	VolumeContext := make(map[string]string)
-	VolumeContext["protocol"] = protocol
-
-	volumeReq := &csi.Volume{
-		VolumeId:      content.ResourceId,
-		CapacityBytes: int64(content.SizeTotal),
-		VolumeContext: VolumeContext,
-	}
-
-	volumeResp := &csi.CreateVolumeResponse{
-		Volume: volumeReq,
-	}
-	return volumeResp
+	return getVolumeResponse(content.Name, protocol, arrayId, content.ResourceId, content.SizeTotal)
 }
 
 //GetVolumeResponseFromFilesystem Utility method to convert Unity rest Filesystem response to CSI standard Volume Response
-func GetVolumeResponseFromFilesystem(filesystem *types.Filesystem, protocol string) *csi.CreateVolumeResponse {
+func GetVolumeResponseFromFilesystem(filesystem *types.Filesystem, arrayId, protocol string) *csi.CreateVolumeResponse {
 	content := filesystem.FileContent
+	return getVolumeResponse(content.Name, protocol, arrayId, content.Id, content.SizeTotal)
+}
+
+func getVolumeResponse(name, protocol, arrayId, resourceId string, size uint64) *csi.CreateVolumeResponse {
+	volId := fmt.Sprintf("%s-%s-%s-%s", name, protocol, arrayId, resourceId)
 	VolumeContext := make(map[string]string)
 	VolumeContext["protocol"] = protocol
+	VolumeContext["arrayId"] = arrayId
+	VolumeContext["volumeId"] = resourceId
 
 	volumeReq := &csi.Volume{
-		VolumeId:      content.Id,
-		CapacityBytes: int64(content.SizeTotal),
+		VolumeId:      volId,
+		CapacityBytes: int64(size),
 		VolumeContext: VolumeContext,
 	}
 
@@ -93,9 +88,6 @@ func GetFCInitiators(ctx context.Context) ([]string, error) {
 			continue
 		}
 		nodeNameStr := strings.TrimSpace(string(nodeName))
-
-		log.Debug("portNameStr:", portNameStr)
-		log.Debug("nodeNameStr:", nodeNameStr)
 		//Ignore first 2 digits
 		port := strings.Split(portNameStr, "x")[1]
 		node := strings.Split(nodeNameStr, "x")[1]
@@ -138,8 +130,9 @@ func GetHostIP() (string, error) {
 }
 
 //Utility method to convert Unity Rest type Snapshot to CSI standard Snapshot Response
-func GetSnapshotResponseFromSnapshot(snap *types.Snapshot) *csi.CreateSnapshotResponse {
+func GetSnapshotResponseFromSnapshot(snap *types.Snapshot, protocol, arrayId string) *csi.CreateSnapshotResponse {
 	content := snap.SnapshotContent
+	snapId := fmt.Sprintf("%s-%s-%s-%s", content.Name, protocol, arrayId, content.ResourceId)
 	var timestamp *timestamp.Timestamp
 	if !snap.SnapshotContent.CreationTime.IsZero() {
 		timestamp, _ = ptypes.TimestampProto(snap.SnapshotContent.CreationTime)
@@ -148,7 +141,7 @@ func GetSnapshotResponseFromSnapshot(snap *types.Snapshot) *csi.CreateSnapshotRe
 	snapReq := &csi.Snapshot{
 		SizeBytes:      snap.SnapshotContent.Size,
 		ReadyToUse:     true,
-		SnapshotId:     content.ResourceId,
+		SnapshotId:     snapId,
 		SourceVolumeId: content.StorageResource.Id,
 		CreationTime:   timestamp,
 	}
@@ -261,4 +254,10 @@ func GetWwnFromVolumeContentWwn(wwn string) string {
 	wwn = strings.ReplaceAll(wwn, ":", "")
 	deviceWWN := strings.ToLower(wwn)
 	return deviceWWN
+}
+
+//GetWwnFromVolumeContentWwn - Method to process wwn content to extract device wwn of a volume
+func GetFcPortWwnFromVolumeContentWwn(wwn string) string {
+	wwn = GetWwnFromVolumeContentWwn(wwn)
+	return wwn[16:32]
 }

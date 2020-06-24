@@ -5,6 +5,14 @@ NS="unity"
 cd "`dirname \"$0\"`"
 
 source ./common.bash
+
+# Only k8s 1.14 and k8s 1.16 are supported
+if ! [ ${kMajorVersion} -eq 1 -a \( ${kMinorVersion} -eq 14 -o ${kMinorVersion} -eq 16 \) ]
+then
+    echo "Only Kubernetes 1.14 and 1.16 versions are supported"
+    exit 0
+fi
+
 # Verify the kubernetes installation has the feature gates needed.
 sh ./verify.kubernetes
 rc=$?
@@ -16,8 +24,8 @@ then
      sleep 5
 fi
 
-# Check if unity-certs exists. If not, then create it
-kubectl get secrets -n "$NS" | grep unity-certs --quiet
+# Check if unity-certs-0 exists. If not, then create it
+kubectl get secrets -n "$NS" | grep unity-certs-0 --quiet
 if [ $? -ne 0 ];
     then echo "*** Couldn't find unity-certs. Creating an empty secret. Delete it and re-create it if you want to validate unisphere certificates ***"
     kubectl create -f ./emptysecret.yaml
@@ -33,10 +41,10 @@ helm version | grep "v3." --quiet
 if [ $? -eq 0 ]
 then
     echo "Installing using helm version 3"
-    helm install unity --values myvalues.yaml  -n "$NS" ./csi-unity
+    helm install unity --values myvalues.yaml --values csi-unity/k8s-${kMajorVersion}.${kMinorVersion}-values.yaml -n "$NS" ./csi-unity
 else
     echo "Installing using helm version 2"
-    helm install --values myvalues.yaml --name unity --namespace unity ./csi-unity
+    helm install --values myvalues.yaml --values csi-unity/k8s-${kMajorVersion}.${kMinorVersion}-values.yaml --name unity --namespace unity ./csi-unity
 fi
 
 waitOnRunning

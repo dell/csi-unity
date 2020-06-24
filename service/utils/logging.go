@@ -6,6 +6,7 @@ import (
 	"github.com/rexray/gocsi"
 	"github.com/sirupsen/logrus"
 	"os"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -18,7 +19,7 @@ var once sync.Once
 
 const (
 	// Default log format will output [INFO]: 2006-01-02T15:04:05Z07:00 - Log message
-	defaultLogFormat       = "time=\"%time%\" level=%lvl% %runid% msg=\"%msg%\""
+	defaultLogFormat       = "time=\"%time%\" level=%lvl% %arrayid% %runid% msg=\"%msg%\""
 	defaultTimestampFormat = time.RFC3339
 )
 
@@ -58,6 +59,13 @@ func (f *Formatter) Format(entry *logrus.Entry) ([]byte, error) {
 		output = strings.Replace(output, "%runid%", fmt.Sprintf("runid=%v", x), 1)
 	} else {
 		output = strings.Replace(output, "%runid%", "", 1)
+	}
+	x, b = fields[ARRAYID]
+
+	if b {
+		output = strings.Replace(output, "%arrayid%", fmt.Sprintf("arrayid=%v", x), 1)
+	} else {
+		output = strings.Replace(output, "%arrayid%", "", 1)
 	}
 
 	for k, val := range entry.Data {
@@ -129,17 +137,33 @@ func GetLogger() *logrus.Logger {
 }
 
 const (
-	RUNIDLOG = "runidlog"
-	RUNID    = "runid"
+	UnityLogger = "unitylog"
+	LogFields   = "fields"
+	RUNID       = "runid"
+	ARRAYID     = "arrayid"
 )
 
 func GetRunidLogger(ctx context.Context) *logrus.Entry {
-	log := ctx.Value(RUNIDLOG).(*logrus.Entry)
-	return log
+	tempLog := ctx.Value(UnityLogger)
+	if ctx.Value(UnityLogger) != nil && reflect.TypeOf(tempLog) == reflect.TypeOf(&logrus.Entry{}) {
+		return ctx.Value(UnityLogger).(*logrus.Entry)
+	}
+	return nil
 }
 
 func GetRunidAndLogger(ctx context.Context) (string, *logrus.Entry) {
-	log := ctx.Value(RUNIDLOG).(*logrus.Entry)
-	rid := fmt.Sprintf("%s", log.Data[RUNID])
-	return rid, log
+	rid := ""
+	fields, ok := ctx.Value(LogFields).(logrus.Fields)
+	if ok && fields != nil && reflect.TypeOf(fields) == reflect.TypeOf(logrus.Fields{}) {
+		if fields[RUNID] != nil {
+			rid = fields[RUNID].(string)
+		}
+	}
+
+	tempLog := ctx.Value(UnityLogger)
+	if tempLog != nil && reflect.TypeOf(tempLog) == reflect.TypeOf(&logrus.Entry{}) {
+		//rid = fmt.Sprintf("%s", tempLog.(*logrus.Logger).Data[RUNID])
+		return rid, tempLog.(*logrus.Entry)
+	}
+	return rid, nil
 }

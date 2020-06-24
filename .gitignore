@@ -6,6 +6,9 @@ builds/
 *.exe
 vendor/
 bin/
+semver.mk
+go.sum
 ./csi-unity
 csi-unity.exe
 helm/myvalues.yaml
+test.properties

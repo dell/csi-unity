@@ -1,10 +1,75 @@
+{{ $global := . }}
+{{- range $i, $v := .Values.storageArrayList }}
+{{- range $j, $p := $global.Values.storageClassProtocols }}
+{{- if eq $p.protocol "FC"}}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: {{ required "Must provide a storage class name." .Values.storageClass.name}}
+  {{- if $v.isDefaultArray }}
+  name: "unity"
   annotations:
-    storageclass.beta.kubernetes.io/is-default-class: {{ .Values.storageClass.isDefault | quote }}
+    storageclass.beta.kubernetes.io/is-default-class: {{ $v.isDefaultArray | quote }}
+  {{ else }}
+  name: {{ "unity" }}-{{ $v.name | lower }}-{{ "fc" }}
+  {{- end }}
 provisioner: csi-unity.dellemc.com
-reclaimPolicy: {{ required "Must provide a storage class reclaim policy." .Values.storageClass.reclaimPolicy }}
+reclaimPolicy: {{ $v.storageClass.reclaimPolicy | default $global.Values.storageClass.reclaimPolicy | quote  }}
 parameters:
-{{- include "storageClass.parameters" . }}
+  protocol: FC
+  arrayId: {{ required "Must provide a arrayId" $v.name | quote }}
+  storagePool: {{ required "Must provide a storagePool" $v.storageClass.storagePool | quote }}
+  FsType: {{ $v.storageClass.FsType | default $global.Values.storageClass.FsType | lower | quote}}
+  thinProvisioned: {{ $v.storageClass.thinProvisioned | default $global.Values.storageClass.thinProvisioned | quote }}
+  isDataReductionEnabled: {{ $v.storageClass.isDataReductionEnabled | default $global.Values.storageClass.isDataReductionEnabled |  quote }}
+  tieringPolicy: {{ $v.storageClass.tieringPolicy | default $global.Values.storageClass.tieringPolicy | quote }}
+  hostIOLimitName: {{ $v.storageClass.hostIOLimitName | default $global.Values.storageClass.hostIOLimitName | quote }}
+---
+{{- end }}
+{{- if eq $p.protocol "iSCSI"}}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  {{- if $v.isDefaultArray }}
+  name: "unity-iscsi"
+  {{ else }}
+  name: {{ "unity" }}-{{ $v.name | lower }}-{{ "iscsi" }}
+  {{- end }}
+provisioner: csi-unity.dellemc.com
+reclaimPolicy: {{ $v.storageClass.reclaimPolicy | default $global.Values.storageClass.reclaimPolicy | quote  }}
+parameters:
+  protocol: iSCSI
+  arrayId: {{ required "Must provide a arrayId" $v.name | quote }}
+  storagePool: {{ required "Must provide a storagePool" $v.storageClass.storagePool | quote }}
+  FsType: {{ $v.storageClass.FsType | default $global.Values.storageClass.FsType | lower | quote}}
+  thinProvisioned: {{ $v.storageClass.thinProvisioned | default $global.Values.storageClass.thinProvisioned | quote }}
+  isDataReductionEnabled: {{ $v.storageClass.isDataReductionEnabled | default $global.Values.storageClass.isDataReductionEnabled |  quote }}
+  tieringPolicy: {{ $v.storageClass.tieringPolicy | default $global.Values.storageClass.tieringPolicy | quote }}
+  hostIOLimitName: {{ $v.storageClass.hostIOLimitName | default $global.Values.storageClass.hostIOLimitName | quote }}
+---
+{{- end }}
+{{- if eq $p.protocol "NFS"}}
+{{- if $v.storageClass.nasServer }}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  {{- if $v.isDefaultArray }}
+  name: "unity-nfs"
+  {{ else }}
+  name: {{ "unity" }}-{{ $v.name | lower }}-nfs
+  {{- end }}
+provisioner: csi-unity.dellemc.com
+reclaimPolicy: {{ $v.storageClass.reclaimPolicy | default $global.Values.storageClass.reclaimPolicy | quote  }}
+parameters:
+  protocol: NFS
+  arrayId: {{ required "Must provide a arrayId" $v.name | quote }}
+  storagePool: {{ required "Must provide a storagePool" $v.storageClass.storagePool | quote }}
+  thinProvisioned: {{ $v.storageClass.thinProvisioned | default $global.Values.storageClass.thinProvisioned | quote }}
+  isDataReductionEnabled: {{ $v.storageClass.isDataReductionEnabled | default $global.Values.storageClass.isDataReductionEnabled |  quote }}
+  tieringPolicy: {{ $v.storageClass.tieringPolicy | default $global.Values.storageClass.tieringPolicy | quote }}
+  nasServer: {{ $v.storageClass.nasServer | default $global.Values.storageClass.nasServer | quote }}
+  hostIoSize: {{ $v.storageClass.hostIoSize | default $global.Values.storageClass.hostIoSize | lower | quote }}
+---
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

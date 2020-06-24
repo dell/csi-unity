@@ -6,6 +6,7 @@ import (
 	"github.com/DATA-DOG/godog"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/dell/csi-unity/provider"
+	"github.com/dell/csi-unity/service"
 	"github.com/rexray/gocsi/utils"
 	"google.golang.org/grpc"
 	"os"
@@ -18,7 +19,6 @@ var stop func()
 
 func TestMain(m *testing.M) {
 	os.Setenv("X_CSI_MODE", "")
-	os.Setenv("X_CSI_UNITY_AUTOPROBE", "false")
 	ctx := context.Background()
 	fmt.Printf("calling startServer")
 	grpcClient, stop = startServer(ctx)
@@ -59,11 +59,13 @@ func startServer(ctx context.Context) (*grpc.ClientConn, func()) {
 		fmt.Printf("couldn't open listener: %s\n", err.Error())
 		return nil, nil
 	}
+	service.Name = os.Getenv("DRIVER_NAME")
+	service.DriverConfig = os.Getenv("DRIVER_CONFIG")
 	fmt.Printf("lis: %v\n", lis)
 	go func() {
 		fmt.Printf("starting server\n")
 		if err := sp.Serve(ctx, lis); err != nil {
-			fmt.Printf("http: Server closed")
+			fmt.Printf("http: Server closed. Error: %v", err)
 		}
 	}()
 	network, addr, err := utils.GetCSIEndpoint()

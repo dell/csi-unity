@@ -24,77 +24,194 @@ type Device struct {
 	RealDev  string
 }
 
-func publishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, privDir, symlinkPath string) error {
-	rid, log := utils.GetRunidAndLogger(ctx)
-	id := req.GetVolumeId()
-	target := req.GetTargetPath()
-	if target == "" {
-		return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "target path required"))
+func stagePublishNFS(ctx context.Context, req *csi.NodeStageVolumeRequest, exportPaths []string, arrayId string, nfsv3, nfsv4 bool) error {
+	ctx, log, rid := GetRunidLog(ctx)
+	ctx, log = setArrayIdContext(ctx, arrayId)
+
+	stagingTargetPath := req.GetStagingTargetPath()
+
+	accMode := req.GetVolumeCapability().GetAccessMode()
+
+	// make sure target is created
+	err := createDirIfNotExist(ctx, stagingTargetPath, arrayId)
+	if err != nil {
+		return err
 	}
 
-	ro := req.GetReadonly()
+	rwo := "rw"
+	if accMode.GetMode() == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
+		rwo = "ro"
+	}
+
+	mnts, err := gofsutil.GetMounts(ctx)
+	if err != nil {
+		return status.Errorf(codes.Internal,
+			"could not reliably determine existing mount status: %v",
+			err)
+	}
+
+	if len(mnts) != 0 {
+		for _, m := range mnts {
+			//Idempotency check
+			for _, exportPathURL := range exportPaths {
+				if m.Device == exportPathURL {
+					if m.Path == stagingTargetPath {
+						if utils.ArrayContains(m.Opts, rwo) {
+							log.Debugf("Staging target path: %s is already mounted to export path: %s", stagingTargetPath, exportPathURL)
+							return nil
+						} else {
+							return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Staging target path: %s is already mounted to export path: %s with conflicting access modes", stagingTargetPath, exportPathURL))
+						}
+					} else {
+						//It is possible that a different export path URL is used to mount stage target path
+						continue
+					}
+				}
+			}
+		}
+	}
+
+	if nfsv4 {
+		nfsv4 = false
+		for _, exportPathURL := range exportPaths {
+			err = gofsutil.Mount(ctx, exportPathURL, stagingTargetPath, "nfs", rwo)
+			if err == nil {
+				nfsv4 = true
+				break
+			}
+		}
+	}
+
+	if !nfsv4 && nfsv3 {
+		rwo += ",vers=3"
+		for _, exportPathURL := range exportPaths {
+			err = gofsutil.Mount(ctx, exportPathURL, stagingTargetPath, "nfs", rwo)
+			if err == nil {
+				break
+			}
+		}
+	}
+
+	if err != nil {
+		return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Mount failed for NFS export paths: %s. Error: %v", exportPaths, err))
+	}
+
+	return nil
+}
+
+func publishNFS(ctx context.Context, req *csi.NodePublishVolumeRequest, exportPaths []string, arrayId string, nfsv3, nfsv4 bool) error {
+	ctx, log, rid := GetRunidLog(ctx)
+	ctx, log = setArrayIdContext(ctx, arrayId)
+
+	targetPath := req.GetTargetPath()
+	stagingTargetPath := req.GetStagingTargetPath()
+	volCap := req.GetVolumeCapability()
+	accMode := volCap.GetAccessMode()
+
+	// make sure target is created
+	err := createDirIfNotExist(ctx, targetPath, arrayId)
+	if err != nil {
+		return err
+	}
+
+	var rwoArray []string
+	rwo := "rw"
+	if accMode.GetMode() == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
+		rwo = "ro"
+	}
+	rwoArray = append(rwoArray, rwo)
+
+	//Check if stage target mount exists
+	var stageExportPathURL string
+	stageMountExists := false
+	stageMountExistsWithConflict := false
+	for _, exportPathURL := range exportPaths {
+		mnts, err := gofsutil.GetDevMounts(ctx, exportPathURL)
+		if err != nil {
+			return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "could not reliably determine existing staging target path mount status. Error: %v", err))
+		}
+		for _, m := range mnts {
+			if m.Path == stagingTargetPath {
+				if utils.ArrayContains(m.Opts, rwo) {
+					stageMountExists = true
+					stageExportPathURL = exportPathURL
+				} else {
+					stageMountExistsWithConflict = true
+				}
+			}
+		}
+	}
+	if !stageMountExists {
+		if stageMountExistsWithConflict {
+			return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Filesystem mounted with conflicting access modes on staging target path: %s", stagingTargetPath))
+		}
+		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Filesystem not mounted on staging target path: %s", stagingTargetPath))
+	}
+
+	mnts, err := gofsutil.GetMounts(ctx)
+	if err != nil {
+		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "could not reliably determine existing mount status. Error: %v", err))
+	}
+
+	if len(mnts) != 0 {
+		for _, m := range mnts {
+			//Idempotency check
+			if m.Device == stageExportPathURL {
+				if m.Path == targetPath {
+					if utils.ArrayContains(m.Opts, rwo) {
+						log.Debugf("Target path: %s is already mounted to export path: %s", targetPath, stageExportPathURL)
+						return nil
+					} else {
+						return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Target path: %s is already mounted to export path: %s with conflicting access modes", targetPath, stageExportPathURL))
+					}
+				} else if m.Path == stagingTargetPath {
+					continue
+				} else {
+					if accMode.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
+						return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Export path: %s is already mounted to different target path: %s", stageExportPathURL, m.Path))
+					} else {
+						//For multi-node access modes target mount will be executed
+						break
+					}
+				}
+			}
+		}
+	}
+
+	//Proceeding to perform bind mount to target path
+	if nfsv4 {
+		nfsv4 = false
+		err = gofsutil.BindMount(ctx, stagingTargetPath, targetPath, rwoArray...)
+		if err == nil {
+			nfsv4 = true
+		}
+	}
+
+	if !nfsv4 && nfsv3 {
+		rwo += ",vers=3"
+		rwoArray = append(rwoArray, "vers=3")
+		err = gofsutil.BindMount(ctx, stagingTargetPath, targetPath, rwoArray...)
+	}
+
+	if err != nil {
+		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Error publish filesystem to target path. Error: %v", err))
+	}
+	return nil
+}
+
+func stageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest, stagingPath, symlinkPath string) error {
+	rid, log := utils.GetRunidAndLogger(ctx)
 
 	volCap := req.GetVolumeCapability()
-	if volCap == nil {
-		return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "volume capability required"))
-	}
-
-	accMode := volCap.GetAccessMode()
-	if accMode == nil {
-		return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "volume access mode required"))
-	}
+	id := req.GetVolumeId()
+	mntVol := volCap.GetMount()
+	ro := false //since only SINGLE_NODE_WRITER is supported
 
 	// make sure device is valid
 	sysDevice, err := GetDevice(ctx, symlinkPath)
 	if err != nil {
 		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "error getting block device for volume: %s, err: %s", id, err.Error()))
 	}
-
-	// make sure target is created
-	tgtStat, err := os.Stat(target)
-	if err != nil {
-		if os.IsNotExist(err) {
-			//Create target directory if it doesnt exist
-			_, err = mkdir(ctx, target)
-			if err != nil {
-				return status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Could not create target %s : %s", target, err.Error()))
-			}
-		}
-		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "failed to stat target, err: %s", err.Error()))
-	}
-
-	// make sure privDir exists and is a directory
-	if _, err := mkdir(ctx, privDir); err != nil {
-		log.Errorf("Could not create target %s: %v", privDir, err)
-		return err
-	}
-
-	typeSet := false
-	if blockVol := volCap.GetBlock(); blockVol != nil {
-		// BlockVolume is not supported
-		return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Block Volume not supported"))
-	}
-	mntVol := volCap.GetMount()
-	if mntVol != nil {
-		if ro {
-			return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "read only not supported for Mount Volume"))
-		}
-		typeSet = true
-	} else {
-		return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Volume capability - Mount param has not been provided"))
-	}
-
-	if !typeSet {
-		return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "volume access type required"))
-	}
-
-	// check that the target is right type for vol type
-	if !tgtStat.IsDir() {
-		return status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "target: %s wrong type (file) Access Type", target))
-	}
-
-	// Path to mount device to (private mount)
-	privTgt := getPrivateMountPoint(privDir, id)
 
 	// Check if device is already mounted
 	devMnts, err := getDevMounts(ctx, sysDevice)
@@ -104,34 +221,32 @@ func publishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, privD
 
 	alreadyMounted := false
 	if len(devMnts) == 0 {
-		// Device isn't mounted anywhere, do the private mount
+		// Device isn't mounted anywhere, do the staging mount
 		// Make sure private mount point exists
 		var created bool
 
-		created, err = mkdir(ctx, privTgt)
+		created, err = mkdir(ctx, stagingPath)
 
 		if err != nil {
-			return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Unable to create private mount point: %s", err.Error()))
+			return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Unable to create staging mount point: %s", err.Error()))
 		}
 		if !created {
 			// The place where our device is supposed to be mounted
 			// already exists, but we also know that our device is not mounted anywhere
 			// Either something didn't clean up correctly, or something else is mounted
-			// If the private mount is not in use, it's okay to re-use it. But make sure
+			// If the staging mount is not in use, it's okay to re-use it. But make sure
 			// it's not in use first
 
 			mnts, err := gofsutil.GetMounts(ctx)
 			if err != nil {
 				return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "could not reliably determine existing mount status: %s", err.Error()))
 			}
-			if len(mnts) == 0 {
-				return status.Error(codes.Unavailable, utils.GetMessageWithRunID(rid, "volume %s not published to node", id))
-			}
+
 			for _, m := range mnts {
-				if m.Path == privTgt {
+				if m.Path == stagingPath {
 					resolvedMountDevice := evalSymlinks(ctx, m.Device)
 					if resolvedMountDevice != sysDevice.RealDev {
-						return status.Errorf(codes.FailedPrecondition, "Private mount point: %s mounted by different device: %s", privTgt, resolvedMountDevice)
+						return status.Errorf(codes.FailedPrecondition, "Staging mount point: %s mounted by different device: %s", stagingPath, resolvedMountDevice)
 					}
 					alreadyMounted = true
 				}
@@ -146,48 +261,60 @@ func publishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, privD
 				return status.Error(codes.Unavailable, utils.GetMessageWithRunID(rid, "Fs type %s not supported", fs))
 			}
 
-			if err := handlePrivFSMount(ctx, accMode, mntFlags, sysDevice, fs, privTgt); err != nil {
-				// K8S may have removed the desired mount point. Clean up the private target.
-				log.Debugf("Private mount failed: %v", err)
-				cleanupPrivateTarget(ctx, privTgt)
-				return err
+			if err := handleStageMount(ctx, mntFlags, sysDevice, fs, stagingPath); err != nil {
+				return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Staging mount failed: %v", err))
 			}
 		} else {
-			log.Debug("Private mount is already in place")
+			log.Debug("Staging mount is already in place")
 		}
 	} else {
 		// Device is already mounted. Need to ensure that it is already
-		// mounted to the expected private mount, with correct rw/ro permissions
+		// mounted to the expected staging path, with correct rw/ro permissions
 		mounted := false
-
-		log.Printf("Devmounts: %#v", devMnts)
 		for _, m := range devMnts {
-			if m.Path == target {
-				log.Debugf("mount %#v already mounted to requested target %s", m, target)
-				mounted = true
-			}
-			if m.Path == privTgt {
+			if m.Path == stagingPath {
 				mounted = true
 				rwo := "rw"
 				if ro {
 					rwo = "ro"
 				}
+				//@TODO: check contents of m.Opts if it has fs type and verify fs type as well
+				//Remove below debug once resolved
+				log.Debug("=============m.Opts: ", m.Opts)
 				if utils.ArrayContains(m.Opts, rwo) {
-					log.Debug("private mount already in place")
+					log.Debug("staging mount already in place")
 					break
 				} else {
 					return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "access mode conflicts with existing mounts"))
 				}
 			}
+			//It is ok if the device is mounted elsewhere - could be targetPath. If not this will be caught during NodePublish
 		}
 		if !mounted {
 			return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "device already in use and mounted elsewhere. Cannot do private mount"))
 		}
 	}
 
-	// Private mount in place, now bind mount to target path
+	return nil
+}
+
+func publishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, targetPath, symlinkPath string) error {
+
+	rid, log := utils.GetRunidAndLogger(ctx)
+	stagingPath := req.GetStagingTargetPath()
+	id := req.GetVolumeId()
+	volCap := req.GetVolumeCapability()
+	accMode := volCap.GetAccessMode()
+	mntVol := volCap.GetMount()
+
+	// make sure device is valid
+	sysDevice, err := GetDevice(ctx, symlinkPath)
+	if err != nil {
+		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "error getting block device for volume: %s, err: %s", id, err.Error()))
+	}
+
 	// Check if target is not mounted
-	devMnts, err = getPathMounts(ctx, target)
+	devMnts, err := getDevMounts(ctx, sysDevice)
 	if err != nil {
 		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "could not reliably determine existing mount status: %s", err.Error()))
 	}
@@ -196,7 +323,7 @@ func publishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, privD
 	// target path was already there
 	if len(devMnts) > 0 {
 		for _, m := range devMnts {
-			if m.Path == target {
+			if m.Path == targetPath {
 				// volume already published to target
 				// if mount options look good, do nothing
 				rwo := "rw"
@@ -205,29 +332,38 @@ func publishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, privD
 				}
 				if !utils.ArrayContains(m.Opts, rwo) {
 					return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "volume previously published with different options"))
-
 				}
 				// Existing mount satisfies request
-				log.Info("volume already published to target")
+				log.Debug("volume already published to target")
 				return nil
-			} else if m.Path == privTgt {
+			} else if m.Path == stagingPath {
 				continue
 			} else {
 				//Device has been mounted aleady to another target
 				return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "device already in use and mounted elsewhere"))
 			}
 		}
+	}
 
+	pathMnts, err := getPathMounts(ctx, targetPath)
+	if err != nil {
+		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "could not reliably determine existing mount status: %s", err.Error()))
+	}
+
+	if len(pathMnts) > 0 {
+		for _, m := range pathMnts {
+			if !(m.Source == sysDevice.FullPath || m.Device == sysDevice.FullPath) {
+				//target is mounted by some other device
+				return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Target is mounted using a different device %s", m.Device))
+			}
+		}
 	}
 
 	// Make sure target is created. The spec says the driver is responsible
 	// for creating the target, but Kubernetes generally creates the target.
-	_, err = mkdir(ctx, target)
+	_, err = mkdir(ctx, targetPath)
 	if err != nil {
-		// Unmount and remove the private directory for the retry so clean start next time.
-		// K8S probably removed part of the path.
-		cleanupPrivateTarget(ctx, privTgt)
-		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Could not create %s: %s", target, err.Error()))
+		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Could not create %s: %v", targetPath, err))
 	}
 
 	var mntFlags []string
@@ -236,62 +372,67 @@ func publishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, privD
 		mntFlags = append(mntFlags, "ro")
 	}
 
-	if err := gofsutil.BindMount(ctx, privTgt, target, mntFlags...); err != nil {
-		// Unmount and remove the private directory for the retry so clean start next time.
-		// K8S probably removed part of the path.
-		cleanupPrivateTarget(ctx, privTgt)
-		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "error publish volume to target path: %s", err.Error()))
+	if err := gofsutil.BindMount(ctx, stagingPath, targetPath, mntFlags...); err != nil {
+		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "error publish volume to target path: %v", err))
 	}
 
-	log.Infof("Volume %s has been mounted successfully to the target path %s", id, target)
+	log.Debugf("Volume %s has been mounted successfully to the target path %s", id, targetPath)
 	return nil
 }
 
-// unpublishVolume removes the bind mount to the target path, and also removes
-// the mount to the private mount directory if the volume is no longer in use.
-// It determines this by checking to see if the volume is mounted anywhere else
-// other than the private mount.
-// The req.TargetPath should be a path starting with "/"
-func unpublishVolume(ctx context.Context,
-	req *csi.NodeUnpublishVolumeRequest,
-	privDir, devicePath string) (bool, error) {
+// unpublishVolume removes the bind mount to the target path
+func unpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) error {
 	rid, log := utils.GetRunidAndLogger(ctx)
-	lastUnmounted := false
-	id := req.GetVolumeId()
-
 	target := req.GetTargetPath()
-	if target == "" {
-		return lastUnmounted, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "target path required"))
+
+	// Look through the mount table for the target path.
+	targetMount, err := getTargetMount(ctx, target)
+	if err != nil {
+		return err
 	}
+	log.Debugf("Target Mount: %s", targetMount)
+
+	if targetMount.Device == "" {
+		// This should not happen normally. idempotent requests should be rare.
+		// If we incorrectly exit here, conflicting devices will be left
+		log.Debugf("No target mount found. waiting %v to re-verify no target %s mount", targetMountRecheckSleepTime, target)
+		time.Sleep(targetMountRecheckSleepTime)
+
+		targetMount, err := getTargetMount(ctx, target)
+
+		if err != nil || targetMount.Device == "" {
+			log.Debugf("Still no mount entry for target, so assuming this is an idempotent call: %s", target)
+			return nil
+		}
+
+		//It is alright if the device is mounted elsewhere - could be staging mount
+	}
+
+	devicePath := targetMount.Device
+	if devicePath == "devtmpfs" || devicePath == "" {
+		devicePath = targetMount.Source
+	}
+	log.Debugf("TargetMount: %s", targetMount)
+
 	// make sure device is valid
 	sysDevice, err := GetDevice(ctx, devicePath)
 	if err != nil {
 		// This error needs to be idempotent since device was not found
-		return true, nil
+		return nil
 	}
-	//  Get the private mount path
-	privTgt := getPrivateMountPoint(privDir, id)
 
 	//Get existing mounts
 	mnts, err := gofsutil.GetMounts(ctx)
 	if err != nil {
-		return lastUnmounted, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "could not reliably determine existing mount status: %s", err.Error()))
+		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "could not reliably determine existing mount status: %s", err.Error()))
 	}
 
 	tgtMnt := false
-	privMnt := false
-	log.Debug("UnpublishVolume: mnts:", len(mnts))
-	log.Debug("SysDevice:", sysDevice.Name, sysDevice.FullPath, sysDevice.RealDev)
-	log.Debug("PrivateDir:", privDir)
-	log.Debug("PrivateTarget:", privTgt)
-	log.Debug("Target", target)
-	log.Debug("DevicePath", devicePath)
 	for _, m := range mnts {
-		if m.Source == sysDevice.FullPath || m.Device == sysDevice.RealDev || m.Path == target || m.Path == privTgt || m.Device == sysDevice.FullPath {
-			if m.Path == privTgt {
-				privMnt = true
-			} else if m.Path == target {
+		if m.Source == sysDevice.FullPath || m.Device == sysDevice.FullPath {
+			if m.Path == target {
 				tgtMnt = true
+				break
 			}
 		}
 	}
@@ -299,28 +440,153 @@ func unpublishVolume(ctx context.Context,
 	if tgtMnt {
 		log.Debugf("Unmounting target %s", target)
 		if err := gofsutil.Unmount(ctx, target); err != nil {
-			return lastUnmounted, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Error unmounting target: %s", err.Error()))
+			return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Error unmounting target: %s", err.Error()))
 		}
 		log.Debugf("Device %s unmounted from target path %s successfully", sysDevice.Name, target)
 	} else {
 		log.Debugf("Device %s has not been mounted to target path %s. Skipping unmount", sysDevice.Name, target)
 	}
 
-	if privMnt {
-		log.Debugf("Unmounting sysDevice %v privTgt  %s", sysDevice, privTgt)
-		if lastUnmounted, err = unmountPrivMount(ctx, sysDevice, privTgt); err != nil {
-			return lastUnmounted, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Error unmounting private mount: %s", err.Error()))
+	return nil
+}
+
+//unstage volume removes staging mount and makes sure no other mounts are left for the given device path
+func unstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest, deviceWWN string) (bool, string, error) {
+	rid, log := utils.GetRunidAndLogger(ctx)
+	lastUnmounted := false
+	id := req.GetVolumeId()
+	stagingTarget := req.GetStagingTargetPath()
+
+	// Look through the mount table for the target path.
+	stageMount, err := getTargetMount(ctx, stagingTarget)
+	if err != nil {
+		return lastUnmounted, "", err
+	}
+	log.Debugf("Stage Mount: %s", stageMount)
+
+	if stageMount.Device == "" {
+		// This should not happen normally. idempotent requests should be rare.
+		// If we incorrectly exit here, conflicting devices will be left
+		log.Debugf("No stage mount found. waiting %v to re-verify no target %s mount", targetMountRecheckSleepTime, stagingTarget)
+		time.Sleep(targetMountRecheckSleepTime)
+
+		stageMount, err := getTargetMount(ctx, stagingTarget)
+
+		//Make sure volume is not mounted elsewhere
+		devMnts := make([]gofsutil.Info, 0)
+
+		symlinkPath, devicePath, err := gofsutil.WWNToDevicePathX(ctx, deviceWWN)
+		if err != nil {
+			log.Debugf("Disk path not found. Error: %v", err)
 		}
-		log.Infof("Device %s unmounted from private mount path %s successfully", sysDevice.Name, privTgt)
+
+		sysDevice, err := GetDevice(ctx, symlinkPath)
+
+		if sysDevice != nil {
+			devMnts, _ = getDevMounts(ctx, sysDevice)
+		}
+
+		if (err != nil || stageMount.Device == "") && len(devMnts) == 0 {
+			lastUnmounted = true
+			log.Debugf("Still no mount entry for target, so assuming this is an idempotent call: %s", stagingTarget)
+			return lastUnmounted, devicePath, nil
+		}
+
+		return lastUnmounted, "", status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Volume %s has been mounted outside the provided target path %s", id, stagingTarget))
+	}
+
+	devicePath := stageMount.Device
+	if devicePath == "devtmpfs" || devicePath == "" {
+		devicePath = stageMount.Source
+	}
+
+	// make sure device is valid
+	sysDevice, err := GetDevice(ctx, devicePath)
+	if err != nil {
+		// This error needs to be idempotent since device was not found
+		return true, devicePath, nil
+	}
+
+	//Get existing mounts
+	mnts, err := gofsutil.GetMounts(ctx)
+	if err != nil {
+		return lastUnmounted, "", status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "could not reliably determine existing mount status: %s", err.Error()))
+	}
+
+	stgMnt := false
+	log.Debug("SysDevice:", sysDevice.Name, sysDevice.FullPath, sysDevice.RealDev, "Staging Target", stagingTarget, "DevicePath", devicePath)
+
+	for _, m := range mnts {
+		if m.Source == sysDevice.FullPath || m.Device == sysDevice.FullPath {
+			if m.Path == stagingTarget {
+				stgMnt = true
+				break
+			} else {
+				log.Infof("Device %s has been mounted outside staging target on %s", sysDevice.FullPath, m.Path)
+			}
+		} else if m.Path == stagingTarget && !(m.Source == sysDevice.FullPath || m.Device == sysDevice.FullPath) {
+			log.Infof("Staging path %s has been mounted by foreign device %s", stagingTarget, m.Device)
+		}
+	}
+
+	if stgMnt {
+		log.Debugf("Unmount sysDevice: %v staging target:  %s", sysDevice, stagingTarget)
+		if lastUnmounted, err = unmountStagingMount(ctx, sysDevice, stagingTarget); err != nil {
+			return lastUnmounted, "", status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Error unmounting staging mount %s: %s", stagingTarget, err.Error()))
+		}
+		log.Debugf("Device %s unmounted from private mount path %s successfully", sysDevice.Name, stagingTarget)
 	} else {
 		mnts, err := getDevMounts(ctx, sysDevice)
 		if err == nil && len(mnts) == 0 {
-			log.Infof("No private mount or remaining mounts device: %s", sysDevice.Name)
+			log.Debugf("No private mount or remaining mounts device: %s", sysDevice.Name)
 			lastUnmounted = true
 		}
 	}
 
-	return lastUnmounted, nil
+	return lastUnmounted, devicePath, nil
+}
+
+// unpublishNFS removes the mount from staging target path or target path
+func unpublishNFS(ctx context.Context, targetPath, arrayId string, exportPaths []string) error {
+	ctx, log, rid := GetRunidLog(ctx)
+	ctx, log = setArrayIdContext(ctx, arrayId)
+
+	//Get existing mounts
+	mnts, err := gofsutil.GetMounts(ctx)
+	if err != nil {
+		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "could not reliably determine existing mount status: %v", err))
+	}
+	mountExists := false
+	var exportPath string
+	for _, m := range mnts {
+		if m.Path == targetPath {
+			for _, exportPathURL := range exportPaths {
+				if m.Device == exportPathURL {
+					mountExists = true
+					exportPath = exportPathURL
+					break
+				}
+			}
+			if !mountExists {
+				//Path is mounted but with some other NFS Share
+				return status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Path: %s mounted by different NFS Share with export path: %s", targetPath, m.Device))
+			}
+		}
+		if mountExists {
+			break
+		}
+	}
+	if !mountExists {
+		//Idempotent case
+		log.Debugf("Path: %s not mounted", targetPath)
+		return nil
+	}
+	log.Debugf("Unmounting target path: %s", targetPath)
+	if err := gofsutil.Unmount(ctx, targetPath); err != nil {
+		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Error unmounting path: %s. Error: %v", targetPath, err))
+	}
+	log.Debugf("Filesystem with NFS share export path: %s unmounted from path: %s successfully", exportPath, targetPath)
+	return nil
 }
 
 func getDevMounts(ctx context.Context, sysDevice *Device) ([]gofsutil.Info, error) {
@@ -351,8 +617,27 @@ func getDevMounts(ctx context.Context, sysDevice *Device) ([]gofsutil.Info, erro
 	return devMnts, nil
 }
 
-func getPrivateMountPoint(privDir string, name string) string {
-	return filepath.Join(privDir, name)
+func createDirIfNotExist(ctx context.Context, path, arrayId string) error {
+	ctx, _, rid := GetRunidLog(ctx)
+	ctx, _ = setArrayIdContext(ctx, arrayId)
+	tgtStat, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			//Create target directory if it doesnt exist
+			_, err := mkdir(ctx, path)
+			if err != nil {
+				return status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Could not create path: %s. Error: %v", path, err))
+			}
+		} else {
+			return status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "failed to stat path: %s, Error: %v", path, err))
+		}
+	} else {
+		// check that the target is right type for vol type
+		if !tgtStat.IsDir() {
+			return status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Path: %s wrong type (file)", path))
+		}
+	}
+	return nil
 }
 
 // mkdir creates the directory specified by path if needed.
@@ -361,7 +646,7 @@ func mkdir(ctx context.Context, path string) (bool, error) {
 	log := utils.GetRunidLogger(ctx)
 	st, err := os.Stat(path)
 	if os.IsNotExist(err) {
-		if err := os.Mkdir(path, 0755); err != nil {
+		if err := os.MkdirAll(path, 0755); err != nil {
 			log.WithField("dir", path).WithError(err).Error("Unable to create dir")
 			return false, err
 		}
@@ -374,12 +659,10 @@ func mkdir(ctx context.Context, path string) (bool, error) {
 	return false, nil
 }
 
-func handlePrivFSMount(ctx context.Context,
-	accMode *csi.VolumeCapability_AccessMode,
-	mntFlags []string, sysDevice *Device, fs, privTgt string) error {
+func handleStageMount(ctx context.Context, mntFlags []string, sysDevice *Device, fs, stageTgt string) error {
 	rid, _ := utils.GetRunidAndLogger(ctx)
-	if err := gofsutil.FormatAndMount(ctx, sysDevice.FullPath, privTgt, fs, mntFlags...); err != nil {
-		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "error performing private mount: %s", err.Error()))
+	if err := gofsutil.FormatAndMount(ctx, sysDevice.FullPath, stageTgt, fs, mntFlags...); err != nil {
+		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "error performing private mount: %v", err))
 	}
 	return nil
 }
@@ -387,25 +670,23 @@ func handlePrivFSMount(ctx context.Context,
 // GetDevice returns a Device struct with info about the given device, or
 // an error if it doesn't exist or is not a block device
 func GetDevice(ctx context.Context, path string) (*Device, error) {
-	log := utils.GetRunidLogger(ctx)
+	rid, log := utils.GetRunidAndLogger(ctx)
 	fi, err := os.Lstat(path)
 	if err != nil {
-		log.Errorf("Could not lstat path: %s ", path)
-		return nil, err
+		return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Could not lstat path: %s ", path))
 	}
 
 	// eval any symlinks and make sure it points to a device
 	d, err := filepath.EvalSymlinks(path)
 	if err != nil {
-		log.Error("Could not evaluate symlinks path: " + path)
-		return nil, err
+		return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Could not evaluate symlinks path: %s ", path))
 	}
 
 	ds, _ := os.Stat(d)
 	dm := ds.Mode()
 
 	if dm&os.ModeDevice == 0 {
-		return nil, fmt.Errorf("%s is not a block device", path)
+		return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "%s is not a block device", path))
 	}
 
 	dev := &Device{
@@ -417,7 +698,7 @@ func GetDevice(ctx context.Context, path string) (*Device, error) {
 	return dev, nil
 }
 
-func unmountPrivMount(
+func unmountStagingMount(
 	ctx context.Context,
 	dev *Device,
 	target string) (bool, error) {
@@ -429,7 +710,7 @@ func unmountPrivMount(
 		return lastUnmounted, err
 	}
 
-	// Handle no private mount (which is odd because we had one to call here)
+	// Handle no staging mount (which is odd because we had one to call here)
 	// It implies deleting the target mount also cleaned up the private mount
 	if len(mnts) == 0 {
 		log.Info("No private mounts for device: " + dev.RealDev)
@@ -460,160 +741,6 @@ func unmountPrivMount(
 	return lastUnmounted, nil
 }
 
-// nodeDeleteBlockDevices deletes the block devices associated with a volume WWN (including multipath) on that node.
-// This should be done when the volume will no longer be used on the node.
-func (s *service) nodeDeleteBlockDevices(ctx context.Context, wwn string, target string) error {
-	rid, log := utils.GetRunidAndLogger(ctx)
-	var err error
-	wwn = strings.ReplaceAll(wwn, ":", "")
-	wwn = strings.ToLower(wwn)
-	for i := 0; i < maxBlockDevicesPerWWN; i++ {
-		// Wait for the next device to show up
-		symlinkPath, devicePath, _ := gofsutil.WWNToDevicePathX(ctx, wwn)
-		if devicePath == "" {
-			// All done, no more paths for WWN
-			log.Debug("Multipath devices flushed, no more dm paths for WWN: ", wwn)
-			break
-		}
-
-		log.WithField("WWN", wwn).WithField("SymlinkPath", symlinkPath).WithField("DevicePath", devicePath).Info("Removing block device")
-
-		isMultipath := strings.HasPrefix(symlinkPath, gofsutil.MultipathDevDiskByIDPrefix)
-		if isMultipath {
-			var textBytes []byte
-
-			// Attempt to flush the devicePath
-			multipathMutex.Lock()
-			textBytes, err = gofsutil.MultipathCommand(ctx, 2, "", "-f", devicePath)
-			multipathMutex.Unlock()
-
-			if textBytes != nil && len(textBytes) > 0 {
-				log.Infof("multipath -f %s: %s", devicePath, string(textBytes))
-			}
-			if err != nil {
-				log.Infof("Multipath flush error: %s: %s", devicePath, err.Error())
-				time.Sleep(nodePublishSleepTime)
-				//Attempting to flush via chroot
-				multipathMutex.Lock()
-				log.Debugf("Attempting to flush via chroot: %s", devicePath)
-				textBytes, err = gofsutil.MultipathCommand(ctx, 2, s.opts.Chroot, "-f", devicePath)
-				multipathMutex.Unlock()
-				if err != nil {
-					log.Infof("Multipath flush error: %s: %s", devicePath, err.Error())
-				} else {
-					log.Infof("Multipath flush success: %s", devicePath)
-				}
-			} else {
-				log.Infof("Multipath flush success: %s", devicePath)
-				time.Sleep(multipathSleepTime)
-			}
-		}
-	}
-
-	for i := 0; i < maxBlockDevicesPerWWN; i++ {
-
-		// Wait for the next device to show up
-		symlinkPath, devicePath, _ := gofsutil.WWNToDevicePathX(ctx, wwn)
-		if devicePath == "" {
-			// All done, no more paths for WWN
-			log.Debug("All done, no more paths for WWN: ", wwn)
-			break
-		}
-
-		log.WithField("WWN", wwn).WithField("SymlinkPath", symlinkPath).WithField("DevicePath", devicePath).Info("Removing block device")
-
-		isMultipath := strings.HasPrefix(symlinkPath, gofsutil.MultipathDevDiskByIDPrefix)
-		if isMultipath {
-			log.Info("Skipping delete dm device since multipath flush failed for: ", devicePath)
-			continue
-		}
-
-		// RemoveBlockDevice is called in a goroutine in case it takes an extended period. It will return error status in channel errorChan.
-		// After that time we check to see if we have received a response from the goroutine.
-		// If there was no response, we return an error that we timed out.
-		// Otherwise, we wait any additional necessary to have slept for the removeDeviceSleepTime.
-		deviceDeleteMutex.Lock()
-		startTime := time.Now()
-		endTime := startTime.Add(removeDeviceSleepTime)
-		errorChan := make(chan error, 1)
-		go func(devicePath string, errorChan chan error) {
-			err := gofsutil.RemoveBlockDevice(ctx, devicePath)
-			errorChan <- err
-		}(devicePath, errorChan)
-
-		done := false
-		timeout := time.After(deviceDeletionTimeout)
-		curTime := time.Now()
-
-		for {
-			breakLoop := false
-			select {
-			case err = <-errorChan:
-				done = true
-				log.Debugf("device delete took %v", curTime.Sub(startTime))
-				if err != nil {
-					log.Debugf("Remove block device failed with error: %s: %v", devicePath, err)
-				} else {
-					log.Debugf("Remove block device successful for: %s", devicePath)
-					breakLoop = true
-					break
-				}
-			case <-timeout:
-				log.Debugf("Routine remove block device timed out")
-				breakLoop = true
-				break
-			default:
-				time.Sleep(deviceDeletionPoll)
-			}
-
-			if breakLoop {
-				break
-			}
-		}
-		close(errorChan)
-		deviceDeleteMutex.Unlock()
-		if !done {
-			//log.Debugf("Removing block %s device timed out after %v", devicePath, deviceDeletionTimeout)
-			return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Removing block device timed out after %v", deviceDeletionTimeout))
-		}
-
-		//Wait untill remainingTime so that delete device can refresh new stats
-		remainingTime := endTime.Sub(time.Now())
-		if remainingTime > (100 * time.Millisecond) {
-			time.Sleep(remainingTime)
-		}
-	}
-
-	if err != nil {
-		return err
-	}
-	// Do a linear scan.
-	return linearScanToRemoveDevices(ctx, wwn)
-}
-
-// linearScanToRemoveDevices does a linear scan through /sys/block for devices matching a volumeWWN, and attempts to remove them if any.
-func linearScanToRemoveDevices(ctx context.Context, volumeWWN string) error {
-	log := utils.GetRunidLogger(ctx)
-	devs, _ := gofsutil.GetSysBlockDevicesForVolumeWWN(ctx, volumeWWN)
-	if len(devs) == 0 {
-		return nil
-	}
-	log.Debugf("volume devices wwn %s still to be deleted: %s", volumeWWN, devs)
-	for _, dev := range devs {
-		devicePath := "/dev/" + dev
-		err := gofsutil.RemoveBlockDevice(ctx, devicePath)
-		if err != nil {
-			log.Debugf("Remove block device %s failed with error: %v", devicePath, err)
-		}
-	}
-	time.Sleep(removeDeviceSleepTime)
-	devs, _ = gofsutil.GetSysBlockDevicesForVolumeWWN(ctx, volumeWWN)
-	if len(devs) > 0 {
-		return status.Error(codes.Internal, fmt.Sprintf("volume WWN %s had %d block devices that weren't successfully deleted: %s", volumeWWN, len(devs), devs))
-	}
-	return nil
-}
-
 // removeWithRetry removes directory, if it exists, with retry.
 func removeWithRetry(ctx context.Context, target string) error {
 	log := utils.GetRunidLogger(ctx)
@@ -622,37 +749,24 @@ func removeWithRetry(ctx context.Context, target string) error {
 		log.Debug("Removing target:", target)
 		err = os.Remove(target)
 		if err != nil && !os.IsNotExist(err) {
-			log.Error("error removing private mount target: " + err.Error())
+			log.Errorf("Error removing private mount target: %v", err)
 			cmd := exec.Command("/usr/bin/rmdir", target)
 			textBytes, err := cmd.CombinedOutput()
 			if err != nil {
-				log.Error("error calling rmdir: " + err.Error())
+				log.Errorf("error calling rmdir: %v", err)
 			} else {
 				log.Debugf("rmdir output: %s", string(textBytes))
 			}
 			time.Sleep(3 * time.Second)
 		} else {
 			log.Debug("Target removed:", target)
-			break
+			return nil
 		}
 	}
 	return err
 }
 
-//Not required - delete later
-// cleanupPrivateTarget unmounts and removes the private directory for the retry so clean start next time.
-func cleanupPrivateTarget(ctx context.Context, privTgt string) {
-	log := utils.GetRunidLogger(ctx)
-	log.Debugf("Cleaning up private target %s", privTgt)
-	if privErr := gofsutil.Unmount(ctx, privTgt); privErr != nil {
-		log.Debugf("Error unmounting privTgt %s: %v", privTgt, privErr)
-	}
-	if privErr := removeWithRetry(ctx, privTgt); privErr != nil {
-		log.Debugf("Error removing privTgt %s: %v", privTgt, privErr)
-	}
-}
-
-// Evaulate symlinks to a resolution. In case of an error,
+// Evaluate symlinks to a resolution. In case of an error,
 // logs the error but returns the original path.
 func evalSymlinks(ctx context.Context, path string) string {
 	log := utils.GetRunidLogger(ctx)

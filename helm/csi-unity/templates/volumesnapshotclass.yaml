@@ -1,12 +1,18 @@
+{{ $global := . }}
+{{- range $i, $v := .Values.storageArrayList }}
 apiVersion: snapshot.storage.k8s.io/v1alpha1
 kind: VolumeSnapshotClass
 metadata:
-  name: unity-snapclass
+  {{- if $v.isDefaultArray }}
+  name: "unity-snapclass"
+  annotations:
+    storageclass.beta.kubernetes.io/is-default-class: {{ $v.isDefaultArray | quote }}
+  {{ else }}
+  name: {{ "unity" }}-{{ $v.name | lower }}-snapclass
+  {{- end }}
 snapshotter: csi-unity.dellemc.com
 parameters:
-{{ if .Values.snapshotRetentionDuration }}
-  retentionDuration: {{ .Values.snapshotRetentionDuration | default "" | quote  }}
-{{ else if .Values.snapshotClass.retentionDuration }}
-  retentionDuration: {{ .Values.snapshotClass.retentionDuration | default "" | quote  }}
-{{ end }}
+  retentionDuration: {{ $v.snapshotClass.retentionDuration | default "" | quote  }}
+---
+{{- end }}
 

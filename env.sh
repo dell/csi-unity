@@ -14,4 +14,6 @@ export STORAGE_POOL_NAME=
 export X_CSI_REQ_LOGGING="true"
 export X_CSI_REP_LOGGING="true"
 export GOUNITY_DEBUG="true"
-
+export DRIVER_NAME=
+export DRIVER_CONFIG=
+export X_CSI_UNITY_AUTOPROBE=

@@ -8,8 +8,8 @@ source ./common.bash
 # Verify the kubernetes installation has the feature gates needed.
 sh ./verify.kubernetes
 
-# Check if unity-certs exists. If not, then create it
-kubectl get secrets -n "$NS" | grep unity-certs --quiet
+# Check if unity-certs-0 exists. If not, then create it
+kubectl get secrets -n "$NS" | grep unity-certs-0 --quiet
 if [ $? -ne 0 ];
     then echo "*** Couldn't find unity-certs. Creating an empty secret. Delete it and re-create it if you want to validate unisphere certificates ***"
     kubectl create -f ./emptysecret.yaml
@@ -37,11 +37,11 @@ helm version | grep "v3." --quiet
 if [ $? -eq 0 ]
 then
     echo "Upgrading using helm version 3"
-    helm upgrade --values myvalues.yaml --namespace "$NS" unity ./csi-unity
+    helm upgrade --values myvalues.yaml --values csi-unity/k8s-${kMajorVersion}.${kMinorVersion}-values.yaml --namespace "$NS" unity ./csi-unity
 else
     echo "Upgrading using helm version 2"
     kubectl delete csidriver unity
-    helm upgrade --values myvalues.yaml unity --namespace unity ./csi-unity
+    helm upgrade --values myvalues.yaml --values csi-unity/k8s-${kMajorVersion}.${kMinorVersion}-values.yaml unity --namespace unity ./csi-unity
 fi
 
 waitOnRunning

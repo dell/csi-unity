@@ -3,54 +3,8 @@ kind: ServiceAccount
 metadata:
   name: {{ .Release.Name }}-node
   namespace: {{ .Release.Namespace }}
-
 ---
-
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: {{ .Release.Name }}-node
-rules:
-  - apiGroups: [""]
-    resources: ["persistentvolumes"]
-    verbs: ["create", "delete", "get", "list", "watch", "update"]
-  - apiGroups: [""]
-    resources: ["persistentvolumesclaims"]
-    verbs: ["get", "list", "watch", "update"]
-  - apiGroups: [""]
-    resources: ["events"]
-    verbs: ["get", "list", "watch", "create", "update", "patch"]
-  - apiGroups: [""]
-    resources: ["nodes"]
-    verbs: ["get", "list", "watch", "update", "patch"]
-  - apiGroups: ["storage.k8s.io"]
-    resources: ["volumeattachments"]
-    verbs: ["get", "list", "watch", "update"]
-  - apiGroups: ["storage.k8s.io"]
-    resources: ["storageclasses"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["storage.k8s.io"]
-    resources: ["volumeattachments"]
-    verbs: ["get", "list", "watch", "update"]
-
-
----
-
-kind: ClusterRoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: {{ .Release.Name }}-node
-subjects:
-  - kind: ServiceAccount
-    name: {{ .Release.Name }}-node
-    namespace: {{ .Release.Namespace }}
-roleRef:
-  kind: ClusterRole
-  name: {{ .Release.Name }}-node
-  apiGroup: rbac.authorization.k8s.io
-
----
-
+{{ $releaseName := .Release.Name }}
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
@@ -68,6 +22,17 @@ spec:
         app: {{ .Release.Name }}-node
     spec:
       serviceAccountName: {{ .Release.Name }}-node
+      tolerations:
+        - key: "node.kubernetes.io/memory-pressure"
+          operator: "Exists"
+          effect: "NoExecute"
+        - key: "node.kubernetes.io/disk-pressure"
+          operator: "Exists"
+          effect: "NoExecute"
+        - key: "node.kubernetes.io/network-unavailable"
+          operator: "Exists"
+          effect: "NoExecute"
+      hostIPC: true
       hostNetwork: true
       containers:  
         - name: driver
@@ -79,6 +44,7 @@ spec:
           image: {{ required "Must provide the Unity driver container image." .Values.images.driver }}
           args:
             - "--driver-name=csi-unity.dellemc.com"
+            - "--driver-config=/unity-config/config"
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
             - name: CSI_ENDPOINT
@@ -98,24 +64,12 @@ spec:
                   fieldPath: spec.nodeName
             - name: X_CSI_UNITY_NODENAME_PREFIX
               value: {{ .Values.nodeNamePrefix }}
-            - name: X_CSI_UNITY_ENDPOINT
-              value: {{ required "Must provide a UNITY HTTPS endpoint." .Values.restGateway }}
-            - name: X_CSI_UNITY_USER
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Release.Name }}-creds
-                  key: username
-            - name: X_CSI_UNITY_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Release.Name }}-creds
-                  key: password
-            - name: X_CSI_UNITY_INSECURE
-              value: {{ .Values.unityInsecure | default "true" | lower | quote }}
             - name: GOUNITY_DEBUG
               value: {{ .Values.csiDebug | default "false" | lower | quote }}
             - name: SSL_CERT_DIR
               value: /certs
+            - name: X_CSI_UNITY_SYNC_NODEINFO_INTERVAL
+              value: {{ .Values.syncNodeInfoInterval | default "15" | quote }}
           volumeMounts:
             - name: driver-path
               mountPath: /var/lib/kubelet/plugins/unity.emc.dell.com
@@ -131,6 +85,8 @@ spec:
             - name: certs
               mountPath: /certs
               readOnly: true
+            - name: unity-config
+              mountPath: /unity-config
         - name: registrar
           image: {{ required "Must provide the CSI node registrar container image." .Values.images.registrar }}
           args:
@@ -176,5 +132,15 @@ spec:
             path: /
             type: Directory
         - name: certs
+          projected:
+            sources:
+{{- range $i, $e := until (int .Values.certSecretCount ) }}
+              - secret:
+                  name: {{ print $releaseName "-certs-" $e }}
+                  items:
+                    - key: cert-{{ $e }}
+                      path: cert-{{ $e }}
+{{- end }}
+        - name: unity-config
           secret:
-              secretName: {{ .Release.Name }}-certs
+              secretName: {{ .Release.Name }}-creds
