@@ -23,7 +23,7 @@ The CSI Driver For Dell EMC Unity conforms to CSI spec 1.1
 |Types of volumes | Static, Dynamic| |
 |Access mode | RWO(FC/iSCSI), RWO/RWX/ROX(NFS) | RWX/ROX(FC/iSCSI)|
 |Kubernetes | v1.14, v1.16 | V1.13 or previous versions|
-|Installer | Helm v3.x,v2,x | Operator |
+|Installer | Helm v3.x,v2.x | Operator |
 |OpenShift | v4.3 (Helm installation only) | v4.2 |
 |OS | RHEL 7.6, RHEL 7.7, CentOS 7.6, CentOS 7.7 | Ubuntu, other Linux variants|
 |Unity | OE 5.0 | Previous versions|
