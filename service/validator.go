@@ -2,8 +2,8 @@ package service
 
 import (
 	"fmt"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/dell/gounity/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -44,7 +44,7 @@ func accTypeIsBlock(vcs []*csi.VolumeCapability) bool {
 	return false
 }
 
-func valVolumeCaps(vcs []*csi.VolumeCapability, vol *types.Volume) (bool, string) {
+func valVolumeCaps(vcs []*csi.VolumeCapability, protocol string) (bool, string) {
 	var (
 		supported = true
 		isBlock   = accTypeIsBlock(vcs)
@@ -71,10 +71,16 @@ func valVolumeCaps(vcs []*csi.VolumeCapability, vol *types.Volume) (bool, string
 		case csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY:
 			fallthrough
 		case csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY:
+			if protocol == "NFS" {
+				break
+			}
 			fallthrough
 		case csi.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER:
 			fallthrough
 		case csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER:
+			if protocol == "NFS" {
+				break
+			}
 			if !isBlock {
 				supported = false
 				reason = errNoMultiNodeWriter

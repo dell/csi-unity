@@ -14,6 +14,7 @@ import (
 // main is ignored when this package is built as a go plug-in.
 func main() {
 	driverName := flag.String("driver-name", "", "driver name")
+	driverConfig := flag.String("driver-config", "", "driver config json file")
 	flag.Parse()
 
 	if *driverName == "" {
@@ -21,6 +22,13 @@ func main() {
 		os.Exit(1)
 	}
 	service.Name = *driverName
+
+	if *driverConfig == "" {
+		fmt.Fprintf(os.Stderr, "driver-config argument is mandatory")
+		os.Exit(1)
+	}
+	service.DriverConfig = *driverConfig
+
 	gocsi.Run(
 		context.Background(),
 		service.Name,
@@ -29,43 +37,8 @@ func main() {
 		provider.New())
 }
 
-const usage = `    X_CSI_UNITY_ENDPOINT
-        Specifies the HTTP endpoint for Unity. This parameter is
-        required when running the Controller service.
-
-        The default value is empty.
-
-    X_CSI_UNITY_USER
-        Specifies the user name when authenticating to Unity.
-
-        The default value is admin.
-
-    X_CSI_UNITY_PASSWORD
-        Specifies the password of the user defined by X_CSI_UNITY_USER to use
-        during authenticatiion to Unity. This parameter is required
-        when running the Controller service.
-
-        The default value is empty.
-
-    X_CSI_UNITY_INSECURE
-        Specifies that the Unity's hostname and certificate chain
-	should not be verified.
-
-        The default value is false.
-
+const usage = `
     X_CSI_UNITY_NODENAME
         Specifies the name of the node where the Node plugin is running.
-
         The default value is empty.
-
-    X_CSI_UNITY_NODENAME_PREFIX
-        Specifies prefix to the the name of the node where the Node plugin is running.
-
-        The default value is empty and this is optional.
-
-    X_CSI_PRIVATE_MOUNT_DIR
-        Specifies the private directory to which a PVC will be mounted before 
-		binding the mount to the target directory.
-
-        The default value is an empty list.
 `

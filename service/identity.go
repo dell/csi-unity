@@ -14,12 +14,12 @@ func (s *service) Probe(
 	ctx, log, _ := GetRunidLog(ctx)
 	log.Infof("Executing Probe with args: %+v", *req)
 	if !strings.EqualFold(s.mode, "node") {
-		if err := s.controllerProbe(ctx); err != nil {
+		if err := s.controllerProbe(ctx, ""); err != nil {
 			return nil, err
 		}
 	}
 	if !strings.EqualFold(s.mode, "controller") {
-		if err := s.nodeProbe(ctx); err != nil {
+		if err := s.nodeProbe(ctx, ""); err != nil {
 			return nil, err
 		}
 	}

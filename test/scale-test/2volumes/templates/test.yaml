@@ -1,0 +1,44 @@
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+    name: unitytest
+    namespace: test
+spec:
+    serviceName: unitytest-2vol
+    replicas: {{ required "replicas required" .Values.replicas }}
+    selector:
+        matchLabels:
+          app: unitytest
+    template:
+      metadata:
+        labels:
+          app: unitytest
+      spec:
+        serviceAccount: unitytest
+        hostNetwork: true
+        containers:
+          - name: test
+            image: docker.io/centos:latest
+            command: [ "/bin/sleep", "3600" ]
+            volumeMounts:
+              - mountPath: "/data0"
+                name: unityvolx0
+              - mountPath: "/data1"
+                name: unityvolx1
+    volumeClaimTemplates:
+    - metadata:
+        name: unityvolx0
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        resources:
+          requests:
+            storage: 5Gi
+    - metadata:
+        name: unityvolx1
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        resources:
+          requests:
+            storage: 3Gi

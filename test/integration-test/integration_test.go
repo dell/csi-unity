@@ -30,14 +30,9 @@ type feature struct {
 	createSnapshotResponse            *csi.CreateSnapshotResponse
 	deleteSnapshotRequest             *csi.DeleteSnapshotRequest
 	deleteSnapshotResponse            *csi.DeleteSnapshotResponse
-	listSnapshotsRequest              *csi.ListSnapshotsRequest
-	listSnapshotsResponse             *csi.ListSnapshotsResponse
-	listVolumesRequest                *csi.ListVolumesRequest
-	listVolumesResponse               *csi.ListVolumesResponse
 	capability                        *csi.VolumeCapability
 	capabilities                      []*csi.VolumeCapability
 	validateVolumeCapabilitiesRequest *csi.ValidateVolumeCapabilitiesRequest
-	getCapacityRequest                *csi.GetCapacityRequest
 	controllerGetCapabilitiesRequest  *csi.ControllerGetCapabilitiesRequest
 	controllerExpandVolumeRequest     *csi.ControllerExpandVolumeRequest
 	nodePublishVolumeRequest          *csi.NodePublishVolumeRequest
@@ -47,6 +42,7 @@ type feature struct {
 	volID                             string
 	volIDList                         []string
 	maxRetryCount                     int
+	volumeContext                     map[string]string
 }
 
 //addError method appends an error to the error list
@@ -83,15 +79,17 @@ func (f *feature) aCSIService() error {
 }
 
 //aBasicBlockVolumeRequest method to buils a Create volume request
-func (f *feature) aBasicBlockVolumeRequest(volumeName string, size int) error {
+func (f *feature) aBasicBlockVolumeRequest(volumeName, arrayId, protocol string, size int) error {
 	f.createVolumeRequest = nil
 	req := new(csi.CreateVolumeRequest)
 	params := make(map[string]string)
-	params["storagepool"] = os.Getenv("STORAGE_POOL")
+	params["storagePool"] = os.Getenv("STORAGE_POOL")
 	params["thinProvisioned"] = "true"
 	params["isDataReductionEnabled"] = "false"
 	params["tieringPolicy"] = "0"
 	params["description"] = "CSI Volume Unit Test"
+	params["arrayId"] = arrayId
+	params["protocol"] = protocol
 	req.Parameters = params
 	req.Name = volumeName
 	capacityRange := new(csi.CapacityRange)
@@ -114,16 +112,18 @@ func (f *feature) aBasicBlockVolumeRequest(volumeName string, size int) error {
 }
 
 //aBasicBlockVolumeRequest method with volume content source
-func (f *feature) aBasicBlockVolumeRequestWithVolumeContentSource(volumeName string, size int) error {
+func (f *feature) aBasicBlockVolumeRequestWithVolumeContentSource(volumeName, arrayId, protocol string, size int) error {
 	f.createVolumeRequest = nil
 	req := new(csi.CreateVolumeRequest)
 	params := make(map[string]string)
-	params["storagepool"] = os.Getenv("STORAGE_POOL")
+	params["storagePool"] = os.Getenv("STORAGE_POOL")
+	params["arrayId"] = arrayId
+	params["protocol"] = protocol
 	req.Parameters = params
 	req.Name = volumeName
 	capacityRange := new(csi.CapacityRange)
-        capacityRange.RequiredBytes = int64(size * 1024 * 1024 * 1024)
-        req.CapacityRange = capacityRange
+	capacityRange.RequiredBytes = int64(size * 1024 * 1024 * 1024)
+	req.CapacityRange = capacityRange
 	capability := new(csi.VolumeCapability)
 	mount := new(csi.VolumeCapability_MountVolume)
 	mountType := new(csi.VolumeCapability_Mount)
@@ -158,6 +158,7 @@ func (f *feature) iCallCreateVolume() error {
 			volResp.GetVolume().VolumeId, volResp.GetVolume().VolumeContext["CreationTime"])
 		f.volID = volResp.GetVolume().VolumeId
 		f.volIDList = append(f.volIDList, volResp.GetVolume().VolumeId)
+		f.volumeContext = f.createVolumeRequest.Parameters
 	}
 	f.createVolumeResponse = volResp
 	return nil
@@ -245,6 +246,7 @@ func (f *feature) controllerPublishVolume(volID, hostName string) error {
 	fmt.Printf("req.NodeId %s\n", req.NodeId)
 	req.Readonly = false
 	req.VolumeCapability = f.capability
+	req.VolumeContext = f.volumeContext
 
 	ctx := context.Background()
 	client := csi.NewControllerClient(grpcClient)
@@ -297,180 +299,6 @@ func (f *feature) theErrorMessageShouldContain(expected string) error {
 	if !strings.Contains(err0.Error(), expected) {
 		return errors.New(fmt.Sprintf("Error %s does not contain the expected message: %s", err0.Error(), expected))
 	}
-	return nil
-}
-
-//iCreateVolumesInParallel - Test case to create n volumes in parallel
-func (f *feature) iCreateVolumesInParallel(nVols int) error {
-	idchan := make(chan string, nVols)
-	errchan := make(chan error, nVols)
-	t0 := time.Now()
-	// Send requests
-	for i := 0; i < nVols; i++ {
-		name := fmt.Sprintf("scale%d", i)
-		go func(name string, idchan chan string, errchan chan error) {
-			var resp *csi.CreateVolumeResponse
-			var err error
-			f.aBasicBlockVolumeRequest(name, 8)
-			if f.createVolumeRequest != nil {
-				resp, err = f.createVolume(f.createVolumeRequest)
-				if resp != nil {
-					idchan <- resp.GetVolume().VolumeId
-				} else {
-					idchan <- ""
-				}
-			}
-			errchan <- err
-		}(name, idchan, errchan)
-	}
-	// Wait on complete, collecting ids and errors
-	nerrors := 0
-	for i := 0; i < nVols; i++ {
-		var id string
-		var err error
-		id = <-idchan
-		if id != "" {
-			f.volIDList = append(f.volIDList, id)
-		}
-		err = <-errchan
-		if err != nil {
-			fmt.Printf("create volume received error: %s\n", err.Error())
-			f.addError(err)
-			nerrors++
-		}
-	}
-	t1 := time.Now()
-	fmt.Printf("Create volume time for %d volumes %d errors: %v %v\n", nVols, nerrors, t1.Sub(t0).Seconds(), t1.Sub(t0).Seconds()/float64(nVols))
-	time.Sleep(SleepTime)
-	return nil
-}
-
-//iPublishVolumesInParallel - Test case to publish n volumes in parallel
-func (f *feature) iPublishVolumesInParallel(nVols int) error {
-	nvols := len(f.volIDList)
-	done := make(chan bool, nvols)
-	errchan := make(chan error, nvols)
-
-	// Send requests
-	t0 := time.Now()
-	for i := 0; i < nVols; i++ {
-		id := f.volIDList[i]
-		if id == "" {
-			continue
-		}
-		go func(id string, done chan bool, errchan chan error) {
-			err := f.controllerPublishVolume(id, os.Getenv("X_CSI_UNITY_NODENAME"))
-			done <- true
-			errchan <- err
-		}(id, done, errchan)
-	}
-
-	// Wait for responses
-	nerrors := 0
-	for i := 0; i < nVols; i++ {
-		if f.volIDList[i] == "" {
-			continue
-		}
-		finished := <-done
-		if !finished {
-			f.addError(errors.New("premature completion"))
-		}
-		err := <-errchan
-		if err != nil {
-			fmt.Printf("controller publish received error: %s\n", err.Error())
-			f.addError(err)
-			nerrors++
-		}
-	}
-	t1 := time.Now()
-	fmt.Printf("Controller publish volume time for %d volumes %d errors: %v %v\n", nVols, nerrors, t1.Sub(t0).Seconds(), t1.Sub(t0).Seconds()/float64(nVols))
-	time.Sleep(4 * SleepTime)
-	return nil
-}
-
-//iUnpublishVolumesInParallel - Test case to unpublish n volumes in parallel
-func (f *feature) iUnpublishVolumesInParallel(nVols int) error {
-	nvols := len(f.volIDList)
-	done := make(chan bool, nvols)
-	errchan := make(chan error, nvols)
-
-	// Send request
-	t0 := time.Now()
-	for i := 0; i < nVols; i++ {
-		id := f.volIDList[i]
-		if id == "" {
-			continue
-		}
-		go func(id string, done chan bool, errchan chan error) {
-			err := f.controllerUnpublishVolume(id, os.Getenv("X_CSI_UNITY_NODENAME"))
-			done <- true
-			errchan <- err
-		}(id, done, errchan)
-	}
-
-	// Wait for response
-	nerrors := 0
-	for i := 0; i < nVols; i++ {
-		if f.volIDList[i] == "" {
-			continue
-		}
-		finished := <-done
-		if !finished {
-			f.addError(errors.New("premature completion"))
-		}
-		err := <-errchan
-		if err != nil {
-			fmt.Printf("controller unpublish received error: %s\n", err.Error())
-			f.addError(err)
-			nerrors++
-		}
-	}
-	t1 := time.Now()
-	fmt.Printf("Controller unpublish volume time for %d volumes %d errors: %v %v\n", nVols, nerrors, t1.Sub(t0).Seconds(), t1.Sub(t0).Seconds()/float64(nVols))
-	time.Sleep(SleepTime)
-	return nil
-}
-
-//whenIDeleteVolumesInParallel - Test case to delete n volumes in parallel
-func (f *feature) whenIDeleteVolumesInParallel(nVols int) error {
-	nVols = len(f.volIDList)
-	done := make(chan bool, nVols)
-	errchan := make(chan error, nVols)
-
-	// Send requests
-	t0 := time.Now()
-	for i := 0; i < nVols; i++ {
-		id := f.volIDList[i]
-		if id == "" {
-			continue
-		}
-		go func(id string, done chan bool, errchan chan error) {
-			err := f.deleteVolume(id)
-			done <- true
-			errchan <- err
-		}(id, done, errchan)
-	}
-
-	// Wait on complete
-	nerrors := 0
-	for i := 0; i < nVols; i++ {
-		var finished bool
-		var err error
-		name := fmt.Sprintf("scale%d", i)
-		finished = <-done
-		if !finished {
-			f.addError(errors.New("premature completion"))
-		}
-		err = <-errchan
-		if err != nil {
-			fmt.Printf("delete volume received error %s: %s\n", name, err.Error())
-			f.addError(err)
-			nerrors++
-		}
-	}
-	t1 := time.Now()
-	fmt.Printf("Delete volume time for %d volumes %d errors: %v %v\n", nVols, nerrors, t1.Sub(t0).Seconds(), t1.Sub(t0).Seconds()/float64(nVols))
-	time.Sleep(RetrySleepTime)
 	return nil
 }
 
@@ -544,64 +372,13 @@ func (f *feature) iCallDeleteSnapshot() error {
 	return nil
 }
 
-//aListSnapshotsRequest method is used to build a List Snapshots request
-func (f *feature) aListSnapshotsRequest(startToken string, maxEntries int32, sourceVolumeId, snapshotId string) error {
-	f.listSnapshotsRequest = nil
-	req := new(csi.ListSnapshotsRequest)
-	req.MaxEntries = maxEntries
-	req.StartingToken = startToken
-	req.SourceVolumeId = sourceVolumeId
-	req.SnapshotId = snapshotId
-	f.listSnapshotsRequest = req
-	return nil
-}
-
-//iCallListSnapshots - Test case to list snapshots
-func (f *feature) iCallListSnapshots() error {
-	ctx := context.Background()
-	client := csi.NewControllerClient(grpcClient)
-	listSnapsResponse, err := client.ListSnapshots(ctx, f.listSnapshotsRequest)
-	if err != nil {
-		fmt.Printf("List Snapshots: %s\n", err.Error())
-		f.addError(err)
-	}
-	if listSnapsResponse != nil {
-		fmt.Printf("No. of Snapshots retrieved: %d\nList Snapshots Response next token: %s\n", len(listSnapsResponse.Entries), listSnapsResponse.NextToken)
-	}
-	f.listSnapshotsResponse = listSnapsResponse
-	return nil
-}
-
-//aListVolumesRequest method is used to build a List Volumes request
-func (f *feature) aListVolumesRequest(maxEntries int32, startingToken string) error {
-	f.listVolumesRequest = nil
-	req := new(csi.ListVolumesRequest)
-	req.MaxEntries = maxEntries
-	req.StartingToken = startingToken
-	f.listVolumesRequest = req
-	return nil
-}
-
-//iCallListVolumes - Test case to list volumes
-func (f *feature) iCallListVolumes() error {
-	ctx := context.Background()
-	client := csi.NewControllerClient(grpcClient)
-	listVolsResponse, err := client.ListVolumes(ctx, f.listVolumesRequest)
-	if err != nil {
-		fmt.Printf("List Volumes %s:\n", err.Error())
-		f.addError(err)
-	}
-	if listVolsResponse != nil {
-		fmt.Printf("No. of Volumes retrieved: %d\nList Volumes Response next token: %s\n", len(listVolsResponse.Entries), listVolsResponse.NextToken)
-	}
-	f.listVolumesResponse = listVolsResponse
-	return nil
-}
-
 //iCallValidateVolumeCapabilitiesWithSameAccessMode - Test case to validate volume capabilities
-func (f *feature) iCallValidateVolumeCapabilitiesWithSameAccessMode() error {
+func (f *feature) iCallValidateVolumeCapabilitiesWithSameAccessMode(protocol string) error {
 	f.validateVolumeCapabilitiesRequest = nil
 	req := new(csi.ValidateVolumeCapabilitiesRequest)
+	params := make(map[string]string)
+	params["protocol"] = protocol
+	req.Parameters = params
 	req.VolumeId = f.volID
 	capability := new(csi.VolumeCapability)
 	mount := new(csi.VolumeCapability_MountVolume)
@@ -630,9 +407,12 @@ func (f *feature) iCallValidateVolumeCapabilitiesWithSameAccessMode() error {
 }
 
 //iCallValidateVolumeCapabilitiesWithDifferentAccessMode - Test case to validate volume capabilities
-func (f *feature) iCallValidateVolumeCapabilitiesWithDifferentAccessMode() error {
+func (f *feature) iCallValidateVolumeCapabilitiesWithDifferentAccessMode(protocol string) error {
 	f.validateVolumeCapabilitiesRequest = nil
 	req := new(csi.ValidateVolumeCapabilitiesRequest)
+	params := make(map[string]string)
+	params["protocol"] = protocol
+	req.Parameters = params
 	req.VolumeId = f.volID
 	capability := new(csi.VolumeCapability)
 	mount := new(csi.VolumeCapability_MountVolume)
@@ -661,9 +441,12 @@ func (f *feature) iCallValidateVolumeCapabilitiesWithDifferentAccessMode() error
 }
 
 //iCallValidateVolumeCapabilitiesWithVolumeID - Test case to validate volume capabilities with volume Id as parameter
-func (f *feature) iCallValidateVolumeCapabilitiesWithVolumeID(volID string) error {
+func (f *feature) iCallValidateVolumeCapabilitiesWithVolumeID(protocol, volID string) error {
 	f.validateVolumeCapabilitiesRequest = nil
 	req := new(csi.ValidateVolumeCapabilitiesRequest)
+	params := make(map[string]string)
+	params["protocol"] = protocol
+	req.Parameters = params
 	req.VolumeId = volID
 	capability := new(csi.VolumeCapability)
 	mount := new(csi.VolumeCapability_MountVolume)
@@ -687,33 +470,6 @@ func (f *feature) iCallValidateVolumeCapabilitiesWithVolumeID(volID string) erro
 		f.addError(err)
 	} else {
 		fmt.Printf("ValidateVolumeCapabilities completed successfully\n")
-	}
-	return nil
-}
-
-//iCallGetCapacityWithPool - Test case to get capacity with storage pool as parameter
-func (f *feature) iCallGetCapacityWithPool(pool string) error {
-	f.getCapacityRequest = nil
-	req := new(csi.GetCapacityRequest)
-	params := make(map[string]string)
-	if pool == "id" {
-		params["storagepool"] = os.Getenv("STORAGE_POOL")
-	} else if pool == "name" {
-		params["storagepool"] = os.Getenv("STORAGE_POOL_NAME")
-	} else {
-		params["storagepool"] = "xyz"
-	}
-	req.Parameters = params
-	f.getCapacityRequest = req
-
-	ctx := context.Background()
-	client := csi.NewControllerClient(grpcClient)
-	_, err := client.GetCapacity(ctx, req)
-	if err != nil {
-		fmt.Printf("Get Capacity failed: %s\n", err.Error())
-		f.addError(err)
-	} else {
-		fmt.Printf("Get Capacity completed successfully\n")
 	}
 	return nil
 }
@@ -791,6 +547,7 @@ func (f *feature) whenICallNodePublishVolume(fsType, readonly string) error {
 	} else {
 		req.VolumeId = ""
 	}
+	req.StagingTargetPath = os.Getenv("X_CSI_STAGING_TARGET_PATH")
 	req.TargetPath = os.Getenv("X_CSI_PUBLISH_TARGET_PATH")
 	capability := new(csi.VolumeCapability)
 	mount := new(csi.VolumeCapability_MountVolume)
@@ -847,7 +604,7 @@ func (f *feature) whenICallNodeUnPublishVolume() error {
 }
 
 //whenICallNodeStageVolume - Test case for node stage volume
-func (f *feature) whenICallNodeStageVolume() error {
+func (f *feature) whenICallNodeStageVolume(fsType string) error {
 	f.nodeStageVolumeRequest = nil
 	req := new(csi.NodeStageVolumeRequest)
 	req.VolumeId = f.volID
@@ -857,6 +614,7 @@ func (f *feature) whenICallNodeStageVolume() error {
 	req.StagingTargetPath = os.Getenv("X_CSI_STAGING_TARGET_PATH")
 	capability := new(csi.VolumeCapability)
 	mount := new(csi.VolumeCapability_MountVolume)
+	mount.FsType = fsType
 	mountType := new(csi.VolumeCapability_Mount)
 	mountType.Mount = mount
 	capability.AccessType = mountType
@@ -941,8 +699,8 @@ func (f *feature) whenICallNodeGetCapabilities() error {
 func FeatureContext(s *godog.Suite) {
 	f := &feature{}
 	s.Step(`^a CSI service$`, f.aCSIService)
-	s.Step(`^a basic block volume request "([^"]*)" "(\d+)"$`, f.aBasicBlockVolumeRequest)
-	s.Step(`^a basic block volume request with volume content source with name "([^"]*)" size "([^"]*)"$`, f.aBasicBlockVolumeRequestWithVolumeContentSource)
+	s.Step(`^a basic block volume request name "([^"]*)" arrayId "([^"]*)" protocol "([^"]*)" size "(\d+)"$`, f.aBasicBlockVolumeRequest)
+	s.Step(`^a basic block volume request with volume content source with name "([^"]*)" arrayId "([^"]*)" protocol "([^"]*)" size "([^"]*)"$`, f.aBasicBlockVolumeRequestWithVolumeContentSource)
 	s.Step(`^I call CreateVolume$`, f.iCallCreateVolume)
 	s.Step(`^when I call DeleteVolume$`, f.whenICallDeleteVolume)
 	s.Step(`^When I call DeleteAllCreatedVolumes$`, f.whenICallDeleteAllCreatedVolumes)
@@ -950,29 +708,20 @@ func FeatureContext(s *godog.Suite) {
 	s.Step(`^when I call PublishVolume$`, f.whenICallPublishVolume)
 	s.Step(`^when I call UnpublishVolume$`, f.whenICallUnpublishVolume)
 	s.Step(`^the error message should contain "([^"]*)"$`, f.theErrorMessageShouldContain)
-	s.Step(`^I create (\d+) volumes in parallel$`, f.iCreateVolumesInParallel)
-	s.Step(`^I publish (\d+) volumes in parallel$`, f.iPublishVolumesInParallel)
-	s.Step(`^I unpublish (\d+) volumes in parallel$`, f.iUnpublishVolumesInParallel)
-	s.Step(`^when I delete (\d+) volumes in parallel$`, f.whenIDeleteVolumesInParallel)
 	s.Step(`^a create snapshot request "([^"]*)"$`, f.aCreateSnapshotRequest)
 	s.Step(`^I call CreateSnapshot$`, f.iCallCreateSnapshot)
 	s.Step(`^a delete snapshot request$`, f.aDeleteSnapshotRequest)
 	s.Step(`^a delete snapshot request "([^"]*)"$`, f.aDeleteSnapshotRequestWithID)
 	s.Step(`^I call DeleteSnapshot$`, f.iCallDeleteSnapshot)
-	s.Step(`^a list snapshots request with startToken "([^"]*)" maxEntries "([^"]*)" sourceVolumeId "([^"]*)" snapshotId "([^"]*)"$`, f.aListSnapshotsRequest)
-	s.Step(`^I call list snapshots$`, f.iCallListSnapshots)
-	s.Step(`^a list volumes request with maxEntries "([^"]*)" startToken "([^"]*)"$`, f.aListVolumesRequest)
-	s.Step(`^I call list volumes$`, f.iCallListVolumes)
-	s.Step(`^I call validate volume capabilities with same access mode`, f.iCallValidateVolumeCapabilitiesWithSameAccessMode)
-	s.Step(`^I call validate volume capabilities with different access mode$`, f.iCallValidateVolumeCapabilitiesWithDifferentAccessMode)
-	s.Step(`^I call validate volume capabilities with volume ID "([^"]*)"$`, f.iCallValidateVolumeCapabilitiesWithVolumeID)
-	s.Step(`^I call Get Capacity with storage pool "([^"]*)"$`, f.iCallGetCapacityWithPool)
+	s.Step(`^I call validate volume capabilities with protocol "([^"]*)" with same access mode`, f.iCallValidateVolumeCapabilitiesWithSameAccessMode)
+	s.Step(`^I call validate volume capabilities with protocol "([^"]*)" with different access mode$`, f.iCallValidateVolumeCapabilitiesWithDifferentAccessMode)
+	s.Step(`^I call validate volume capabilities with protocol "([^"]*)" with volume ID "([^"]*)"$`, f.iCallValidateVolumeCapabilitiesWithVolumeID)
 	s.Step(`^I call Controller Get Capabilities$`, f.iCallControllerGetCapabilities)
 	s.Step(`^I call Controller Expand Volume "([^"]*)"$`, f.iCallControllerExpandVolume)
 	s.Step(`^I call Controller Expand Volume "([^"]*)" with volume "([^"]*)"$`, f.iCallControllerExpandVolumeWithVolume)
 	s.Step(`^when I call NodePublishVolume fsType "([^"]*)" readonly "([^"]*)"$`, f.whenICallNodePublishVolume)
 	s.Step(`^when I call NodeUnPublishVolume$`, f.whenICallNodeUnPublishVolume)
-	s.Step(`^when I call NodeStageVolume$`, f.whenICallNodeStageVolume)
+	s.Step(`^when I call NodeStageVolume fsType "([^"]*)"$`, f.whenICallNodeStageVolume)
 	s.Step(`^when I call NodeUnstageVolume$`, f.whenICallNodeUnstageVolume)
 	s.Step(`^When I call NodeGetInfo$`, f.whenICallNodeGetInfo)
 	s.Step(`^When I call NodeGetCapabilities$`, f.whenICallNodeGetCapabilities)

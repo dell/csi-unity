@@ -1,22 +1,15 @@
-# "restGateway" defines the Unity REST API endpoint, with full URL, typically leveraging HTTPS.
-# You must set this for your Unity installations REST gateway.
-# restGateway: https://123.0.0.1
+# Represents number of certificate secrets, which user is going to create for ssl authentication. (unity-cert-0..unity-cert-n)
+certSecretCount: 1
 
-# "storagePool" defines the Unity storage pool from which this driver will # provision volumes.
-# You must set this for the primary storage pool to be used
-# storagePool: sp
+# Time interval to add node info to array. Default 15 minutes. Minimum value should be 1.
+#  If your specifies 0, then time is set to default value.
+syncNodeInfoInterval: 15
 
 # "volumeNamePrefix" defines a string prepended to each volume created by the CSI driver.
 volumeNamePrefix: csivol
 
 # "snapNamePrefix" defines a string prepended to each snapshot registered by the CSI driver.
 snapNamePrefix: csi-snap
-
-# "unityInsecure" determines if the driver is going to validate unisphere certs while
-# connecting to the Unisphere RESTAPI interface
-# If it is set to false, then a secret unity-certs has to be created with a X.509 certificate of CA
-# which signed the Unisphere certificate
-unityInsecure: "true"
 
 # To set the debug log policy for CSI driver
 csiDebug: "false"
@@ -25,42 +18,59 @@ csiDebug: "false"
 # if it already exists. If you would like to always force a pull, use "Always"
 imagePullPolicy: IfNotPresent
 
-# The installation process will generate multiple storageclasses based on these parameters.
+# The installation process will generate multiple storageclasses based on "arrayIDList" parameter.
 # Only the primary storageclass for the driver will be marked default if specified.
+# The following are default values for storageclass parameters if user does not specify in "arrayIDList"
 storageClass:
-  # "storageClass.name" defines the name of the storage class to be defined.
-  name: unity
-
-  # "storageClass.isDefault" defines whether the primary storage class should be the # default.
-  isDefault: "true"
-
+  # To set File system type. Possible values are ext3,ext4,xfs. Default value is ext4
+  FsType: "ext4"
+  #	To set volume thinProvisioned. Default value is true
+  thinProvisioned: "true"
+  # To set volume data reduction. Default value is false
+  isDataReductionEnabled: "false"
+  # To set volume tiering policy. Default 0
+  tieringPolicy: "0"
+  # To set unity host IO limit
+  hostIOLimitName: ""
+  # NAS server for filesystem (NFS)
+  nasServer: ""
+  # hostIoSize for filesystem (NFS). Default value is 8192
+  hostIoSize: "8192"
   # "storageClass.reclaimPolicy" defines what will happen when a volume is
   # removed from the Kubernetes API. Valid values are "Retain" and "Delete".
   reclaimPolicy: Delete
-
+  # To handle the existing volumes created in csi-unity v1.0, 1.1 and 1.1.0.1.
+  # The user needs to provide "isDefaultArray": true in secret.json. This entry should be present only for one array and that array will be marked for existing volumes.
+  isDefaultArray: "false"
 # The installation process will generate snapshotClasses based on these parameters.
 snapshotClass:
   #To set snapshot retention duration. Format:"1:23:52:50" (number of days:hours:minutes:sec)
   retentionDuration: ""
 
+# The installation process will generate multiple storageclasses based on these parameters.
+# Only the primary storageclass for the driver will be marked default if specified.
+#storageArrayList:
+#  - name: "APM001*******"
+#    storageClass:
+#      storagePool: pool_1
+#      FsType: "ext4"
+#      thinProvisioned: "true"
+#      isDataReductionEnabled: "false"
+#      tieringPolicy: "0"
+#      hostIOLimitName: ""
+#      nasServer: ""
+#      reclaimPolicy: Delete
+#      isDefaultArray: "false"
+#    snapshotClass:
+#      retentionDuration: ""
+
+#To set different protocols based on which different default storage classes would be generated during driver installation.
+storageClassProtocols:
+  - protocol: "FC"
+  - protocol: "NFS"
+  - protocol: "iSCSI"
+
 # IT IS RECOMMENDED YOU DO NOT CHANGE THE IMAGES TO BE DOWNLOADED.
 images:
   # "images.driver" defines the container images used for the driver container.
-  driver: dellemc/csi-unity:v1.1.0.000R
-
-  # "images.attacher" defines the container images used for the csi attacher
-  # container.
-  attacher: quay.io/k8scsi/csi-attacher:v1.2.1
-
-  # "images.provisioner" defines the container images used for the csi provisioner
-  # container.
-  #provisioner: quay.io/k8scsi/csi-provisioner:v0.4.2 #for CSI 0.3.0 only (obsolete)
-  provisioner: quay.io/k8scsi/csi-provisioner:v1.2.1
-
-  # "images.snapshotter" defines the container image used for the csi snapshotter
-  snapshotter: quay.io/k8scsi/csi-snapshotter:v1.2.2
-
-  # "images.registrar" defines the container images used for the csi registrar
-  # container.
-  registrar: quay.io/k8scsi/csi-node-driver-registrar:v1.2.0
-
+  driver: dellemc/csi-unity:v1.2.0.000R

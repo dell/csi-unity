@@ -1,9 +1,0 @@
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: {{ printf "%s-iscsi" .Values.storageClass.name }}
-provisioner: csi-unity.dellemc.com
-reclaimPolicy: {{ required "Must provide a storage class reclaim policy." .Values.storageClass.reclaimPolicy }}
-parameters:
-    protocol: "iSCSI"
-{{- include "storageClass.parameters" . }}

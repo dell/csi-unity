@@ -2,60 +2,10 @@ Feature: CSI interface
   As a consumer of the CSI interface
   I want to run a system test
   So that I know the service functions correctly.
-  
-  Scenario: Create and Delete snapshot without probe
-    Given a basic block volume request "probe1" "2"
-    When I call CreateVolume
-    Then the error message should contain "Controller Service has not been probed"
-    And a create snapshot request "snap_test"
-    When I call CreateSnapshot
-    Then the error message should contain "Controller Service has not been probed"
-    Given a delete snapshot request
-    When I call DeleteSnapshot
-    Then the error message should contain "Controller Service has not been probed"
-
-  Scenario: List snapshots without probe
-    Given a list snapshots request with startToken "" maxEntries "50" sourceVolumeId "" snapshotId ""
-    When I call list snapshots
-    Then the error message should contain "Controller Service has not been probed"
-    
-  Scenario: List Volumes without probe
-    Given a list volumes request with maxEntries "5" startToken "" 
-    When I call list volumes
-    Then the error message should contain "Controller Service has not been probed"
-
-  Scenario: Create, controller publish, controller unpublish and delete a basic volume
-    Given a basic block volume request "probe2" "2"
-    When I call CreateVolume
-    Then the error message should contain "Controller Service has not been probed"
-    And when I call PublishVolume
-    Then the error message should contain "Controller Service has not been probed"
-    And when I call UnpublishVolume
-    Then the error message should contain "Controller Service has not been probed"
-    And when I call DeleteVolume
-    Then the error message should contain "Controller Service has not been probed"
-
-  Scenario: Validate volume capabilities without probe
-    Given a basic block volume request "probe3" "2"
-    When I call CreateVolume
-    Then the error message should contain "Controller Service has not been probed"
-    When I call validate volume capabilities with same access mode
-    Then the error message should contain "Controller Service has not been probed"
-
-  Scenario: Get Capacity without probe
-    When I call Get Capacity with storage pool "pool"
-    Then the error message should contain "Controller Service has not been probed"
-
-  Scenario: Controller expand volume without probe
-    Given a basic block volume request "probe4" "2"
-    When I call CreateVolume
-    Then the error message should contain "Controller Service has not been probed"
-    When I call Controller Expand Volume "3"
-    Then the error message should contain "Controller Service has not been probed"
 
   Scenario: Create and Delete snapshot successfully
     Given a CSI service
-    And a basic block volume request "snap1" "2"
+    And a basic block volume request name "gdtest-vol1" arrayId "apm00175023135" protocol "FC" size "2"
     When I call CreateVolume
     Then there are no errors
     Given a create snapshot request "csi_snapshot_test"
@@ -69,7 +19,7 @@ Feature: CSI interface
 
   Scenario: Create snapshot with a name that already exists
     Given a CSI service
-    And a basic block volume request "snap1_vol" "2"
+    And a basic block volume request name "gdtest-vol2" arrayId "apm00175023135" protocol "FC" size "2"
     When I call CreateVolume
     Then there are no errors
     And a create snapshot request "snap1"
@@ -91,7 +41,7 @@ Feature: CSI interface
 
   Scenario: Create snapshot with invalid name
     Given a CSI service
-    And a basic block volume request "snap_invalid_test" "2"
+    And a basic block volume request name "gdtest-vol3" arrayId "apm00175023135" protocol "FC" size "2"
     When I call CreateVolume
     Then there are no errors
     And a create snapshot request "snap_#$"
@@ -104,7 +54,7 @@ Feature: CSI interface
     Given a CSI service
     And a delete snapshot request
     When I call DeleteSnapshot
-    Then the error message should contain "snapshot ID is mandatory parameter"
+    Then the error message should contain "snapshotId can't be empty"
 
   Scenario: Delete snapshot with incorrect ID
     Given a CSI service
@@ -112,69 +62,9 @@ Feature: CSI interface
     When I call DeleteSnapshot
     Then there are no errors
 
-  Scenario: List snapshots successfully
-    Given a CSI service
-    And a list snapshots request with startToken "" maxEntries "50" sourceVolumeId "" snapshotId ""
-    When I call list snapshots
-    Then there are no errors
-
-  Scenario: List snapshots with startToken
-    Given a CSI service
-    And a list snapshots request with startToken "1" maxEntries "50" sourceVolumeId "" snapshotId ""
-    When I call list snapshots
-    Then there are no errors
-
-  Scenario: List snapshots with incorrect startToken
-    Given a CSI service
-    And a list snapshots request with startToken "xyz" maxEntries "50" sourceVolumeId "" snapshotId ""
-    When I call list snapshots
-    Then the error message should contain "Unable to parse StartingToken"
-
-  Scenario: List snapshots with source volume
-    Given a CSI service
-    And a list snapshots request with startToken "" maxEntries "0" sourceVolumeId "sv_1023" snapshotId ""
-    When I call list snapshots
-    Then there are no errors
-
-  Scenario: List snapshots with invalid source volume
-    Given a CSI service
-    And a list snapshots request with startToken "" maxEntries "0" sourceVolumeId "abcd" snapshotId ""
-    When I call list snapshots
-    Then there are no errors
-
-  Scenario: List snapshots with snapshot id
-    Given a CSI service
-    And a list snapshots request with startToken "" maxEntries "0" sourceVolumeId "" snapshotId "38654711096"
-    When I call list snapshots
-    Then there are no errors
-
-  Scenario: List snapshots with invalid snapshot id
-    Given a CSI service
-    And a list snapshots request with startToken "" maxEntries "0" sourceVolumeId "" snapshotId "abcd"
-    When I call list snapshots
-    Then there are no errors
-
-  Scenario: List Volumes successfully
-    Given a CSI service
-    And a list volumes request with maxEntries "10" startToken "" 
-    When I call list volumes
-    Then there are no errors
-
-  Scenario: List Volumes with startToken
-    Given a CSI service
-    And a list volumes request with maxEntries "5" startToken "1" 
-    When I call list volumes
-    Then there are no errors
-
-  Scenario: List Volumes with incorrect start token
-    Given a CSI service
-    And a list volumes request with maxEntries "5" startToken "xyz"
-    When I call list volumes
-    Then the error message should contain "Unable to parse StartingToken"
-
   Scenario: Create and delete basic volume successfully and idempotency test
     Given a CSI service
-    And a basic block volume request "unit1" "2"
+    And a basic block volume request name "gdtest-vol4" arrayId "apm00175023135" protocol "FC" size "2"
     When I call CreateVolume
     Then there are no errors
     When I call CreateVolume
@@ -186,7 +76,7 @@ Feature: CSI interface
 
   Scenario: Create an existing volume with same size
     Given a CSI service
-    And a basic block volume request "vol_same" "2"
+    And a basic block volume request name "gdtest-vol5" arrayId "apm00175023135" protocol "FC" size "2"
     When I call CreateVolume
     Then there are no errors
     When I call CreateVolume
@@ -196,13 +86,13 @@ Feature: CSI interface
   
   Scenario: Create an existing volume with different size
     Given a CSI service
-    And a basic block volume request "AAAvol-5" "3"
+    And a basic block volume request name "gdtest-vol6" arrayId "apm00175023135" protocol "FC" size "2"
     When I call CreateVolume
     Then there are no errors
-    And a basic block volume request "AAAvol-5" "5"
+    And a basic block volume request name "gdtest-vol6" arrayId "apm00175023135" protocol "FC" size "5"
     When I call CreateVolume
     Then the error message should contain "'Volume name' already exists and size is different"
-    And a basic block volume request "AAAvol-5" "3"
+    And a basic block volume request name "gdtest-vol6" arrayId "apm00175023135" protocol "FC" size "2"
     When I call CreateVolume
     Then there are no errors
     And when I call DeleteVolume
@@ -210,7 +100,7 @@ Feature: CSI interface
 
   Scenario: Create a volume without thinProvisioned parameter
     Given a CSI service
-    And a basic block volume request with volumeName "param_test1" size "2" storagepool "pool_1" thinProvisioned "" isDataReductionEnabled "false" tieringPolicy "0"
+    And a basic block volume request with volumeName "gdtest-vol7" arrayId "apm00175023135" protocol "FC" size "2" storagepool "pool_1" thinProvisioned "" isDataReductionEnabled "false" tieringPolicy "0"
     When I call CreateVolume
     Then there are no errors
     And when I call DeleteVolume
@@ -218,7 +108,7 @@ Feature: CSI interface
 
   Scenario: Create a volume without isCompressionEnabled parameter
     Given a CSI service
-    And a basic block volume request with volumeName "param_test2" size "2" storagepool "pool_1" thinProvisioned "true" isDataReductionEnabled "false" tieringPolicy "0"
+    And a basic block volume request with volumeName "gdtest-vol8" arrayId "apm00175023135" protocol "FC" size "2" storagepool "pool_1" thinProvisioned "true" isDataReductionEnabled "false" tieringPolicy "0"
     When I call CreateVolume
     Then there are no errors
     And when I call DeleteVolume
@@ -226,7 +116,7 @@ Feature: CSI interface
 
   Scenario: Create a volume without isDataReductionEnabled parameter
     Given a CSI service
-    And a basic block volume request with volumeName "param_test3" size "2" storagepool "pool_1" thinProvisioned "true" isDataReductionEnabled "" tieringPolicy "0"
+    And a basic block volume request with volumeName "gdtest-vol9" arrayId "apm00175023135" protocol "FC" size "2" storagepool "pool_1" thinProvisioned "true" isDataReductionEnabled "" tieringPolicy "0"
     When I call CreateVolume
     Then there are no errors
     And when I call DeleteVolume
@@ -234,7 +124,7 @@ Feature: CSI interface
 
   Scenario: Create a volume without isDataReductionEnabled parameter
     Given a CSI service
-    And a basic block volume request with volumeName "param_test4" size "2" storagepool "pool_1" thinProvisioned "true" isDataReductionEnabled "false" tieringPolicy ""
+    And a basic block volume request with volumeName "gdtest-vol10" arrayId "apm00175023135" protocol "FC" size "2" storagepool "pool_1" thinProvisioned "true" isDataReductionEnabled "false" tieringPolicy ""
     When I call CreateVolume
     Then there are no errors
     And when I call DeleteVolume
@@ -242,25 +132,25 @@ Feature: CSI interface
 
   Scenario: Create a volume with incorrect storage_pool
     Given a CSI service
-    And a basic block volume request with volumeName "param_test5" size "2" storagepool "abcd" thinProvisioned "true" isDataReductionEnabled "false" tieringPolicy "0"
+    And a basic block volume request with volumeName "gdtest-vol11" arrayId "apm00175023135" protocol "FC" size "2" storagepool "abcd" thinProvisioned "true" isDataReductionEnabled "false" tieringPolicy "0"
     When I call CreateVolume
     Then the error message should contain "unable to find the PoolID"
 
   Scenario: Create a volume without volume name
     Given a CSI service
-    And a basic block volume request with volumeName "" size "2" storagepool "abcd" thinProvisioned "true" isDataReductionEnabled "false" tieringPolicy "0"
+    And a basic block volume request with volumeName "" arrayId "apm00175023135" protocol "FC" size "2" storagepool "abcd" thinProvisioned "true" isDataReductionEnabled "false" tieringPolicy "0"
     When I call CreateVolume
     Then the error message should contain "required: Name"
 
   Scenario: Create a volume from snapshot of thin volume with idempotency
     Given a CSI service
-    And a basic block volume request "volforsnap" "2"
+    And a basic block volume request name "gdtest-vol12" arrayId "apm00175023135" protocol "FC" size "2"
     When I call CreateVolume
     And there are no errors
     Given a create snapshot request "snap_volforsnap"
     When I call CreateSnapshot
     And there are no errors
-    Given a basic block volume request with volume content source with name "volfromsnap" size "2"
+    Given a basic block volume request with volume content source with name "gdtest-vol13" arrayId "apm00175023135" protocol "FC" size "2"
     When I call CreateVolume
     Then there are no errors
     When I call CreateVolume
@@ -275,7 +165,7 @@ Feature: CSI interface
 
   Scenario: Create a volume from snapshot that does not exist
     Given a CSI service
-    And a basic block volume request "volforsnap" "2"
+    And a basic block volume request name "gdtest-vol14" arrayId "apm00175023135" protocol "FC" size "2"
     When I call CreateVolume
     And there are no errors
     Given a create snapshot request "snap_volforsnap"
@@ -284,7 +174,7 @@ Feature: CSI interface
     Given a delete snapshot request
     When I call DeleteSnapshot
     Then there are no errors
-    Given a basic block volume request with volume content source with name "volfromsnap" size "2"
+    Given a basic block volume request with volume content source with name "gdtest-vol15" arrayId "apm00175023135" protocol "FC" size "2"
     When I call CreateVolume
     Then the error message should contain "snapshot not found"
     And When I call DeleteAllCreatedVolumes
@@ -292,13 +182,13 @@ Feature: CSI interface
 
    Scenario: Create a volume from snapshot and passing an existing name for new volume 
     Given a CSI service
-    And a basic block volume request "volforsnap" "2"
+    And a basic block volume request name "gdtest-vol16" arrayId "apm00175023135" protocol "FC" size "2"
     When I call CreateVolume
     And there are no errors
     Given a create snapshot request "snap_volforsnap"
     When I call CreateSnapshot
     And there are no errors
-    Given a basic block volume request with volume content source with name "volforsnap" size "2"
+    Given a basic block volume request with volume content source with name "gdtest-vol16" arrayId "apm00175023135" protocol "FC" size "2"
     When I call CreateVolume
     Then the error message should contain "already exists"
     Given a delete snapshot request
@@ -309,7 +199,7 @@ Feature: CSI interface
 
   Scenario: Publish and unpublish a volume to host
     Given a CSI service
-    And a basic block volume request "test_publish1" "5"
+    And a basic block volume request name "gdtest-vol17" arrayId "apm00175023135" protocol "FC" size "5"
     When I call CreateVolume
     And there are no errors
     And when I call PublishVolume
@@ -321,7 +211,7 @@ Feature: CSI interface
 
   Scenario: Publish a volume to host with readonly as true
     Given a CSI service
-    And a basic block volume request "test_publish2" "5"
+    And a basic block volume request name "gdtest-vol18" arrayId "apm00175023135" protocol "FC" size "5"
     When I call CreateVolume
     And there are no errors
     And when I call PublishVolume with host "host" readonly "true"
@@ -331,7 +221,7 @@ Feature: CSI interface
 
   Scenario: Publish and unpublish a volume to host without giving hostname
     Given a CSI service
-    And a basic block volume request "test_publish3" "5"
+    And a basic block volume request name "gdtest-vol19" arrayId "apm00175023135" protocol "FC" size "5"
     When I call CreateVolume
     And there are no errors
     And when I call PublishVolume with host "" readonly "false"
@@ -343,18 +233,18 @@ Feature: CSI interface
 
   Scenario: Publish a volume to host with VolumeCapability_AccessMode other than SINGLE_NODE_WRITER
     Given a CSI service
-    And a basic block volume request "test_publish4" "5"
+    And a basic block volume request name "gdtest-vol20" arrayId "apm00175023135" protocol "FC" size "5"
     When I change volume capability accessmode
     When I call CreateVolume
     Then the error message should contain "not supported"
     And when I call PublishVolume
-    Then the error message should contain "volume AccessMode is supported only by SINGLE_NODE_WRITER"
+    Then the error message should contain "Access mode MULTI_NODE_SINGLE_WRITER is not supported"
     And when I call DeleteVolume
     Then there are no errors
 
   Scenario: Publish and unpublish a volume to host with incorrect hostname
     Given a CSI service
-    And a basic block volume request "test_publish5" "5"
+    And a basic block volume request name "gdtest-vol21" arrayId "apm00175023135" protocol "FC" size "5"
     When I call CreateVolume
     And there are no errors
     And when I call PublishVolume with host "host" readonly "false"
@@ -380,7 +270,7 @@ Feature: CSI interface
 
   Scenario: Publish and unpublish volume idempotency
     Given a CSI service
-    And a basic block volume request "test_publish1" "5"
+    And a basic block volume request name "gdtest-vol22" arrayId "apm00175023135" protocol "FC" size "5"
     When I call CreateVolume
     And there are no errors
     And when I call PublishVolume
@@ -396,7 +286,7 @@ Feature: CSI interface
 
   Scenario: Publish a volume to a host that is published to another host
     Given a CSI service
-    And a basic block volume request "test_publish1" "5"
+    And a basic block volume request name "gdtest-vol23" arrayId "apm00175023135" protocol "FC" size "5"
     When I call CreateVolume
     And there are no errors
     And when I call PublishVolume
@@ -410,44 +300,28 @@ Feature: CSI interface
 
   Scenario: Validate volume capabilities with same access mode
     Given a CSI service
-    And a basic block volume request "vvc1" "2"
+    And a basic block volume request name "gdtest-vol24" arrayId "apm00175023135" protocol "FC" size "2"
     When I call CreateVolume
     Then there are no errors
-    When I call validate volume capabilities with same access mode
+    When I call validate volume capabilities with protocol "FC" with same access mode
     Then there are no errors
     And when I call DeleteVolume
     Then there are no errors
 
   Scenario: Validate volume capabilities with different access mode
     Given a CSI service
-    And a basic block volume request "vvc1" "2"
+    And a basic block volume request name "gdtest-vol25" arrayId "apm00175023135" protocol "FC" size "2"
     When I call CreateVolume
     Then there are no errors
-    When I call validate volume capabilities with different access mode
+    When I call validate volume capabilities with protocol "FC" with different access mode
     Then the error message should contain "Unsupported capability"
     And when I call DeleteVolume
     Then there are no errors
 
   Scenario: Validate volume capabilities with incorrect volume Id
     Given a CSI service
-    When I call validate volume capabilities with volume ID "xyz"
-    Then the error message should contain "volume not found"
-
-  Scenario: Get Capacity with storage pool name
-    Given a CSI service
-    And a basic block volume request with volumeName "param_test6" size "2" storagepool "lglad082_AFA" thinProvisioned "true" isDataReductionEnabled "false" tieringPolicy "0"
-    When I call Get Capacity with storage pool "id"
-    Then there are no errors
-
-  Scenario: Get Capacity with storage pool id
-    Given a CSI service
-    When I call Get Capacity with storage pool "id"
-    Then there are no errors
-
-  Scenario: Get Capacity with incorrect storage pool
-    Given a CSI service
-    When I call Get Capacity with storage pool "incorrect"
-    Then the error message should contain "not found"
+    When I call validate volume capabilities with protocol "FC" with volume ID "xyz"
+    Then the error message should contain "Volume not found"
 
   Scenario: Controller get capabilities
     Given a CSI service
@@ -456,12 +330,12 @@ Feature: CSI interface
 
   Scenario: Controller expand volume
     Given a CSI service
-    And a basic block volume request "expand1" "2"
+    And a basic block volume request name "gdtest-vol26" arrayId "apm00175023135" protocol "FC" size "2"
     When I call CreateVolume
     Then there are no errors
     When I call Controller Expand Volume "3"
     Then there are no errors
-    And a basic block volume request "expand1" "3"
+    And a basic block volume request name "gdtest-vol26" arrayId "apm00175023135" protocol "FC" size "3"
     When I call CreateVolume
     Then there are no errors
     And when I call DeleteVolume
@@ -469,7 +343,7 @@ Feature: CSI interface
 
   Scenario: Controller expand volume with same new size
     Given a CSI service
-    And a basic block volume request "expand2" "2"
+    And a basic block volume request name "gdtest-vol27" arrayId "apm00175023135" protocol "FC" size "2"
     When I call CreateVolume
     Then there are no errors
     When I call Controller Expand Volume "2"
@@ -479,7 +353,7 @@ Feature: CSI interface
 
   Scenario: Controller expand volume with smaller new size
     Given a CSI service
-    And a basic block volume request "expand3" "3"
+    And a basic block volume request name "gdtest-vol28" arrayId "apm00175023135" protocol "FC" size "3"
     When I call CreateVolume
     Then there are no errors
     When I call Controller Expand Volume "2"
@@ -489,7 +363,7 @@ Feature: CSI interface
     
   Scenario: Controller expand volume with new size as 0
     Given a CSI service
-    And a basic block volume request "expand4" "2"
+    And a basic block volume request name "gdtest-vol29" arrayId "apm00175023135" protocol "FC" size "2"
     When I call CreateVolume
     Then there are no errors
     When I call Controller Expand Volume "0"
@@ -509,12 +383,12 @@ Feature: CSI interface
 
   Scenario: Node stage, publish, unpublish and unstage volume
     Given a CSI service
-    And a basic block volume request "unit_test_publish_csiv" "5"
+    And a basic block volume request name "gdtest-vol30" arrayId "apm00175023135" protocol "FC" size "5"
     When I call CreateVolume
     And there are no errors
     And when I call PublishVolume
     And there are no errors
-    And when I call NodeStageVolume
+    And when I call NodeStageVolume fsType "ext4"
     And there are no errors
     And when I call NodePublishVolume fsType "ext4" readonly "false"
     Then there are no errors
@@ -529,12 +403,12 @@ Feature: CSI interface
 
   Scenario: Node stage and unstage volume with incorrect volume
     Given a CSI service
-    And when I call NodeStageVolume
+    And when I call NodeStageVolume fsType "ext4"
     Then the error message should contain "Unable to find volume Id"
 
   Scenario: Node publish volume with readonly as true
     Given a CSI service
-    And a basic block volume request "publish_readonly" "5"
+    And a basic block volume request name "gdtest-vol31" arrayId "apm00175023135" protocol "FC" size "5"
     When I call CreateVolume
     And there are no errors
     And when I call NodePublishVolume fsType "ext4" readonly "true"
@@ -549,7 +423,7 @@ Feature: CSI interface
 
   Scenario: Node publish and unpublish volume with volume not present on array
     Given a CSI service
-    And a basic block volume request "publish_readonly" "5"
+    And a basic block volume request name "gdtest-vol32" arrayId "apm00175023135" protocol "FC" size "5"
     When I call CreateVolume
     And there are no errors
     And when I call DeleteVolume
@@ -561,30 +435,24 @@ Feature: CSI interface
 
   Scenario: Node publish volume without controller publish volume
     Given a CSI service
-    And a basic block volume request "publish_readonly" "5"
+    And a basic block volume request name "gdtest-vol33" arrayId "apm00175023135" protocol "FC" size "5"
     When I call CreateVolume
     And there are no errors
     And when I call NodePublishVolume fsType "ext4" readonly "false"
-    Then the error message should contain "not been published to this node"
+    Then the error message should contain "no such file or directory"
     And when I call DeleteVolume
     Then there are no errors
 
   Scenario: Node unpublish when node publish never hapened
     Given a CSI service
-    And a basic block volume request "publish_readonly" "5"
+    And a basic block volume request name "gdtest-vol34" arrayId "apm00175023135" protocol "FC" size "5"
     When I call CreateVolume
     And there are no errors
     And when I call NodePublishVolume fsType "ext4" readonly "false"
-    Then the error message should contain "not been published to this node"
-# BUG -> CSIUNITY-350
-#    And when I call NodeUnPublishVolume
-#    Then there are no errors
-    And when I call DeleteVolume
+    Then the error message should contain "no such file or directory"
+    And when I call NodeUnPublishVolume
     Then there are no errors
-
-  Scenario: Node Get Info
-    Given a CSI service
-    And When I call NodeGetInfo
+    And when I call DeleteVolume
     Then there are no errors
 
   Scenario: Node Get Capabilities
@@ -594,7 +462,7 @@ Feature: CSI interface
 
   Scenario: Node publish volume without volume capabilities
     Given a CSI service
-    And a basic block volume request "nodepublish_test" "5"
+    And a basic block volume request name "gdtest-vol35" arrayId "apm00175023135" protocol "FC" size "5"
     When I call CreateVolume
     And there are no errors
     And when I call PublishVolume
@@ -606,30 +474,16 @@ Feature: CSI interface
     And when I call DeleteVolume
     Then there are no errors
 
-  Scenario: Node publish volume without node stage and target path not created
-    Given a CSI service
-    And a basic block volume request "nodepublish_test" "5"
-    When I call CreateVolume
-    And there are no errors
-    And when I call PublishVolume
-    And there are no errors
-    And when I call NodePublishVolume targetpath "/root/abc" fsType "ext4"
-    Then the error message should contain "error getting block device"
-    And when I call UnpublishVolume
-    And there are no errors
-    And when I call DeleteVolume
-    Then there are no errors
-
   Scenario: Node stage, publish, unpublish and unstage volume idempotency
     Given a CSI service
-    And a basic block volume request "unit_test_publish_csiv" "5"
+    And a basic block volume request name "gdtest-vol36" arrayId "apm00175023135" protocol "FC" size "5"
     When I call CreateVolume
     And there are no errors
     And when I call PublishVolume
     And there are no errors
-    And when I call NodeStageVolume
+    And when I call NodeStageVolume fsType "ext4"
     And there are no errors
-    And when I call NodeStageVolume
+    And when I call NodeStageVolume fsType "ext4"
     And there are no errors
     And when I call NodePublishVolume fsType "ext4" readonly "false"
     Then there are no errors
@@ -637,9 +491,8 @@ Feature: CSI interface
     Then there are no errors
     And when I call NodeUnPublishVolume
     And there are no errors
-# Bug -> CSIUNITY-350
-#    And when I call NodeUnPublishVolume
-#    Then there are no errors
+    And when I call NodeUnPublishVolume
+    Then there are no errors
     And when I call NodeUnstageVolume
     And there are no errors
     And when I call NodeUnstageVolume
@@ -659,32 +512,18 @@ Feature: CSI interface
     And When I call GetPluginInfo
     Then there are no errors
 
-  Scenario: Node publish with target path not ceated
+  Scenario: Node stage, publish, unpublish and unstage volume for iSCSI
     Given a CSI service
-    And a basic block volume request "unit_test_publish_csiv" "5"
+    And a basic block volume request name "gdtest-vol37" arrayId "apm00175023135" protocol "iSCSI" size "5"
     When I call CreateVolume
     And there are no errors
     And when I call PublishVolume
     And there are no errors
-    And when I call NodeStageVolume
+    And when I call NodeStageVolume fsType "ext4"
     And there are no errors
-    And when I call NodePublishVolume targetpath "/root/abc" fsType "ext4"
-    Then the error message should contain "not pre-created"
-    And when I call NodeUnstageVolume
-    And there are no errors    
-    And when I call UnpublishVolume
-    And there are no errors
-    And when I call DeleteVolume
+    And when I call NodePublishVolume fsType "ext4" readonly "false"
     Then there are no errors
-
-  Scenario: Node stage with target path not ceated
-    Given a CSI service
-    And a basic block volume request "unit_test_publish_csiv" "5"
-    When I call CreateVolume
-    And there are no errors
-    And when I call PublishVolume
-    And there are no errors
-    And when I call NodeStageVolume with StagingTargetPath "/root/abc"
+    And when I call NodeUnPublishVolume
     And there are no errors
     And when I call NodeUnstageVolume
     And there are no errors
@@ -693,37 +532,22 @@ Feature: CSI interface
     And when I call DeleteVolume
     Then there are no errors
 
-  Scenario: Probe without Unity endpoint
-    Given a CSI service without CSI Unity Endpoint
-    Then the error message should contain "missing Unity endpoint"
-
-  Scenario: Probe without Unity password
-    Given a CSI service with CSI Unity Password ""
-    Then the error message should contain "missing Unity password"
-
-  Scenario: Node stage volume without probe
-    And when I call NodeStageVolume without probe
-    Then the error message should contain "missing Unity endpoint"
-
-  Scenario: Node publish volume without unity endpoint for probe
-    And when I call NodePublishVolume without probe
-    Then the error message should contain "missing Unity endpoint"
-
-  Scenario: Node unstage volume without unity endpoint for probe
-    And when I call NodeUnstageVolume without probe
-    Then the error message should contain "missing Unity endpoint"
-
-  Scenario: Node get info without unity endpoint for probe
+  Scenario: Node stage, publish, unpublish and unstage volume for NFS
     Given a CSI service
-    And When I call NodeGetInfo without probe
-    Then the error message should contain "missing Unity endpoint"
-
-  Scenario: Node get info without hostname
-    Given a CSI service
-    And When I call NodeGetInfo hostname ""
-    Then the error message should contain "'Node Name' has not been configured"
-
-  Scenario: Node get info with incorrect hostname but same network address (hostname here should not be a host on array)
-    Given a CSI service
-    And When I call NodeGetInfo hostname "host_new"
-    Then the error message should contain "Initiator found"
+    And a basic block volume request name "gdtest-vol38" arrayId "apm00175023135" protocol "NFS" size "5"
+    When I call CreateVolume
+    And there are no errors
+    And when I call PublishVolume
+    And there are no errors
+    And when I call NodeStageVolume fsType ""
+    And there are no errors
+    And when I call NodePublishVolume fsType "" readonly "false"
+    Then there are no errors
+    And when I call NodeUnPublishVolume
+    And there are no errors
+    And when I call NodeUnstageVolume
+    And there are no errors
+    And when I call UnpublishVolume
+    And there are no errors
+    And when I call DeleteVolume
+    Then there are no errors

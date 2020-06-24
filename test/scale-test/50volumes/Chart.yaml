@@ -1,0 +1,9 @@
+name: 50volumes
+version: 1.0.0
+appVersion: 1.0.0
+description: |
+  Tests CSI Unity deployments.
+keywords:
+- csi-unity
+- storage
+engine: gotpl
