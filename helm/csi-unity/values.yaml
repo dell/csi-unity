@@ -32,7 +32,7 @@ storageClass:
   tieringPolicy: "0"
   # To set unity host IO limit
   hostIOLimitName: ""
-  # NAS server for filesystem (NFS)
+  # NAS server for filesystem (NFS).  Provide the CLI ID of Nas Server present in Unity
   nasServer: ""
   # hostIoSize for filesystem (NFS). Default value is 8192
   hostIoSize: "8192"
@@ -51,6 +51,7 @@ snapshotClass:
 # Only the primary storageclass for the driver will be marked default if specified.
 #storageArrayList:
 #  - name: "APM001*******"
+#    isDefaultArray: "false"
 #    storageClass:
 #      storagePool: pool_1
 #      FsType: "ext4"
@@ -60,7 +61,6 @@ snapshotClass:
 #      hostIOLimitName: ""
 #      nasServer: ""
 #      reclaimPolicy: Delete
-#      isDefaultArray: "false"
 #    snapshotClass:
 #      retentionDuration: ""
 
@@ -73,4 +73,4 @@ storageClassProtocols:
 # IT IS RECOMMENDED YOU DO NOT CHANGE THE IMAGES TO BE DOWNLOADED.
 images:
   # "images.driver" defines the container images used for the driver container.
-  driver: dellemc/csi-unity:v1.2.0.000R
+  driver: dellemc/csi-unity:v1.2.1.000R
