@@ -23,10 +23,10 @@ The CSI Driver For Dell EMC Unity conforms to CSI spec 1.1
 |Types of volumes | Static, Dynamic| |
 |Access mode | RWO(FC/iSCSI), RWO/RWX/ROX(NFS) | RWX/ROX(FC/iSCSI)|
 |Kubernetes | v1.14, v1.16 | V1.13 or previous versions|
-|Installer | Helm v3.x,v2.x | Operator |
+|Installer | Helm v3.x,v2,x | Operator |
 |OpenShift | v4.3 (Helm installation only) | v4.2 |
 |OS | RHEL 7.6, RHEL 7.7, CentOS 7.6, CentOS 7.7 | Ubuntu, other Linux variants|
-|Unity | OE 5.0 | Previous versions|
+|Unity | OE 5.0.0, 5.0.1, 5.0.2, 5.0.3 | Previous versions and Later versions|
 |Protocol | FC, iSCSI, NFS |  |
 
 ## Installation overview
@@ -130,7 +130,9 @@ Install CSI Driver for Unity using this procedure.
 *Before you begin*
  * You must have the downloaded files, including the Helm chart from the source [git repository](https://github.com/dell/csi-unity), ready for this procedure.
  * In the top-level helm directory, there should be two shell scripts, *install.unity* and *uninstall.unity*. These scripts handle some of the pre and post operations that cannot be performed in the helm chart, such as creating Custom Resource Definitions (CRDs), if needed.
-
+ * Make sure "unity" namespace exists in kubernetes cluster. Use `kubectl create namespace unity` command to create the namespace, if the namespace is not present.
+   
+   
 Procedure
 
 1. Collect information from the Unity Systems like Unique ArrayId, IP address, username  and password. Make a note of the value for these parameters as they must be entered in the secret.json and myvalues.yaml file.
@@ -313,9 +315,9 @@ If the Unisphere certificate is self-signed or if you are using an embedded Unis
       `openssl s_client -showcerts -connect <Unisphere IP:Port> </dev/null 2>/dev/null | openssl x509 -outform PEM > ca_cert_0.pem`
       Ex. openssl s_client -showcerts -connect 1.1.1.1:443 </dev/null 2>/dev/null | openssl x509 -outform PEM > ca_cert_0.pem
    2. Run the following command to create the cert secret with index '0'
-         `kubectl create secret generic unity-certs-0 --from-file=cert-0=ca_cert0.pem -n unity`
+         `kubectl create secret generic unity-certs-0 --from-file=cert-0=ca_cert_0.pem -n unity`
       Use the following command to replace the secret
-          `kubectl create secret generic unity-certs-0 -n unity --from-file=cert-0=ca_cert0.pem -o yaml --dry-run | kubectl replace -f -` 
+          `kubectl create secret generic unity-certs-0 -n unity --from-file=cert-0=ca_cert_0.pem -o yaml --dry-run | kubectl replace -f -` 
    3. Repeat step-1 & 2 to create multiple cert secrets with incremental index (ex: unity-certs-1, unity-certs-2, etc)
 
 Note: User can add multiple certificates in the same secret. The certificate file should not exceed more than 1Mb due to kubernetes secret size limitation.
