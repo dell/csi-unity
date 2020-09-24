@@ -28,6 +28,7 @@ import (
 var (
 	targetMountRecheckSleepTime = 3 * time.Second
 	disconnectVolumeRetryTime   = 1 * time.Second
+	nodeStartTimeout			= 3 * time.Second
 	lunzMutex                   sync.Mutex
 	LUNZHLU                     = 0
 	nodeMutex                   sync.Mutex
@@ -172,7 +173,7 @@ func (s *service) NodeStageVolume(
 
 					wwn := utils.GetFcPortWwnFromVolumeContentWwn(fcPort.FcPortContent.Wwn)
 					if !utils.ArrayContains(targetWwns, wwn) {
-						log.Debugf("Found Target wwn: ", wwn)
+						log.Debug("Found Target wwn: ", wwn)
 						targetWwns = append(targetWwns, wwn)
 					}
 				}
@@ -185,7 +186,7 @@ func (s *service) NodeStageVolume(
 			}
 		}
 
-		log.Debugf("Connect context data: ", publishContextData)
+		log.Debug("Connect context data: ", publishContextData)
 		devicePath, err := s.connectDevice(ctx, publishContextData, useFC)
 		if err != nil {
 			return nil, err
@@ -282,7 +283,7 @@ func (s *service) NodeUnstageVolume(
 	}
 
 	volumeWwn := utils.GetWwnFromVolumeContentWwn(volume.VolumeContent.Wwn)
-	lastMounted, devicePath, err := unstageVolume(ctx, req, volumeWwn)
+	lastMounted, devicePath, err := unstageVolume(ctx, req, volumeWwn, s.opts.Chroot)
 	if err != nil {
 		return nil, err
 	}
@@ -383,16 +384,12 @@ func (s *service) NodePublishVolume(
 		if len(exportPaths) == 0 {
 			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Export paths not exist on NFS Share: %s", nfsShare.NFSShareContent.Id))
 		}
-		err = publishNFS(ctx, req, exportPaths, arrayId, nfsv3, nfsv4)
+		err = publishNFS(ctx, req, exportPaths, arrayId, s.opts.Chroot, nfsv3, nfsv4)
 		if err != nil {
 			return nil, err
 		}
 		log.Debugf("Node Publish completed successfully: filesystem: %s is mounted on target path: %s", volID, targetPath)
 		return &csi.NodePublishVolumeResponse{}, nil
-	}
-
-	if req.GetReadonly() == true {
-		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "readonly must be false, because the supported mode only SINGLE_NODE_WRITER"))
 	}
 
 	volumeApi := gounity.NewVolume(unity)
@@ -408,7 +405,7 @@ func (s *service) NodePublishVolume(
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Disk path not found. Error: %v", err))
 	}
 
-	if err := publishVolume(ctx, req, targetPath, symlinkPath); err != nil {
+	if err := publishVolume(ctx, req, targetPath, symlinkPath, s.opts.Chroot); err != nil {
 		return nil, err
 	}
 
@@ -592,6 +589,8 @@ func (s *service) NodeGetInfo(
 	log.Debugf("Executing NodeGetInfo with args: %+v", *req)
 
 	atleastOneArraySuccess := false
+	//Sleep for a while and wait untill iscsi discovery is completed
+	time.Sleep(nodeStartTimeout)
 	for _, array := range s.getStorageArrayList() {
 		if array.IsHostAdded {
 			atleastOneArraySuccess = true
@@ -632,6 +631,13 @@ func (s *service) NodeGetCapabilities(
 					},
 				},
 			},
+			{
+				Type: &csi.NodeServiceCapability_Rpc{
+					Rpc: &csi.NodeServiceCapability_RPC{
+						Type: csi.NodeServiceCapability_RPC_EXPAND_VOLUME,
+					},
+				},
+			},
 		},
 	}, nil
 }
@@ -643,8 +649,103 @@ func (s *service) NodeGetVolumeStats(
 	return nil, status.Error(codes.Unimplemented, "NodeGetVolumeStats not supported")
 }
 
-func (s *service) NodeExpandVolume(context.Context, *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "NodeExpandVolume not supported")
+func (s *service) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
+	ctx, log, rid := GetRunidLog(ctx)
+	log.Debugf("Executing NodeExpandVolume with args: %+v", *req)
+
+	if req.VolumeId == "" {
+		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "volumeId is mandatory parameter"))
+	}
+
+	volID, _, arrayID, unity, err := s.validateAndGetResourceDetails(ctx, req.VolumeId, volumeType)
+	if err != nil {
+		return nil, err
+	}
+
+	size := req.GetCapacityRange().GetRequiredBytes()
+
+	ctx, log = setArrayIdContext(ctx, arrayID)
+	if err := s.requireProbe(ctx, arrayID); err != nil {
+		log.Debug("AutoProbe has not been called. Executing manual probe")
+		err = s.nodeProbe(ctx, arrayID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// We are getting target path that points to mounted path on "/"
+	// This doesn't help us, though we should trace the path received
+	volumePath := req.GetVolumePath()
+	if volumePath == "" {
+		return nil, status.Error(codes.InvalidArgument,
+			utils.GetMessageWithRunID(rid, "Volume path required"))
+	}
+
+	volumeAPI := gounity.NewVolume(unity)
+	volume, err := volumeAPI.FindVolumeById(ctx, volID)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find volume Failed %v", err))
+	}
+
+	volName := volume.VolumeContent.Name
+
+	//Locate and fetch all (multipath/regular) mounted paths using this volume
+	devMnt, err := gofsutil.GetMountInfoFromDevice(ctx, volName)
+	if err != nil {
+		return nil, status.Error(codes.Internal,
+			utils.GetMessageWithRunID(rid, "Failed to find mount info for (%s) with error %v", volName, err))
+	}
+
+	log.Debugf("Mount info for volume %s: %+v", volName, devMnt)
+
+	// Rescan the device for the volume expanded on the array
+	for _, device := range devMnt.DeviceNames {
+		log.Debug("Begin rescan for :", device)
+		devicePath := sysBlock + "/" + device
+		err = gofsutil.DeviceRescan(ctx, devicePath)
+		if err != nil {
+			return nil, status.Error(codes.Internal,
+				utils.GetMessageWithRunID(rid, "Failed to rescan device (%s) with error %v", devicePath, err))
+		}
+	}
+	// Expand the filesystem with the actual expanded volume size.
+	if devMnt.MPathName != "" {
+		err = gofsutil.ResizeMultipath(ctx, devMnt.MPathName)
+		if err != nil {
+			return nil, status.Error(codes.Internal,
+				utils.GetMessageWithRunID(rid, "Failed to resize filesystem: device  (%s) with error %v", devMnt.MountPoint, err))
+		}
+	}
+	//For a regular device, get the device path (devMnt.DeviceNames[1]) where the filesystem is mounted
+	//PublishVolume creates devMnt.DeviceNames[0] but is left unused for regular devices
+	var devicePath string
+	if len(devMnt.DeviceNames) > 1 {
+		devicePath = "/dev/" + devMnt.DeviceNames[1]
+	} else if len(devMnt.DeviceNames) == 1 {
+		devicePath = "/dev/" + devMnt.DeviceNames[0]
+	} else if devicePath == "" {
+		return nil, status.Error(codes.Internal,
+			utils.GetMessageWithRunID(rid, "Failed to resize filesystem: device name not found for (%s)", devMnt.MountPoint))
+	}
+
+	fsType, err := gofsutil.FindFSType(ctx, devMnt.MountPoint)
+	if err != nil {
+		return nil, status.Error(codes.Internal,
+			utils.GetMessageWithRunID(rid, "Failed to fetch filesystem for volume  (%s) with error %v", devMnt.MountPoint, err))
+	}
+
+	log.Infof("Found %s filesystem mounted on volume %s", fsType, devMnt.MountPoint)
+
+	//Resize the filesystem
+	err = gofsutil.ResizeFS(ctx, devMnt.MountPoint, devicePath, devMnt.MPathName, fsType)
+	if err != nil {
+		return nil, status.Error(codes.Internal,
+			utils.GetMessageWithRunID(rid, "Failed to resize filesystem: mountpoint (%s) device (%s) with error %v",
+				devMnt.MountPoint, devicePath, err))
+	}
+
+	log.Debug("Node Expand completed successfully")
+	return &csi.NodeExpandVolumeResponse{CapacityBytes: size}, nil
 }
 
 func (s *service) nodeProbe(ctx context.Context, arrayId string) error {
@@ -656,26 +757,44 @@ func (s *service) getNFSShare(ctx context.Context, filesystemId, arrayId string)
 	ctx, _, rid := GetRunidLog(ctx)
 	ctx, _ = setArrayIdContext(ctx, arrayId)
 
-	unity, err := s.getUnityClient(arrayId)
+	unity, err := s.getUnityClient(ctx, arrayId)
 	if err != nil {
 		return nil, false, false, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Get Unity client for array %s failed. Error: %v ", arrayId, err))
 	}
 
+	isSnapshot := false
 	fileApi := gounity.NewFilesystem(unity)
 	filesystem, err := fileApi.FindFilesystemById(ctx, filesystemId)
+	var snapResp *types.Snapshot
 	if err != nil {
-		return nil, false, false, err
+		snapshotApi := gounity.NewSnapshot(unity)
+		snapResp, err = snapshotApi.FindSnapshotById(ctx, filesystemId)
+		if err != nil {
+			return nil, false, false, err
+		}
+		isSnapshot = true
+		filesystem, err = s.getFilesystemByResourceID(ctx, snapResp.SnapshotContent.StorageResource.Id, arrayId)
+		if err != nil {
+			return nil, false, false, err
+		}
 	}
 
 	var nfsShareId string
-	nfsShareName := NFSShareNamePrefix + filesystem.FileContent.Name
+
 	for _, nfsShare := range filesystem.FileContent.NFSShare {
-		if nfsShare.Name == nfsShareName {
-			nfsShareId = nfsShare.Id
+		if isSnapshot {
+			if nfsShare.Path == NFSShareLocalPath && nfsShare.ParentSnap.Id == filesystemId {
+				nfsShareId = nfsShare.Id
+			}
+		} else {
+			if nfsShare.Path == NFSShareLocalPath && nfsShare.ParentSnap.Id == "" {
+				nfsShareId = nfsShare.Id
+			}
 		}
 	}
+
 	if nfsShareId == "" {
-		return nil, false, false, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "NFS Share: %s not found. Error: %v", nfsShareName, err))
+		return nil, false, false, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "NFS Share for filesystem: %s not found. Error: %v", filesystemId, err))
 	}
 
 	nfsShare, err := fileApi.FindNFSShareById(ctx, nfsShareId)
@@ -699,7 +818,7 @@ func (s *service) getNFSShare(ctx context.Context, filesystemId, arrayId string)
 func (s *service) checkFilesystemMapping(ctx context.Context, nfsShare *types.NFSShare, am *csi.VolumeCapability_AccessMode, arrayId string) error {
 	ctx, _, rid := GetRunidLog(ctx)
 	ctx, _ = setArrayIdContext(ctx, arrayId)
-	unity, err := s.getUnityClient(arrayId)
+	unity, err := s.getUnityClient(ctx, arrayId)
 	var accessType gounity.AccessType
 	if err != nil {
 		return err
@@ -740,7 +859,7 @@ func (s *service) checkVolumeMapping(ctx context.Context, volume *types.Volume, 
 	rid, log := utils.GetRunidAndLogger(ctx)
 	//Get Host Name
 	hostName := s.opts.NodeName
-	unity, err := s.getUnityClient(arrayId)
+	unity, err := s.getUnityClient(ctx, arrayId)
 	if err != nil {
 		return 0, err
 	}
@@ -819,7 +938,7 @@ func getTargetMount(ctx context.Context, target string) (gofsutil.Info, error) {
 func (s *service) getArrayHostInitiators(ctx context.Context, host *types.Host, arrayId string) ([]string, error) {
 	var hostInitiatorWwns []string
 	hostContent := host.HostContent
-	unity, err := s.getUnityClient(arrayId)
+	unity, err := s.getUnityClient(ctx, arrayId)
 	if err != nil {
 		return nil, err
 	}
@@ -1094,6 +1213,12 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 	if errFc != nil && errIscsi != nil {
 		log.Infof("Node %s does not have FC or iSCSI initiators and can only be used for NFS exports", s.opts.NodeName)
 	}
+
+	nodeIps, err := utils.GetHostIP()
+	if err != nil {
+		return status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Unable to get node IP. Error: %v", err))
+	}
+
 	//Find Host on the Array
 	host, err := hostApi.FindHostByName(ctx, s.opts.NodeName)
 	if err != nil {
@@ -1111,6 +1236,12 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 			_, err = hostApi.CreateHostIpPort(ctx, hostContent.ID, s.opts.LongNodeName)
 			if err != nil {
 				return err
+			}
+			for _, nodeIp := range nodeIps {
+				_, err = hostApi.CreateHostIpPort(ctx, hostContent.ID, nodeIp)
+				if err != nil {
+					return err
+				}
 			}
 
 			if len(wwns) > 0 {
@@ -1139,7 +1270,7 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 			return err
 		}
 	} else {
-		log.Debug("Host %s exists on the array", s.opts.NodeName)
+		log.Debugf("Host %s exists on the array", s.opts.NodeName)
 		hostContent := host.HostContent
 		arrayHostWwns, err := s.getArrayHostInitiators(ctx, host, array.ArrayId)
 		if err != nil {
@@ -1174,21 +1305,36 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 		}
 
 		//Check Ip of the host with Host IP Port
-		findHostIpPort := false
+		findHostNamePort := false
 		for _, ipPort := range hostContent.IpPorts {
 			hostIpPort, err := hostApi.FindHostIpPortById(ctx, ipPort.Id)
 			if err != nil {
 				continue
 			}
 			if hostIpPort != nil && hostIpPort.HostIpContent.Address == s.opts.LongNodeName {
-				findHostIpPort = true
-				break
+				findHostNamePort = true
+				continue
+			}
+			if hostIpPort != nil {
+				for i, nodeIp := range nodeIps {
+					if hostIpPort.HostIpContent.Address == nodeIp {
+						nodeIps[i] = nodeIps[len(nodeIps)-1]
+						nodeIps = nodeIps[:len(nodeIps)-1]
+						break
+					}
+				}
 			}
 		}
 
-		if findHostIpPort == false {
+		if findHostNamePort == false {
 			//Create Host Ip Port
 			_, err = hostApi.CreateHostIpPort(ctx, hostContent.ID, s.opts.LongNodeName)
+			if err != nil {
+				return err
+			}
+		}
+		for _, nodeIp := range nodeIps {
+			_, err = hostApi.CreateHostIpPort(ctx, hostContent.ID, nodeIp)
 			if err != nil {
 				return err
 			}

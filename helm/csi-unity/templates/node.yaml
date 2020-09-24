@@ -74,7 +74,8 @@ spec:
             - name: driver-path
               mountPath: /var/lib/kubelet/plugins/unity.emc.dell.com
             - name: volumedevices-path
-              mountPath: /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices
+              mountPath: /var/lib/kubelet/plugins/kubernetes.io/csi/pv
+              mountPropagation: "Bidirectional"
             - name: pods-path
               mountPath: /var/lib/kubelet/pods
               mountPropagation: "Bidirectional"
@@ -117,7 +118,7 @@ spec:
             type: DirectoryOrCreate
         - name: volumedevices-path
           hostPath:
-            path: /var/lib/kubelet/plugins/kubernetes.io/csi/volumeDevices
+            path: /var/lib/kubelet/plugins/kubernetes.io/csi/pv
             type: DirectoryOrCreate
         - name: pods-path
           hostPath:

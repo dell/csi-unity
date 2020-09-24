@@ -30,18 +30,16 @@ unit-test:
 # Docker-related tasks
 #
 # Generates the docker container (but does not push)
-docker-build: go-build
-	cd core && go generate
-	go run core/semver/semver.go -f mk >semver.mk
-	make -f docker.mk docker-build
+podman-build: go-build
+	sh build.sh
 
-docker-push:
-	make -f docker.mk docker-push
+podman-push: go-build
+	sh build.sh -p
 
 version:
 	go generate
 	go run core/semver/semver.go -f mk >semver.mk
-	make -f docker.mk version
+	sh build.sh -h
 
 .PHONY: clean
 clean:

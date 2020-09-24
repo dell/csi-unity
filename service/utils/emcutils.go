@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -31,6 +32,25 @@ func GetVolumeResponseFromVolume(volume *types.Volume, arrayId, protocol string)
 func GetVolumeResponseFromFilesystem(filesystem *types.Filesystem, arrayId, protocol string) *csi.CreateVolumeResponse {
 	content := filesystem.FileContent
 	return getVolumeResponse(content.Name, protocol, arrayId, content.Id, content.SizeTotal)
+}
+
+func GetVolumeResponseFromSnapshot(snapshot *types.Snapshot, arrayId, protocol string) *csi.CreateVolumeResponse {
+	volId := fmt.Sprintf("%s-%s-%s-%s", snapshot.SnapshotContent.Name, protocol, arrayId, snapshot.SnapshotContent.ResourceId)
+	VolumeContext := make(map[string]string)
+	VolumeContext["protocol"] = protocol
+	VolumeContext["arrayId"] = arrayId
+	VolumeContext["volumeId"] = snapshot.SnapshotContent.ResourceId
+
+	volumeReq := &csi.Volume{
+		VolumeId:      volId,
+		CapacityBytes: int64(snapshot.SnapshotContent.Size),
+		VolumeContext: VolumeContext,
+	}
+
+	volumeResp := &csi.CreateVolumeResponse{
+		Volume: volumeReq,
+	}
+	return volumeResp
 }
 
 func getVolumeResponse(name, protocol, arrayId, resourceId string, size uint64) *csi.CreateVolumeResponse {
@@ -109,7 +129,7 @@ func GetFCInitiators(ctx context.Context) ([]string, error) {
 }
 
 //Utility method to extract Host IP
-func GetHostIP() (string, error) {
+func GetHostIP() ([]string, error) {
 	cmd := exec.Command("hostname", "-I")
 	cmdOutput := &bytes.Buffer{}
 	cmd.Stdout = cmdOutput
@@ -120,13 +140,28 @@ func GetHostIP() (string, error) {
 		cmd.Stdout = cmdOutput
 		err = cmd.Run()
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 	}
-
 	output := string(cmdOutput.Bytes())
-	ip := strings.Split(output, " ")[0]
-	return ip, nil
+	ips := strings.Split(strings.TrimSpace(output), " ")
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, err
+	}
+
+	var lookup_ips []string
+	for _, ip := range ips {
+		lookupResp, err := net.LookupAddr(ip)
+		if err == nil && strings.Contains(lookupResp[0], hostname) {
+			lookup_ips = append(lookup_ips, ip)
+		}
+	}
+	if len(lookup_ips) == 0 {
+		lookup_ips = append(lookup_ips, ips[0])
+	}
+	return lookup_ips, nil
 }
 
 //Utility method to convert Unity Rest type Snapshot to CSI standard Snapshot Response

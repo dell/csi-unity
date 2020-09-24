@@ -6,7 +6,6 @@ builds/
 *.exe
 vendor/
 bin/
-csi-unity
 semver.mk
 go.sum
 ./csi-unity

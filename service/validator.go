@@ -4,6 +4,9 @@ import (
 	"fmt"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/dell/csi-unity/service/utils"
+	"github.com/dell/gounity/types"
+	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -97,4 +100,42 @@ func valVolumeCaps(vcs []*csi.VolumeCapability, protocol string) (bool, string) 
 	}
 
 	return supported, reason
+}
+
+//Validates idempotency of an existing snapshot created from a filesystem
+func validateCreateFsFromSnapshot(ctx context.Context, sourceFilesystemResp *types.Filesystem, storagePool string, tieringPolicy, hostIoSize int64, thin, dataReduction bool) error {
+
+	rid, _ := utils.GetRunidAndLogger(ctx)
+
+	// Validate the storagePool parameter
+	if sourceFilesystemResp.FileContent.Pool.Id != storagePool {
+		return status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Source filesystem storage pool %s is different than the requested storage pool %s",
+			sourceFilesystemResp.FileContent.Pool.Id, storagePool))
+	}
+
+	//Validate the thinProvisioned parameter
+	if sourceFilesystemResp.FileContent.IsThinEnabled != thin {
+		return status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Source filesystem thin provision %v is different than the requested thin provision %v",
+			sourceFilesystemResp.FileContent.IsThinEnabled, thin))
+	}
+
+	//Validate the dataReduction parameter
+	if sourceFilesystemResp.FileContent.IsDataReductionEnabled != dataReduction {
+		return status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Source filesystem data reduction %v is different than the requested data reduction %v",
+			sourceFilesystemResp.FileContent.IsDataReductionEnabled, dataReduction))
+	}
+
+	//Validate the tieringPolicy parameter
+	if int64(sourceFilesystemResp.FileContent.TieringPolicy) != tieringPolicy {
+		return status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Source filesystem tiering policy %v is different than the requested tiering policy %v",
+			sourceFilesystemResp.FileContent.TieringPolicy, tieringPolicy))
+	}
+
+	//Validate the hostIOSize parameter
+	if sourceFilesystemResp.FileContent.HostIOSize != hostIoSize {
+		return status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Source filesystem host IO size %v is different than the requested host IO size %v",
+			sourceFilesystemResp.FileContent.HostIOSize, hostIoSize))
+	}
+
+	return nil
 }

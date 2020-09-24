@@ -1,48 +1,60 @@
 # Unity CSI
 
-This repo contains [Container Storage Interface(CSI)]
-(<https://github.com/container-storage-interface/>) Unity CSI driver for DellEMC.
+[![Go Report Card](https://goreportcard.com/badge/github.com/dell/csi-unity)](https://goreportcard.com/report/github.com/dell/csi-unity)
+[![License](https://img.shields.io/github/license/dell/csi-unity)](https://github.com/dell/csi-unity/blob/master/LICENSE)
+[![Docker](https://img.shields.io/docker/pulls/dellemc/csi-unity.svg?logo=docker)](https://hub.docker.com/r/dellemc/csi-unity)
+[![Last Release](https://img.shields.io/github/v/release/dell/csi-unity?label=latest&style=flat-square)](https://github.com/dell/csi-unity/releases)
+
+This repo contains [Container Storage Interface(CSI)](<https://github.com/container-storage-interface/>) Unity CSI driver for DellEMC.
 
 ## Overview
 
-Unity CSI plugins implement an interface between CSI enabled Container Orchestrator(CO) and Unity Storage Array. It allows dynamically provisioning Unity volumes and attaching them to workloads.
+Unity CSI plugins implement an interface between CSI enabled Container Orchestrator(CO) and Unity Storage Array. It allows static and dynamic provisioning of Unity volumes and attaching them to workloads.
+
+## Support
+
+The CSI Driver for Dell EMC Unity image, which is the built driver code, is available on Dockerhub and is officially supported by Dell EMC.
+The source code for CSI Driver for Dell EMC Unity available on Github is unsupported and provided solely under the terms of the license attached to the source code. For clarity, Dell EMC does not provide support for any source code modifications.
+For any CSI driver issues, questions or feedback, join the [Dell EMC Container community](<https://www.dell.com/community/Containers/bd-p/Containers/>)
 
 ## Introduction
 The CSI Driver For Dell EMC Unity conforms to CSI spec 1.1
-   * Support for Kubernetes 1.14 and 1.16
+   * Support for Kubernetes v1.17, v1.18 and v1.19
    * Will add support for other orchestrators over time
-   * The CSI specification is documented here: https://github.com/container-storage-interface/spec. The driver uses CSI v1.1.
+   * The CSI specification is documented here: https://github.com/container-storage-interface/spec/tree/release-1.1. The driver uses CSI v1.1.`
 
 ## CSI Driver For Dell EMC Unity Capabilities
 
 | Capability | Supported | Not supported |
 |------------|-----------| --------------|
-|Provisioning | Persistent volumes creation, deletion, mounting, unmounting, listing | Volume expand |
+|Provisioning | Persistent volumes creation, deletion, mounting, unmounting, expansion | |
 |Export, Mount | Mount volume as file system | Raw volumes, Topology|
-|Data protection | Creation of snapshots, Create volume from snapshots(FC/iSCSI) | Cloning volume, Create volume from snapshots(NFS) |
+|Data protection | Creation of snapshots, Create volume from snapshots, Volume Cloning | |
 |Types of volumes | Static, Dynamic| |
 |Access mode | RWO(FC/iSCSI), RWO/RWX/ROX(NFS) | RWX/ROX(FC/iSCSI)|
-|Kubernetes | v1.14, v1.16 | V1.13 or previous versions|
-|Installer | Helm v3.x,v2.x | Operator |
-|OpenShift | v4.3 (Helm installation only) | v4.2 |
-|OS | RHEL 7.6, RHEL 7.7, CentOS 7.6, CentOS 7.7 | Ubuntu, other Linux variants|
+|Kubernetes | v1.17, v1.18, v1.19 | V1.16 or previous versions|
+|Docker EE | v3.1 | Other versions|
+|Installer | Helm v3.x, Operator | |
+|OpenShift | v4.3 (except snapshot), v4.4 | Other versions |
+|OS | RHEL 7.6, RHEL 7.7, RHEL 7.8, CentOS 7.6, CentOS 7.7, CentOS 7.8 | Ubuntu, other Linux variants|
 |Unity | OE 5.0.0, 5.0.1, 5.0.2, 5.0.3 | Previous versions and Later versions|
 |Protocol | FC, iSCSI, NFS |  |
 
 ## Installation overview
 
-The Helm chart installs CSI Driver for Unity using a shell script (helm/install.unity). This script installs the CSI driver container image along with the required Kubernetes sidecar containers.
+Installation in a Kubernetes cluster should be done using the scripts within the `dell-csi-helm-installer` directory. 
 
-** Note: Linux user should have root privileges to install this CSI Driver.**
+For more information, consult the [README.md](dell-csi-helm-installer/README.md)
 
-The controller section of the Helm chart installs the following components in a Stateful Set in the namespace unity:
+The controller section of the Helm chart installs the following components in a Stateful Set:
 
 * CSI Driver for Unity
 * Kubernetes Provisioner, which provisions the provisioning volumes
 * Kubernetes Attacher, which attaches the volumes to the containers
 * Kubernetes Snapshotter, which provides snapshot support
+* Kubernetes Resizer, which provides volume expansion support
 
-The node section of the Helm chart installs the following component in a Daemon Set in the namespace unity:
+The node section of the Helm chart installs the following component in a Daemon Set:
 
 * CSI Driver for Unity
 * Kubernetes Registrar, which handles the driver registration
@@ -54,53 +66,10 @@ Before you install CSI Driver for Unity, verify the requirements that are mentio
 #### Requirements
 
 * Install Kubernetes
-* Enable the Kubernetes feature gates
 * Configure Docker service
-* Install Helm v2 with Tiller with a service account or Helm v3
-* Deploy Unity using Helm
+* Install Helm v3
+* To use FC protocol, host must be zoned with Unity array
 * To use iSCSI and NFS protocol, iSCSI initiator and NFS utility packages need to be installed
-
-## Enable Kubernetes feature gates
-
-The Kubernetes feature gates must be enabled before installing CSI Driver for Unity.
-
-#### About Enabling Kubernetes feature gates
-
-The Feature Gates section of Kubernetes home page lists the Kubernetes feature gates. The following Kubernetes feature gates must be enabled:
-
-* VolumeSnapshotDataSource
-
-### Procedure
-
- 1. On each master and node of Kubernetes, edit /var/lib/kubelet/config.yaml and append the following lines at the end to set feature-gate settings for the kubelets:
-    */var/lib/kubelet/config.yaml*
-
-    ```
-    VolumeSnapshotDataSource: true
-    ```
-
-2. On the master node, set the feature gate settings of the kube-apiserver.yaml, kube-controllermanager.yaml and kube-scheduler.yaml file as follows:
-
-    */etc/kubernetes/manifests/kube-apiserver.yaml
-    /etc/kubernetes/manifests/kube-controller-manager.yaml
-    /etc/kubernetes/manifests/kube-scheduler.yaml*
-
-    ```
-    - --feature-gates=VolumeSnapshotDataSource=true
-    ```
-
-3. On each node (including master), edit the variable **KUBELET_KUBECONFIG_ARGS** of /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf file as follows:
-
-    ```
-    Environment="KUBELET_KUBECONFIG_ARGS=--bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf --kubeconfig=/etc/kubernetes/kubelet.conf --feature-gates=VolumeSnapshotDataSource=true" 
-    ```
-
-4. Restart the kublet on all nodes. 
-
-    ```
-    systemctl daemon-reload
-    systemctl restart kubelet 
-    ```
 
 ## Configure Docker service
 
@@ -129,7 +98,7 @@ Install CSI Driver for Unity using this procedure.
 
 *Before you begin*
  * You must have the downloaded files, including the Helm chart from the source [git repository](https://github.com/dell/csi-unity), ready for this procedure.
- * In the top-level helm directory, there should be two shell scripts, *install.unity* and *uninstall.unity*. These scripts handle some of the pre and post operations that cannot be performed in the helm chart, such as creating Custom Resource Definitions (CRDs), if needed.
+ * In the top-level dell-csi-helm-installer directory, there should be two scripts, *csi-install.sh* and *csi-uninstall.sh*. These scripts handle some of the pre and post operations that cannot be performed in the helm chart, such as creating Custom Resource Definitions (CRDs), if needed.
  * Make sure "unity" namespace exists in kubernetes cluster. Use `kubectl create namespace unity` command to create the namespace, if the namespace is not present.
    
    
@@ -137,7 +106,7 @@ Procedure
 
 1. Collect information from the Unity Systems like Unique ArrayId, IP address, username  and password. Make a note of the value for these parameters as they must be entered in the secret.json and myvalues.yaml file.
 
-2. Copy the csi-unity/values.yaml into a file in the same directory as the install.unity named myvalues.yaml, to customize settings for installation.
+2. Copy the csi-unity/values.yaml into a file named myvalues.yaml in the same directory of csi-install.sh, to customize settings for installation.
 
 3. Edit myvalues.yaml to set the following parameters for your installation:
     
@@ -145,7 +114,7 @@ Procedure
     
     | Parameter | Description | Required | Default |
     | --------- | ----------- | -------- |-------- |
-    | certSecretCount | Represents number of certificate secrets, which user is going to create for ssl authentication. (unity-cert-0..unity-cert-n). Value should be between 1 and 10 | false | 1 |
+    | certSecretCount | Represents number of certificate secrets, which user is going to create for ssl authentication. (unity-cert-0..unity-cert-n). Minimum value should be 1 | false | 1 |
     | syncNodeInfoInterval | Time interval to add node info to array. Default 15 minutes. Minimum value should be 1 minute | false | 15 |
     | volumeNamePrefix | String to prepend to any volumes created by the driver | false | csivol |
     | snapNamePrefix | String to prepend to any snapshot created by the driver | false | csi-snap |
@@ -167,7 +136,7 @@ Procedure
     | ***Snapshot Class parameters*** | Following parameters are not present in values.yaml  |
     | storageArrayList[i] .snapshotClass.retentionDuration | TO set snapshot retention duration. Format:"1:23:52:50" (number of days:hours:minutes:sec)| false | "" |
     
-   Note: User should provide all boolean values with double quotes. This applicable only for myvalues.yaml. Ex: "true"/"false"
+   **Note**: User should provide all boolean values with double quotes. This applicable only for myvalues.yaml. Ex: "true"/"false"
    
    Example *myvalues.yaml*
     
@@ -203,7 +172,9 @@ Procedure
            nasServer: "nasserver_2"
     ```
 
-4. Prepare the secret.json for driver configuration.
+4. Create an empty secret by navigating to helm folder that contains emptysecret.yaml file and running the kubectl create -f emptysecret.yaml command.
+
+5. Prepare the secret.json for driver configuration.
     The following table lists driver configuration parameters for multiple storage arrays.
     
     | Parameter | Description | Required | Default |
@@ -243,51 +214,88 @@ Procedure
     
     `kubectl create secret generic unity-creds -n unity --from-file=config=secret.json -o yaml --dry-run | kubectl replace -f -`
     
-    Note: The user needs to validate the JSON syntax and array related key/values while replacing the unity-creds secret.
+    **Note**: The user needs to validate the JSON syntax and array related key/values while replacing the unity-creds secret.
     The driver will continue to use previous values in case of an error found in the JSON file.
     
-4. Run the `sh install.unity` command to proceed with the installation.
+    **Note**: "isDefaultArray" parameter in values.yaml and secret.json should match each other. 
+
+6. Setup for snapshots
+         
+   The Kubernetes Volume Snapshot feature is now beta in Kubernetes v1.17.
+           
+   * The following section summarizes the changes in the **[beta](<https://kubernetes.io/blog/2019/12/09/kubernetes-1-17-feature-cis-volume-snapshot-beta/>)** release.
+     
+     In order to use the Kubernetes Volume Snapshot feature, you must ensure the following components have been deployed on your Kubernetes cluster.
+        
+        * [Install Snapshot Beta CRDs using the following command](<https://kubernetes.io/blog/2019/12/09/kubernetes-1-17-feature-cis-volume-snapshot-beta/#how-do-i-deploy-support-for-volume-snapshots-on-my-kubernetes-cluster>)
+          ```shell script
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/release-2.0/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/release-2.0/config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/release-2.0/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml
+ 
+        * [Volume snapshot controller](<https://kubernetes.io/blog/2019/12/09/kubernetes-1-17-feature-cis-volume-snapshot-beta/#how-do-i-deploy-support-for-volume-snapshots-on-my-kubernetes-cluster>)                
+          ```shell script
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/master/deploy/kubernetes/snapshot-controller/rbac-snapshot-controller.yaml
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/master/deploy/kubernetes/snapshot-controller/setup-snapshot-controller.yaml           
+          ```
+          After executing these commands, a snapshot-controller pod should be up and running.
+        
+7. Run the `./csi-install.sh --namespace unity --values ./myvalues.yaml` command to proceed with the installation.
 
     A successful installation should emit messages that look similar to the following samples:
     ```
-    sh install.unity 
-    Kubernetes version v1.16.8
-    Kubernetes master nodes: 10.*.*.*
-    Kubernetes minion nodes:
-    Verifying the feature gates.
-    Installing using helm version 3
-    NAME: unity
-    LAST DEPLOYED: Thu May 14 05:05:42 2020
-    NAMESPACE: unity
-    STATUS: deployed
-    REVISION: 1
-    TEST SUITE: None
-    Thu May 14 05:05:53 EDT 2020
-    running 2 / 2
-    NAME                 READY   STATUS    RESTARTS   AGE
-    unity-controller-0   4/4     Running   0          11s
-    unity-node-mkbxc     2/2     Running   0          11s
-    CSIDrivers:
-    NAME    CREATED AT
-    unity   2020-05-14T09:05:42Z
-    CSINodes:
-    NAME       CREATED AT
-    <nodename>   2020-04-16T20:59:16Z
-    StorageClasses:
-    NAME                         PROVISIONER             AGE
-    unity (default)              csi-unity.dellemc.com   11s
-    unity-iscsi                  csi-unity.dellemc.com   11s
-    unity-nfs                    csi-unity.dellemc.com   11s
-    unity-<array-id>-fc          csi-unity.dellemc.com   11s
-    unity-<array-id>-iscsi       csi-unity.dellemc.com   11s
-    unity-<array-id>-nfs         csi-unity.dellemc.com   11s
+    ------------------------------------------------------
+    > Installing CSI Driver: csi-unity on 1.18
+    ------------------------------------------------------
+    ------------------------------------------------------
+    > Checking to see if CSI Driver is already installed
+    ------------------------------------------------------
+    ------------------------------------------------------
+    > Verifying Kubernetes and driver configuration
+    ------------------------------------------------------
+    |- Kubernetes Version: 1.18
+    |
+    |- Driver: csi-unity
+    |
+    |- Verifying Kubernetes versions
+      |
+      |--> Verifying minimum Kubernetes version                         Success
+      |
+      |--> Verifying maximum Kubernetes version                         Success
+    |
+    |- Verifying that required namespaces have been created             Success
+    |
+    |- Verifying that required secrets have been created                Success
+    |
+    |- Verifying that required secrets have been created                Success
+    |
+    |- Verifying snapshot support
+      |
+      |--> Verifying that beta snapshot CRDs are available              Success
+      |
+      |--> Verifying that beta snapshot controller is available         Success
+    |
+    |- Verifying helm version                                           Success
+
+    ------------------------------------------------------
+    > Verification Complete
+    ------------------------------------------------------
+    |
+    |- Installing Driver                                                Success
+      |
+      |--> Waiting for statefulset unity-controller to be ready         Success
+      |
+      |--> Waiting for daemonset unity-node to be ready                 Success
+    ------------------------------------------------------
+    > Operation complete
+    ------------------------------------------------------
     ```
     Results
-    At the end of the script, the kubectl get pods -n unity is called to GET the status of the pods and you will see the following:
-    * unity-controller-0 with 4/4 containers ready, and status displayed as Running.
+    At the end of the script statefulset unity-controller and daemonset unity-node will be ready, execute command **kubectl get pods -n unity** to get the status of the pods and you will see the following:
+    * unity-controller-0 with 5/5 containers ready, and status displayed as Running.
     * Agent pods with 2/2 containers and the status displayed as Running.
 
-    Finally, the script lists the created storageclasses such as, "unity". Additional storage classes can be created for different combinations of file system types and Unity storage pools. The script also creates volumesnapshotclass "unity-snapclass".
+    Finally, the script creates storageclasses such as, "unity". Additional storage classes can be created for different combinations of file system types and Unity storage pools. The script also creates volumesnapshotclass "unity-snapclass".
 
 ## Certificate validation for Unisphere REST API calls 
 
@@ -320,92 +328,41 @@ If the Unisphere certificate is self-signed or if you are using an embedded Unis
           `kubectl create secret generic unity-certs-0 -n unity --from-file=cert-0=ca_cert_0.pem -o yaml --dry-run | kubectl replace -f -` 
    3. Repeat step-1 & 2 to create multiple cert secrets with incremental index (ex: unity-certs-1, unity-certs-2, etc)
 
-Note: User can add multiple certificates in the same secret. The certificate file should not exceed more than 1Mb due to kubernetes secret size limitation.
+**Note**: "unity" is the namespace for helm based installation but namespace can be user defined in operator based installation.
 
-Note: Whenever certSecretCount parameter changes in myvalues.yaml user needs to uninstall and install the driver.
+**Note**: User can add multiple certificates in the same secret. The certificate file should not exceed more than 1Mb due to kubernetes secret size limitation.
+
+**Note**: Whenever certSecretCount parameter changes in myvalues.yaml user needs to uninstall and install the driver.
 
 ## Upgrade CSI Driver for Unity
 
 Preparing myvalues.yaml is the same as explained above.
 
-**Note** Supported upgrade path is from CSI Driver for Dell EMC Unity v1.1.0.1 to CSI Driver for Dell EMC Unity v1.2. If user is in v1.0 or v1.1, please upgrade to v1.1.0.1 before upgrading to v1.2 to avoid problems.
+To upgrade the driver from csi-unity v1.2.1 in k8s 1.16 to csi-unity 1.3 in k8s 1.17:
+1. Remove all volume snapshots, volume snapshot content and volume snapshot class objects.
+2. Upgrade the Kubernetes version to 1.17 first before upgrading CSI driver.
+3. Uninstall existing driver.
+4. Uninstall alpha snapshot CRDs.
+5. Verify all pre-reqs to install csi-unity v1.3 are fulfilled.
+6. Install the driver using installation steps from [here](#install-csi-driver-for-unity)
 
-Delete the unity-creds secret and recreate again using secret.json as explained above.
+**Note**: User has to re-create existing custom-storage classes (if any) according to latest (v1.3) format.
 
-
-Execute the following command to not to delete the unity-creds secret by helm
-
-```kubectl annotate secret unity-creds -n unity "helm.sh/resource-policy"=keep```
-
-Make sure unity-certs-* secrets are created properly before upgrading the driver.
- 
-Run the `sh upgrade.unity` command to proceed with the upgrading process.
-
-**Note**: Upgrading CSI Unity driver is possible within the same version of Helm. (Ex: Helm V2 to Helm V2)
-
-**Note**: Sometimes user might get a warning saying "updates to parameters are forbidden" when we try to upgrade from previous versions. Delete the storage classes and upgrade the driver.
- 
-A successful upgrade should emit messages that look similar to the following samples:
-
+## Building the driver image (UBI)
+**NOTE** : Only RHEL host can be used to build the driver image.
+1. Make sure podman is installed in node.
+2. Add the fully-qualified name of the image repository to the [registries.insecure] 
+   section of the /etc/containers/registries.conf file. For example:
     ```
-    $ ./upgrade.unity 
-    Kubernetes version v1.16.8
-    Kubernetes master nodes: 10.*.*.*
-    Kubernetes minion nodes:
-    Verifying the feature gates.
-    node-1's password: 
-    lifecycle present :2
-    Removing lifecycle hooks from daemonset
-    daemonset.extensions/unity-node patched
-    daemonset.extensions/unity-node patched
-    daemonset.extensions/unity-node patched
-    warning: Immediate deletion does not wait for confirmation that the running resource has been terminated. The resource may continue to run on the cluster indefinitely.
-    pod "unity-node-t1j5h" force deleted
-    Thu May 14 05:05:53 EDT 2020
-    running 2 / 2
-    NAME                 READY   STATUS    RESTARTS   AGE
-    unity-controller-0   4/4     Running   0          12s
-    unity-node-n14gj     2/2     Running   0          12s
-    Upgrading using helm version 3
-    Release "unity" has been upgraded. Happy Helming!
-    NAME: unity
-    LAST DEPLOYED: Thu May 14 05:05:53 2020
-    NAMESPACE: unity
-    STATUS: deployed
-    REVISION: 2
-    TEST SUITE: None
-    Thu May 14 05:06:02 EDT 2020
-    running 2 / 2
-    NAME                 READY   STATUS    RESTARTS   AGE
-    unity-controller-0   4/4     Running   0          11s
-    unity-node-rn6px     2/2     Running   0          11s
-    CSIDrivers:
-    NAME       CREATED AT
-    unity      2020-04-23T09:25:01Z
-    CSINodes:
-    NAME                   CREATED AT
-    <nodename>   2020-04-16T20:59:16Z
-    StorageClasses:
-    NAME                 PROVISIONER                AGE
-    unity (default)              csi-unity.dellemc.com   11s
-    unity-iscsi                  csi-unity.dellemc.com   11s
-    unity-nfs                    csi-unity.dellemc.com   11s
-    unity-<array-id>-fc          csi-unity.dellemc.com   11s
-    unity-<array-id>-iscsi       csi-unity.dellemc.com   11s
-    unity-<array-id>-nfs         csi-unity.dellemc.com   11s
+	  [registries.insecure]
+	  registries = ['myregistry.example.com']
     ```
-
-    User has to re-create existing custom-storage classes (if any) according to latest (v1.2) format.
-
-## Migrate from Helm 2 to Helm 3
-1. Get the latest code from github.com/dell/csi-unity by executing the following command.
-    `git clone -b v1.1.0.1 https://github.com/dell/csi-unity.git`
-2. Uninstall the CSI Driver for Dell EMC Unity v1.0 or v1.1 using the uninstall.unity script under csi-unity/helm using Helm 2.
-3. Go to https://helm.sh/docs/topics/v2_v3_migration/ and follow the instructions to migrate from Helm 2 to Helm 3.
-4. Once Helm 3 is ready, install the CSI Driver for Dell EMC Unity v1.1.0.1 using install.unity script under csi-unity/helm.
-5. List the pods with the following command (to verify the status)
-
-   `kubectl get pods -n unity`
+2. Inside csi-unity directory, execute this command to build the image and this image can be used locally:\
+    `make podman-build`
+3. Tag the image generated to the desired repository with command:\
+    `podman tag IMAGE_NAME:IMAGE_TAG IMAGE_REPO/IMAGE_REPO_NAMESPACE/IMAGE_NAME:IMAGE_TAG`
+4. To push the image to the repository, execute command:\
+    `podman push IMAGE_REPO/IMAGE_REPO_NAMESPACE/IMAGE_NAME:IMAGE_TAG`
 
 ## Test deploying a simple pod with Unity storage
 Test the deployment workflow of a simple pod on Unity storage.
@@ -481,21 +438,21 @@ Test the deployment workflow of a simple pod on Unity storage.
     **Note**: Verify unity system for volume to be attached to the Host where the nginx container is running
 
 4. **Create Snapshot**
-
-    The following procedure will create a snapshot of the volume in the container using VolumeSnapshot objects defined in snap.yaml. The following are the contents of snap.yaml.
+    The following procedure will create a snapshot of the volume in the container using VolumeSnapshot objects defined in snap.yaml. 
+    The following are the contents of snap.yaml.
     
     *snap.yaml*
 
     ```
-    apiVersion: snapshot.storage.k8s.io/v1alpha1
+    apiVersion: snapshot.storage.k8s.io/v1beta1
     kind: VolumeSnapshot
     metadata:
-        name: testvolclaim1-snap1        
+      name: testvolclaim1-snap1
+      namespace: default
     spec:
-        snapshotClassName: unity-snapclass
-        source:
-            name: testvolclaim1
-            kind: PersistentVolumeClaim
+      volumeSnapshotClassName: unity-snapclass
+      source:
+        persistentVolumeClaimName: testvolclaim1
     ```
     
     Execute the following command to create snapshot
@@ -524,6 +481,7 @@ Test the deployment workflow of a simple pod on Unity storage.
     Delete the Nginx application to unattach the volume from host
     
     `kubectl delete -f nginx.yaml`
+
 7. **To delete the volume**
 
     ```
@@ -531,7 +489,89 @@ Test the deployment workflow of a simple pod on Unity storage.
     kubectl delete pvc testvolclaim1
     kubectl get pvc
     ```
-## Static volume creation
+
+8. **Volume Expansion**
+
+    To expand a volume, execute the following command to edit the pvc:
+    ```
+    kubectl edit pvc pvc-name
+    ```
+    Then, edit the "storage" field in spec section with required new size:
+    ```
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 10Gi #This field is updated from 5Gi to 10Gi which is required new size
+    ```
+    **Note**: Make sure the storage class used to create the pvc have allowVolumeExpansion field set to true. The new size cannot be less than the existing size of pvc.
+
+9. **Create Volume Clone**
+
+    Create a file (`clonepvc.yaml`) with the following content.
+
+    ```
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+        name: clone-pvc
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi
+      dataSource:
+        kind: PersistentVolumeClaim
+        name: source-pvc
+      storageClassName: unity
+    ```
+
+    Execute the following command to create volume clone
+    ```
+    kubectl create -f $PWD/clonepvc.yaml
+    ```
+    **Note**: Size of clone pvc must be equal to size of source pvc.
+
+    **Note**: For NFS protocol, user cannot expand cloned pvc.
+
+    **Note**: For NFS protocol, deletion of source pvc is not permitted if cloned pvc exists.
+
+10. **Create Volume From Snapshot**
+
+    Create a file (`pvcfromsnap.yaml`) with the following content.
+
+    ```
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+        name: pvcfromsnap
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi
+      dataSource:
+        kind: VolumeSnapshot
+        name: source-snapshot
+        apiGroup: snapshot.storage.k8s.io
+      storageClassName: unity
+    ```
+
+    Execute the following command to create volume clone
+    ```
+    kubectl create -f $PWD/pvcfromsnap.yaml
+    ```
+    **Note**: Size of created pvc from snapshot must be equal to size of source snapshot.
+
+    **Note**: For NFS protocol, pvc created from snapshot can not be expanded.
+
+    **Note**: For NFS protocol, deletion of source pvc is not permitted if created pvc from snapshot exists.
+
+## Static volume creation (Volume ingestion)
+
 Static provisioning is a feature that is native to Kubernetes and that allows cluster administrators to make existing storage devices available to a cluster.
 As a cluster administrator, you must know the details of the storage device, its supported configurations, and mount options.
 
@@ -545,6 +585,8 @@ apiVersion: v1
 kind: PersistentVolume
 metadata:
   name: static-pv
+  annotations:
+    pv.kubernetes.io/provisioned-by: csi-unity.dellemc.com
 spec:
   accessModes:
   - ReadWriteOnce
@@ -553,6 +595,7 @@ spec:
   csi:
     driver: csi-unity.dellemc.com
     volumeHandle: csivol-vol-name-FC-apm001234567-sv_12
+    fsType: xfs
   persistentVolumeReclaimPolicy: Delete
   claimRef:
     namespace: default
@@ -565,7 +608,7 @@ spec:
 *\<volume-name\>-\<protocol>-\<arrayid>-\<volume id>*
 
 * volume-name: Name of the volume. Can have any number of "-"
-* Possible values for "Protocol" are "FC", "ISCSI" and "NFS"
+* Possible values for "Protocol" are "FC", "iSCSI" and "NFS"
 * arrayid: arrayid defined in lower case  
 * volume id: Represents the the LUN cli-id or Filesystem ID (not the resource-id incase of filesystem)
 
@@ -581,6 +624,7 @@ spec:
   resources:
     requests:
       storage: 5Gi
+  storageClassName: unity
 ```
  
 4. Create Pod
@@ -606,22 +650,86 @@ spec:
         claimName: myclaim
 ```
 
+## Snapshot ingestion
+Snapshot ingestion is a feature that allows cluster administrators to make existing snapshot on array, created by user available to a cluster.
+
+To make existing snapshot available to a cluster user, user must manually create or use existing snapshot in Unisphere for PV.
+
+1. Create a snapshot or identify existing snapshot using Unisphere
+
+2. Create a VolumeSnapshotContent explained below
+```yaml
+apiVersion: snapshot.storage.k8s.io/v1beta1
+kind: VolumeSnapshotContent
+metadata:
+  name: manual-snapshot-content
+spec:
+  deletionPolicy: Delete
+  driver: csi-unity.dellemc.com
+  volumeSnapshotClassName: unity-snapclass
+  source:
+     snapshotHandle: snap1-FC-apm00175000000-38654806278
+  volumeSnapshotRef:
+    name: manual-snapshot
+    namespace: default
+```
+
+**"snapshotHandle"**  is the key parameter that contains four sections.
+
+    1. Snapshot name (unused)
+    2. Type of snapshot (unused and if specified it should be FC/iSCSI/NFS)
+    3. Arrays id ex: apm00175000000
+    4. Snapshot id ex:38654806278
+   
+
+3. Create a VolumeSnapshot
+
+```yaml
+apiVersion: snapshot.storage.k8s.io/v1beta1
+kind: VolumeSnapshot
+metadata:
+  name: manual-snapshot
+spec:
+  volumeSnapshotClassName: unity-snapclass
+  source:
+     volumeSnapshotContentName: manual-snapshot-content
+```
+
+4. Ingestion is completed in the above steps and user can perform Clone volume or Create Volume from Snapshot from VolumeSnapshot created from VolumeSnapshotContent.
+
+Ex: Create volume from VolumeSnapshot
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: restore-pvc-from-snap
+spec:
+  storageClassName: unity
+  dataSource:
+    name: manual-snapshot
+    kind: VolumeSnapshot
+    apiGroup: snapshot.storage.k8s.io
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+```
 
 ## Dynamically update the unity-creds secrets
 
 Users can dynamically add delete array information from secret. Whenever an update happens the driver updates the "Host" information in an array.
 User can update secret using the following command.
 
-    `kubectl create secret generic unity-creds -n unity --from-file=config=secret.json -o yaml --dry-run | kubectl replace -f - `
+    `kubectl create secret generic unity-creds -n unity --from-file=config=secret.json -o yaml --dry-run=client | kubectl replace -f - `
 
-* Note: * Updating unity-certs-x secrets is a manual process, unlike unity-creds. Users have to re-install the driver in case of updating/adding the SSL certificates or changing the certSecretCount parameter.
+**Note**: Updating unity-certs-x secrets is a manual process, unlike unity-creds. Users have to re-install the driver in case of updating/adding the SSL certificates or changing the certSecretCount parameter.
 
-## Install CSI-Unity driver using dell-csi-operator in OpenShift
+## Install CSI-Unity driver using dell-csi-operator in OpenShift / upstream Kubernetes
 CSI Driver for Dell EMC Unity can also be installed via the new Dell EMC Storage Operator.
 
-Note: Currently, csi-unity v1.1.0.1 is supported using csi-operator. Use helm-v3 to install csi-driver v1.2 for OpenShift 
-
-The Dell EMC Storage CSI Operator is a Kubernetes Operator, which can be used to install and manage the CSI Drivers provided by Dell EMC for various storage platforms. This operator is available as a community operator for upstream Kubernetes and can be deployed using OperatorHub.io. It is also available as a community operator for OpenShift clusters and can be deployed using OpenShift Container Platform. Both these methods of installation use OLM (Operator Lifecycle Manager).
+The Dell EMC Storage CSI Operator is a Kubernetes Operator, which can be used to install and manage the CSI Drivers provided by Dell EMC for various storage platforms. This operator is available as a community operator for upstream Kubernetes and can be deployed using https://operatorhub.io/operator/dell-csi-operator . It is also available as a community operator for OpenShift clusters and can be deployed using OpenShift Container Platform. Both upstream kubernetes and openshift uses OLM(Operator Lifecycle Manager) as well as manual installation.
  
 The operator can also be deployed directly by following the instructions available here - https://github.com/dell/dell-csi-operator
  
@@ -629,86 +737,81 @@ There are sample manifests provided, which can be edited to do an easy installat
 
 Kubernetes Operators make it easy to deploy and manage the entire lifecycle of complex Kubernetes applications. Operators use Custom Resource Definitions (CRD), which represents the application and use custom controllers to manage them.
 
-### Listing CSI-Unity drivers
-User can query for csi-unity driver using the following command
-`kubectl get csiunity --all-namespaces`
-
 ### Procedure to create new CSI-Unity driver
 
 1. Create namespace
-   Run `kubectl create namespace unity` to create the unity namespace.
+   Run `kubectl create namespace test-unity` to create the a namespace called test-unity. It can be any user-defined name.
    
 2. Create *unity-creds*
    
-   Create a file called unity-creds.yaml with the following content
-     ```yaml
-    apiVersion: v1
-    kind: Secret
-    metadata:
-      name: unity-creds
-      namespace: unity
-    type: Opaque
-    data:
-      # set username to the base64 encoded username
-      username: <base64 username>
-      # set password to the base64 encoded password
-      password: <base64 password>
-    ```
+   Create secret mentioned in [Install csi-driver](#install-csi-driver-for-unity) section. The secret should be created in user-defined namespace (test-unity, in this case)
+
+3. Create certificate secrets
+
+   As part of the CSI driver installation, the CSI driver requires a secret with the name unity-certs-0 to unity-certs-n in the user-defined namespace (test-unity, in this case)
+   Create certificate procedure explained in the [link](#certificate-validation-for-unisphere-rest-api-calls)
    
-   Replace the values for the username and password parameters. These values can be optioned using base64 encoding as described in the following example:
-   ```
-   echo -n "myusername" | base64
-   echo -n "mypassword" | base64
-   ```
+   **Note**: *'certSecretCount'* parameter is not required for operator. Based on secret name pattern (unity-certs-*) operator reads all the secrets.
+   Secret name suffix should have 0 to N order to read the secrets. Secrets will not be considered, if any number missing in suffix. 
    
-   Run `kubectl create -f unity-creds.yaml` command to create the secret
- 
-3. Create a CR (Custom Resource) for unity using the sample provided below
-Create a new file `csiunity.yaml` with the following content.
+   Ex: If unity-certs-0, unity-certs-1, unity-certs-3 are present in the namespace, then only first two secrets are considered for SSL verification.
+       
+4. Create a CR (Custom Resource) for unity using the sample provided below
+
+Create a new file `csiunity.yaml` by referring the following content. Replace the given sample values according to your environment. You can find may CRDs under deploy/crds folder when you install dell-csi-operator
 
     ```yaml
     apiVersion: storage.dell.com/v1
     kind: CSIUnity
     metadata:
-      name: unity
-      namespace: unity
+      name: test-unity
+      namespace: test-unity
     spec:
       driver:
-        configVersion: v1
+        configVersion: v2
+        certSecretCount: 1
         replicas: 1
+        sideCars:
+          -
+            name: snapshotter
+        snapshotClass:
+          -
+            name: test-snap
+            parameters:
+              retentionDuration: ""
         common:
-          image: "dellemc/csi-unity:v1.1.0.000R"
+          image: "dellemc/csi-unity:v1.3.0.000R"
           imagePullPolicy: IfNotPresent
           envs:
           - name: X_CSI_UNITY_DEBUG
             value: "true"
-          - name: X_CSI_UNITY_ENDPOINT
-            value: "https://<Unisphere URL>"
-          - name: X_CSI_UNITY_INSECURE
-            value: "true"
         storageClass:
-        - name: fc
+        - name: virt2016****-fc
           default: true
           reclaimPolicy: "Delete"
           parameters:
             storagePool: pool_1
+            arrayId: "VIRT2016****"
             protocol: "FC"
-        - name: iscsi
+        - name: virt2017****-iscsi
           reclaimPolicy: "Delete"
           parameters:
             storagePool: pool_1
+            arrayId: "VIRT2017****"
             protocol: "iSCSI"
         snapshotClass:
-          - name: snapshot
-            parameters:
-              retentionDuration: "1:1:1:1"
+         - name: test-snap
+           parameters: 
+             retentionDuration: ""
     ```
 
-4.  Execute the following command to create unity custom resource
+5.  Execute the following command to create unity custom resource
     ```kubectl create -f csiunity.yaml```
-    The above command will deploy the csi-unity driver
+    The above command will deploy the csi-unity driver in the test-unity namespace.
+
+6. Any deployment error can be found out by loggin the operator pod which is in default namespace (e.g., kubectl logs dell-csi-operator-64c58559f6-cbgv7)
  
-5. User can configure the following parameters in CR
+7. User can configure the following parameters in CR
        
    The following table lists the primary configurable parameters of the Unity driver chart and their default values.
    
@@ -717,8 +820,6 @@ Create a new file `csiunity.yaml` with the following content.
    | ***Common parameters for node and controller*** |
    | CSI_ENDPOINT | Specifies the HTTP endpoint for Unity. | No | /var/run/csi/csi.sock |
    | X_CSI_DEBUG | To enable debug mode | No | false |
-   | X_CSI_UNITY_ENDPOINT | Must provide a UNITY HTTPS unisphere url. | Yes | |
-   | X_CSI_UNITY_INSECURE | Specifies that the Unity's hostname and certificate chain | No | true |
    | GOUNITY_DEBUG | To enable debug mode for gounity library| No | false |
    | ***Controller parameters*** |
    | X_CSI_MODE   | Driver starting mode | No | controller|
@@ -727,63 +828,23 @@ Create a new file `csiunity.yaml` with the following content.
    | X_CSI_MODE   | Driver starting mode  | No | node|
    | X_CSI_ISCSI_CHROOT | Path to which the driver will chroot before running any iscsi commands. | No | /noderoot |
 
-## Install csi-unity driver in OpenShift using HELM v3.x
+### Listing CSI-Unity drivers
+  User can query for csi-unity driver using the following commands
+  `kubectl get csiunity --all-namespaces`
+  `kubectl get pods -n <namespace of unity driver>`
 
-1. Clone the git repository. ( `git clone https://github.com/dell/csi-unity.git`)
+  In addition , user can enter the following command to make sure operator is running
 
-2. Change the directory to ./helm
+  `kubectl get pods`
 
-3. Create a namespace "unity" in kubernetes cluster
+  The above command should display a pod whose name starts with dell-csi-operator running on a default namespace.
 
-4. Create unity-cert-0 to unity-cert-n secrets as explained in the previous sections.
-
-5. Create unity-creds secret using the secret.json explained in the previous sections.
-
-6. Create clusterrole (unity-node) with the following yaml
-
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
- name: unity-node
-rules:
- - apiGroups:
-     - security.openshift.io
-   resourceNames:
-     - privileged
-   resources:
-     - securitycontextconstraints
-   verbs:
-     - use
-```
-
-7. Create clusterrolebinding (unity-node) with the following yaml
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: unity-node
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: unity-node
-subjects:
-  - kind: ServiceAccount
-    name: unity-node
-    namespace: unity
-```
-
-8. Execute the following command to install the driver.
-
-`helm install unity --values myvalues.yaml --values csi-unity/k8s-1.16-values.yaml -n unity ./csi-unity`
-
-Note: Preparing myvalues.yaml and secret.json is same as explained in the previous sections
-
-## Support
-The CSI Driver for Dell EMC Unity image available on Dockerhub is officially supported by Dell EMC.
- 
-The source code available on Github is unsupported and provided solely under the terms of the license attached to the source code. For clarity, Dell EMC does not provide support for any source code modifications.
- 
-For any CSI driver setup, configuration issues, questions or feedback, join the Dell EMC Container community at https://www.dell.com/community/Containers/bd-p/Containers
- 
-For any Dell EMC storage issues, please contact Dell support at: https://www.dell.com/support.
+   To upgrade the driver from csi-unity v1.2.1 in OpenShift 4.3 (Installed using Helm) to csi-unity v1.3 in OpenShift 4.3:
+      1. Uninstall the existing csi-unity v1.2.1 driver using Helm's uninstall.unity script.
+      2. Install operator using the instructions provided in https://github.com/dell/dell-csi-operator.
+      3. Create CR by taking the reference from /deploy/crds/unity_v130_ops_43.yaml.
+      4. User can install csi-unity v1.3 in previous namespace (unity) or user can install in the new namespace.
+      5. Install csi-unity v1.3 driver using the operator v1.1 by creating the object (E.g., kubectl create -f 
+         unity_v130_ops_43.yaml).
+      6. Please note that , volumesnapshotclass will not be created as part of this installation and no volume 
+         snapshot related operation can be performed on this combination (csi-unity v1.3 and OpenShift 4.3).

@@ -32,6 +32,9 @@ func stagePublishNFS(ctx context.Context, req *csi.NodeStageVolumeRequest, expor
 
 	accMode := req.GetVolumeCapability().GetAccessMode()
 
+	volCap := req.GetVolumeCapability()
+	mntVol := volCap.GetMount()
+	mntFlags := mntVol.GetMountFlags()
 	// make sure target is created
 	err := createDirIfNotExist(ctx, stagingTargetPath, arrayId)
 	if err != nil {
@@ -42,6 +45,7 @@ func stagePublishNFS(ctx context.Context, req *csi.NodeStageVolumeRequest, expor
 	if accMode.GetMode() == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
 		rwo = "ro"
 	}
+	mntFlags = append(mntFlags, rwo)
 
 	mnts, err := gofsutil.GetMounts(ctx)
 	if err != nil {
@@ -74,7 +78,7 @@ func stagePublishNFS(ctx context.Context, req *csi.NodeStageVolumeRequest, expor
 	if nfsv4 {
 		nfsv4 = false
 		for _, exportPathURL := range exportPaths {
-			err = gofsutil.Mount(ctx, exportPathURL, stagingTargetPath, "nfs", rwo)
+			err = gofsutil.Mount(ctx, exportPathURL, stagingTargetPath, "nfs", mntFlags...)
 			if err == nil {
 				nfsv4 = true
 				break
@@ -85,7 +89,7 @@ func stagePublishNFS(ctx context.Context, req *csi.NodeStageVolumeRequest, expor
 	if !nfsv4 && nfsv3 {
 		rwo += ",vers=3"
 		for _, exportPathURL := range exportPaths {
-			err = gofsutil.Mount(ctx, exportPathURL, stagingTargetPath, "nfs", rwo)
+			err = gofsutil.Mount(ctx, exportPathURL, stagingTargetPath, "nfs", mntFlags...)
 			if err == nil {
 				break
 			}
@@ -99,7 +103,7 @@ func stagePublishNFS(ctx context.Context, req *csi.NodeStageVolumeRequest, expor
 	return nil
 }
 
-func publishNFS(ctx context.Context, req *csi.NodePublishVolumeRequest, exportPaths []string, arrayId string, nfsv3, nfsv4 bool) error {
+func publishNFS(ctx context.Context, req *csi.NodePublishVolumeRequest, exportPaths []string, arrayId, chroot string, nfsv3, nfsv4 bool) error {
 	ctx, log, rid := GetRunidLog(ctx)
 	ctx, log = setArrayIdContext(ctx, arrayId)
 
@@ -120,7 +124,9 @@ func publishNFS(ctx context.Context, req *csi.NodePublishVolumeRequest, exportPa
 		rwo = "ro"
 	}
 	rwoArray = append(rwoArray, rwo)
-
+	mntVol := volCap.GetMount()
+	mntFlags := mntVol.GetMountFlags()
+	rwoArray = append(rwoArray, mntFlags...)
 	//Check if stage target mount exists
 	var stageExportPathURL string
 	stageMountExists := false
@@ -164,7 +170,7 @@ func publishNFS(ctx context.Context, req *csi.NodePublishVolumeRequest, exportPa
 					} else {
 						return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Target path: %s is already mounted to export path: %s with conflicting access modes", targetPath, stageExportPathURL))
 					}
-				} else if m.Path == stagingTargetPath {
+				} else if m.Path == stagingTargetPath || m.Path == chroot+stagingTargetPath {
 					continue
 				} else {
 					if accMode.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
@@ -261,6 +267,10 @@ func stageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest, stagingPa
 				return status.Error(codes.Unavailable, utils.GetMessageWithRunID(rid, "Fs type %s not supported", fs))
 			}
 
+			if fs == "xfs" {
+				mntFlags = append(mntFlags, "nouuid")
+			}
+
 			if err := handleStageMount(ctx, mntFlags, sysDevice, fs, stagingPath); err != nil {
 				return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Staging mount failed: %v", err))
 			}
@@ -298,7 +308,7 @@ func stageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest, stagingPa
 	return nil
 }
 
-func publishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, targetPath, symlinkPath string) error {
+func publishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, targetPath, symlinkPath, chroot string) error {
 
 	rid, log := utils.GetRunidAndLogger(ctx)
 	stagingPath := req.GetStagingTargetPath()
@@ -336,7 +346,7 @@ func publishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, targe
 				// Existing mount satisfies request
 				log.Debug("volume already published to target")
 				return nil
-			} else if m.Path == stagingPath {
+			} else if m.Path == stagingPath || m.Path == chroot+stagingPath {
 				continue
 			} else {
 				//Device has been mounted aleady to another target
@@ -451,7 +461,7 @@ func unpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) e
 }
 
 //unstage volume removes staging mount and makes sure no other mounts are left for the given device path
-func unstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest, deviceWWN string) (bool, string, error) {
+func unstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest, deviceWWN, chroot string) (bool, string, error) {
 	rid, log := utils.GetRunidAndLogger(ctx)
 	lastUnmounted := false
 	id := req.GetVolumeId()
@@ -518,20 +528,20 @@ func unstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest, devic
 
 	for _, m := range mnts {
 		if m.Source == sysDevice.FullPath || m.Device == sysDevice.FullPath {
-			if m.Path == stagingTarget {
+			if m.Path == stagingTarget || m.Path == chroot+stagingTarget {
 				stgMnt = true
 				break
 			} else {
 				log.Infof("Device %s has been mounted outside staging target on %s", sysDevice.FullPath, m.Path)
 			}
-		} else if m.Path == stagingTarget && !(m.Source == sysDevice.FullPath || m.Device == sysDevice.FullPath) {
+		} else if (m.Path == stagingTarget || m.Path == chroot+stagingTarget) && !(m.Source == sysDevice.FullPath || m.Device == sysDevice.FullPath) {
 			log.Infof("Staging path %s has been mounted by foreign device %s", stagingTarget, m.Device)
 		}
 	}
 
 	if stgMnt {
 		log.Debugf("Unmount sysDevice: %v staging target:  %s", sysDevice, stagingTarget)
-		if lastUnmounted, err = unmountStagingMount(ctx, sysDevice, stagingTarget); err != nil {
+		if lastUnmounted, err = unmountStagingMount(ctx, sysDevice, stagingTarget, chroot); err != nil {
 			return lastUnmounted, "", status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Error unmounting staging mount %s: %s", stagingTarget, err.Error()))
 		}
 		log.Debugf("Device %s unmounted from private mount path %s successfully", sysDevice.Name, stagingTarget)
@@ -701,7 +711,7 @@ func GetDevice(ctx context.Context, path string) (*Device, error) {
 func unmountStagingMount(
 	ctx context.Context,
 	dev *Device,
-	target string) (bool, error) {
+	target, chroot string) (bool, error) {
 	log := utils.GetRunidLogger(ctx)
 	lastUnmounted := false
 
@@ -722,7 +732,8 @@ func unmountStagingMount(
 	}
 
 	// remove private mount if we can (if there are no other mounts
-	if len(mnts) == 1 && mnts[0].Path == target {
+	// mnts length will be 1 for coreos and 2 for other operating systems
+	if (len(mnts) == 1 || len(mnts) == 2) && (mnts[0].Path == target || mnts[0].Path == chroot+target) {
 		if err := gofsutil.Unmount(ctx, target); err != nil {
 			return lastUnmounted, err
 		}

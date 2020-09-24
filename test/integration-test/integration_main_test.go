@@ -2,8 +2,11 @@ package integration_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -17,9 +20,33 @@ import (
 
 var grpcClient *grpc.ClientConn
 
+//To parse the secret json file
+type StorageArrayList struct {
+	StorageArrayList []StorageArrayConfig `json:"storageArrayList"`
+}
+
+type StorageArrayConfig struct {
+	ArrayId string `json:"arrayId"`
+}
+
 func TestMain(m *testing.M) {
 	var stop func()
 	os.Setenv("X_CSI_MODE", "")
+
+	file, err := ioutil.ReadFile(os.Getenv("DRIVER_CONFIG"))
+	if err != nil {
+		panic("Driver Config missing")
+	}
+	arrayIdList := StorageArrayList{}
+	_ = json.Unmarshal([]byte(file), &arrayIdList)
+	if len(arrayIdList.StorageArrayList) == 0 {
+		panic("Array Info not provided")
+	}
+	for i := 0; i < len(arrayIdList.StorageArrayList); i++ {
+		arrayIdvar := "Array" + strconv.Itoa(i+1) + "-Id"
+		os.Setenv(arrayIdvar, arrayIdList.StorageArrayList[i].ArrayId)
+	}
+
 	ctx := context.Background()
 	fmt.Printf("calling startServer")
 	grpcClient, stop = startServer(ctx)

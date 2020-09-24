@@ -251,7 +251,12 @@ func (s *service) getStorageArrayList() []*StorageArrayConfig {
 }
 
 // To get the UnityClient for a specific array
-func (s *service) getUnityClient(arrayID string) (*gounity.Client, error) {
+func (s *service) getUnityClient(ctx context.Context, arrayID string) (*gounity.Client, error) {
+	_, _, rid := GetRunidLog(ctx)
+	if s.getStorageArrayLength() == 0 {
+		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Invalid driver csi-driver configuration provided. At least one array should present or invalid json format. "))
+	}
+
 	array := s.getStorageArray(arrayID)
 	if array != nil && array.UnityClient != nil {
 		return array.UnityClient, nil
@@ -318,7 +323,12 @@ func (s *service) loadDynamicConfig(ctx context.Context, configFile string) erro
 				}
 				if event.Op&fsnotify.Create == fsnotify.Create && event.Name == parentFolder+"/..data" {
 					log.Infof("****************Driver config file modified. Loading the config file:%s****************", event.Name)
-					s.syncDriverConfig(ctx)
+					err := s.syncDriverConfig(ctx)
+					if err != nil {
+						log.Debug("Driver configuration array length:", s.getStorageArrayLength())
+						log.Error("Invalid configuration in secret.json. Error:", err)
+						//return
+					}
 					if s.mode == "node" {
 						syncNodeInfoChan <- true
 					}
@@ -364,6 +374,12 @@ var syncMutex sync.Mutex
 func (s *service) syncDriverConfig(ctx context.Context) error {
 	ctx, log, _ := GetRunidLog(ctx)
 	log.Info("*************Synchronizing driver config**************")
+	syncMutex.Lock()
+	defer syncMutex.Unlock()
+	s.arrays.Range(func(key interface{}, value interface{}) bool {
+		s.arrays.Delete(key)
+		return true
+	})
 	configBytes, err := ioutil.ReadFile(DriverConfig)
 	if err != nil {
 		return errors.New(fmt.Sprintf("File ('%s') error: %v", DriverConfig, err))
@@ -380,12 +396,6 @@ func (s *service) syncDriverConfig(ctx context.Context) error {
 			return errors.New("Arrays details are not provided in unity-creds secret")
 		}
 
-		if len(jsonConfig.StorageArrayList) > 10 {
-			return errors.New("Total number of Arrays should be less than or equal to 10 in 'storageArrayList' parameter")
-		}
-
-		syncMutex.Lock()
-		defer syncMutex.Unlock()
 		s.arrays.Range(func(key interface{}, value interface{}) bool {
 			s.arrays.Delete(key)
 			return true
@@ -526,6 +536,8 @@ func GetRunidLog(ctx context.Context) (context.Context, *logrus.Entry, string) {
 		fields[utils.RUNID] = rid
 	}
 
+	logMutex.Lock()
+	defer logMutex.Unlock()
 	l := utils.GetLogger()
 	log := l.WithFields(fields)
 	ctx = context.WithValue(ctx, utils.UnityLogger, log)
@@ -614,6 +626,7 @@ func singleArrayProbe(ctx context.Context, probeType string, array *StorageArray
 			Password: array.Password,
 		})
 		if err != nil {
+			log.Errorf("Unity authentication failed for array %s error: %v", array.ArrayId, err)
 			if e, ok := status.FromError(err); ok {
 				if e.Code() == codes.Unauthenticated {
 					array.IsProbeSuccess = false
@@ -645,6 +658,9 @@ func (s *service) probe(ctx context.Context, probeType string, arrayId string) e
 			err := singleArrayProbe(ctx, probeType, array)
 			if err == nil {
 				atleastOneArraySuccess = true
+				break
+			} else {
+				log.Errorf("Probe failed for array %s error:%v", array, err)
 			}
 		}
 
@@ -658,6 +674,9 @@ func (s *service) probe(ctx context.Context, probeType string, arrayId string) e
 
 func (s *service) validateAndGetResourceDetails(ctx context.Context, resourceContextId string, resourceType resourceType) (resourceId, protocol, arrayId string, unity *gounity.Client, err error) {
 	ctx, _, rid := GetRunidLog(ctx)
+	if s.getStorageArrayLength() == 0 {
+		return "", "", "", nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Invalid driver csi-driver configuration provided. At least one array should present or invalid json format. "))
+	}
 	resourceId = getVolumeIdFromVolumeContext(resourceContextId)
 	if resourceId == "" {
 		return "", "", "", nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "%sId can't be empty.", resourceType))
@@ -672,7 +691,7 @@ func (s *service) validateAndGetResourceDetails(ctx context.Context, resourceCon
 		return "", "", "", nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "[%s] [%s] error:[%v]", resourceType, resourceId, err))
 	}
 
-	unity, err = s.getUnityClient(arrayId)
+	unity, err = s.getUnityClient(ctx, arrayId)
 	if err != nil {
 		return "", "", "", nil, err
 	}

@@ -88,8 +88,9 @@ func (f *feature) aBasicBlockVolumeRequest(volumeName, arrayId, protocol string,
 	params["isDataReductionEnabled"] = "false"
 	params["tieringPolicy"] = "0"
 	params["description"] = "CSI Volume Unit Test"
-	params["arrayId"] = arrayId
+	params["arrayId"] = os.Getenv(arrayId)
 	params["protocol"] = protocol
+	params["nasServer"] = os.Getenv("NAS_SERVER")
 	req.Parameters = params
 	req.Name = volumeName
 	capacityRange := new(csi.CapacityRange)
@@ -117,7 +118,7 @@ func (f *feature) aBasicBlockVolumeRequestWithVolumeContentSource(volumeName, ar
 	req := new(csi.CreateVolumeRequest)
 	params := make(map[string]string)
 	params["storagePool"] = os.Getenv("STORAGE_POOL")
-	params["arrayId"] = arrayId
+	params["arrayId"] = os.Getenv(arrayId)
 	params["protocol"] = protocol
 	req.Parameters = params
 	req.Name = volumeName
