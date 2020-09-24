@@ -1,4 +1,5 @@
 # Represents number of certificate secrets, which user is going to create for ssl authentication. (unity-cert-0..unity-cert-n)
+# Minimum value should be 1
 certSecretCount: 1
 
 # Time interval to add node info to array. Default 15 minutes. Minimum value should be 1.
@@ -70,7 +71,4 @@ storageClassProtocols:
   - protocol: "NFS"
   - protocol: "iSCSI"
 
-# IT IS RECOMMENDED YOU DO NOT CHANGE THE IMAGES TO BE DOWNLOADED.
-images:
-  # "images.driver" defines the container images used for the driver container.
-  driver: dellemc/csi-unity:v1.2.1.000R
+

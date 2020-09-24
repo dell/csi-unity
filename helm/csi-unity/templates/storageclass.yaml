@@ -14,6 +14,7 @@ metadata:
   {{- end }}
 provisioner: csi-unity.dellemc.com
 reclaimPolicy: {{ $v.storageClass.reclaimPolicy | default $global.Values.storageClass.reclaimPolicy | quote  }}
+allowVolumeExpansion: true
 parameters:
   protocol: FC
   arrayId: {{ required "Must provide a arrayId" $v.name | quote }}
@@ -36,6 +37,7 @@ metadata:
   {{- end }}
 provisioner: csi-unity.dellemc.com
 reclaimPolicy: {{ $v.storageClass.reclaimPolicy | default $global.Values.storageClass.reclaimPolicy | quote  }}
+allowVolumeExpansion: true
 parameters:
   protocol: iSCSI
   arrayId: {{ required "Must provide a arrayId" $v.name | quote }}
@@ -59,6 +61,7 @@ metadata:
   {{- end }}
 provisioner: csi-unity.dellemc.com
 reclaimPolicy: {{ $v.storageClass.reclaimPolicy | default $global.Values.storageClass.reclaimPolicy | quote  }}
+allowVolumeExpansion: true
 parameters:
   protocol: NFS
   arrayId: {{ required "Must provide a arrayId" $v.name | quote }}

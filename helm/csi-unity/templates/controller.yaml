@@ -49,6 +49,13 @@ rules:
   - apiGroups: ["apiextensions.k8s.io"]
     resources: ["customresourcedefinitions"]
     verbs: ["create", "list", "watch", "delete"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources: ["volumesnapshotcontents/status"]
+    verbs: ["update"]
+  # below for resizer
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims/status"]
+    verbs: ["update", "patch"]
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -117,6 +124,17 @@ spec:
             - "--snapshot-name-prefix={{ required "Must privided a Snapshot Name Prefix" .Values.snapNamePrefix }}"
             - "--snapshot-name-uuid-length=10"
             - "--timeout=360s"
+            - "--v=5"
+          env:
+            - name: ADDRESS
+              value: /var/run/csi/csi.sock
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/run/csi
+        - name: resizer
+          image: {{ required "Must provide the CSI resizer container image." .Values.images.resizer }}
+          args:
+            - "--csi-address=$(ADDRESS)"
             - "--v=5"
           env:
             - name: ADDRESS
