@@ -6,6 +6,7 @@ Feature: CSI interface
   Scenario: Add node info to array
     Given a CSI service with node
     Given a CSI service with node
+    Given a CSI service with node topology
     Then there are no errors
 
   Scenario: Create and Delete snapshot successfully
@@ -748,3 +749,48 @@ Feature: CSI interface
     And there are no errors
     And when I call UnpublishVolume
     And there are no errors
+
+  Scenario: Ephemeral Inline FC Volume
+    Given a CSI service
+    And when I call EphemeralNodePublishVolume with volName "gdtest-ephemeralvolfc" fsType "ext4" arrayId "Array1-Id" am "RWO" size "5 Gi" storagePool "pool_1" protocol "FC" nasServer "nas_1" thinProvision "true" dataReduction "true"
+    Then there are no errors
+    And when I call NodeUnPublishVolume
+    Then there are no errors
+
+  Scenario: Ephemeral Inline iSCSI Volume
+    Given a CSI service
+    And when I call EphemeralNodePublishVolume with volName "gdtest-ephemeralvoliscsi" fsType "ext4" arrayId "Array1-Id" am "RWO" size "5 Gi" storagePool "pool_1" protocol "FC" nasServer "nas_1" thinProvision "true" dataReduction "true"
+    Then there are no errors
+    And when I call NodeUnPublishVolume
+    Then there are no errors
+
+  Scenario: Ephemeral Inline NFS Volume
+    Given a CSI service
+    And when I call EphemeralNodePublishVolume with volName "gdtest-ephemeralvolnfs" fsType "ext4" arrayId "Array1-Id" am "RWO" size "5 Gi" storagePool "pool_1" protocol "FC" nasServer "nas_1" thinProvision "true" dataReduction "true"
+    Then there are no errors
+    And when I call NodeUnPublishVolume
+    Then there are no errors
+
+  Scenario: Node stage, publish, expand, unpublish and unstage raw block volume for iSCSI
+    Given a CSI service
+    And a basic raw block volume request name "gdtest-vol45" arrayId "Array1-Id" protocol "iSCSI" size "5"
+    When I call CreateVolume
+    And there are no errors
+    And when I call PublishVolume
+    And there are no errors
+    And when I call NodeStageVolume fsType ""
+    And there are no errors
+    And when I call NodePublishVolume fsType "" readonly "false"
+    And there are no errors
+    When I call Controller Expand Volume "8"
+    And there are no errors
+    And when I call Node Expand Volume
+    And there are no errors
+    And when I call NodeUnPublishVolume
+    And there are no errors
+    And when I call UnpublishVolume
+    And there are no errors
+    And when I call NodeUnstageVolume
+    And there are no errors
+    And when I call DeleteVolume
+    Then there are no errors

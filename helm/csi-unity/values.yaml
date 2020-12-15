@@ -19,6 +19,13 @@ csiDebug: "false"
 # if it already exists. If you would like to always force a pull, use "Always"
 imagePullPolicy: IfNotPresent
 
+# controllerCount is controller replication count to maintain high availability.
+# controllerCount value should be >= 1
+controllerCount: 2
+
+#Flag to enable or disable topology
+createStorageClassesWithTopology: false
+
 # The installation process will generate multiple storageclasses based on "arrayIDList" parameter.
 # Only the primary storageclass for the driver will be marked default if specified.
 # The following are default values for storageclass parameters if user does not specify in "arrayIDList"
@@ -71,4 +78,14 @@ storageClassProtocols:
   - protocol: "NFS"
   - protocol: "iSCSI"
 
+#To set nodeSelectors and tolerations for controller.
+controller:
+  #You may define a nodeSelector if desired for the controllers.
+  nodeSelector:
+  #   node-role.kubernetes.io/master: ""
 
+  #You may define tolerations if desired for the controllers.
+  tolerations:
+  # - key: "node-role.kubernetes.io/master"
+  #   operator: "Exists"
+  #   effect: "NoSchedule"

@@ -9,6 +9,9 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: {{ .Release.Name }}-controller
 rules:
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "watch", "list", "delete", "update", "create"]
   - apiGroups: [""]
     resources: ["events"]
     verbs: ["list", "watch", "create", "update", "patch"]
@@ -30,6 +33,9 @@ rules:
   - apiGroups: ["storage.k8s.io"]
     resources: ["csinodes"]
     verbs: ["get", "list", "watch", "update"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
 # below for snapshotter
   - apiGroups: [""]
     resources: ["secrets"]
@@ -43,6 +49,9 @@ rules:
   - apiGroups: ["snapshot.storage.k8s.io"]
     resources: ["volumesnapshots/status"]
     verbs: ["update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments/status"]
+    verbs: ["patch"]
   - apiGroups: ["snapshot.storage.k8s.io"]
     resources: ["volumesnapshots"]
     verbs: ["get", "list", "watch", "update"]
@@ -71,31 +80,47 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 ---
 {{ $releaseName := .Release.Name }}
-kind: StatefulSet
+kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: {{ .Release.Name }}-controller
   namespace: {{ .Release.Namespace }}
 spec:
-  serviceName: {{ .Release.Name }}-controller
-  replicas: 1
+  replicas: {{ required "Must provide the number of controller instances to create." .Values.controllerCount }}
   selector:
     matchLabels:
       app: {{ .Release.Name }}-controller
-  updateStrategy:
-    type: RollingUpdate
   template:
     metadata:
       labels:
         app: {{ .Release.Name }}-controller
     spec:
       serviceAccountName: {{ .Release.Name }}-controller
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                    - {{ .Release.Name }}-controller
+            topologyKey: "kubernetes.io/hostname"
+      {{ if .Values.controller.nodeSelector }}
+      nodeSelector:
+      {{- toYaml .Values.controller.nodeSelector | nindent 8 }}
+      {{ end }}
+      {{ if .Values.controller.tolerations }}
+      tolerations:
+      {{- toYaml .Values.controller.tolerations | nindent 6 }}
+      {{ end }}
       containers:
         - name: attacher
           image: {{ required "Must provide the CSI attacher container image." .Values.images.attacher }}
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v=5"
+            - "--leader-election"
           env:
             - name: ADDRESS
               value: /var/run/csi/csi.sock
@@ -111,6 +136,9 @@ spec:
             - "--timeout=180s"
             - "--worker-threads=6"
             - "--v=5"
+            - "--feature-gates=Topology=true"
+            - "--leader-election"
+            - "--leader-election-namespace={{ .Release.Namespace }}"
           env:
             - name: ADDRESS
               value: /var/run/csi/csi.sock
@@ -125,6 +153,7 @@ spec:
             - "--snapshot-name-uuid-length=10"
             - "--timeout=360s"
             - "--v=5"
+            - "--leader-election"
           env:
             - name: ADDRESS
               value: /var/run/csi/csi.sock
@@ -136,6 +165,7 @@ spec:
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v=5"
+            - "--leader-election"
           env:
             - name: ADDRESS
               value: /var/run/csi/csi.sock
@@ -147,6 +177,7 @@ spec:
           args:
             - "--driver-name=csi-unity.dellemc.com"
             - "--driver-config=/unity-config/config"
+            - "--leader-election"
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
             - name: CSI_ENDPOINT

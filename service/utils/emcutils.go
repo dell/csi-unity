@@ -7,11 +7,14 @@ package utils
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,18 +26,18 @@ import (
 )
 
 //GetVolumeResponseFromVolume Utility method to convert Unity Rest type Volume to CSI standard Volume Response
-func GetVolumeResponseFromVolume(volume *types.Volume, arrayId, protocol string) *csi.CreateVolumeResponse {
+func GetVolumeResponseFromVolume(volume *types.Volume, arrayId, protocol string, preferredAccessibility []*csi.Topology) *csi.CreateVolumeResponse {
 	content := volume.VolumeContent
-	return getVolumeResponse(content.Name, protocol, arrayId, content.ResourceId, content.SizeTotal)
+	return getVolumeResponse(content.Name, protocol, arrayId, content.ResourceId, content.SizeTotal, preferredAccessibility)
 }
 
 //GetVolumeResponseFromFilesystem Utility method to convert Unity rest Filesystem response to CSI standard Volume Response
 func GetVolumeResponseFromFilesystem(filesystem *types.Filesystem, arrayId, protocol string) *csi.CreateVolumeResponse {
 	content := filesystem.FileContent
-	return getVolumeResponse(content.Name, protocol, arrayId, content.Id, content.SizeTotal)
+	return getVolumeResponse(content.Name, protocol, arrayId, content.Id, content.SizeTotal, nil)
 }
 
-func GetVolumeResponseFromSnapshot(snapshot *types.Snapshot, arrayId, protocol string) *csi.CreateVolumeResponse {
+func GetVolumeResponseFromSnapshot(snapshot *types.Snapshot, arrayId, protocol string, preferredAccessibility []*csi.Topology) *csi.CreateVolumeResponse {
 	volId := fmt.Sprintf("%s-%s-%s-%s", snapshot.SnapshotContent.Name, protocol, arrayId, snapshot.SnapshotContent.ResourceId)
 	VolumeContext := make(map[string]string)
 	VolumeContext["protocol"] = protocol
@@ -46,6 +49,10 @@ func GetVolumeResponseFromSnapshot(snapshot *types.Snapshot, arrayId, protocol s
 		CapacityBytes: int64(snapshot.SnapshotContent.Size),
 		VolumeContext: VolumeContext,
 	}
+	// For NFS we will not add topology constraint since topology is not enabled for that protocol
+	if preferredAccessibility != nil {
+		volumeReq.AccessibleTopology = preferredAccessibility
+	}
 
 	volumeResp := &csi.CreateVolumeResponse{
 		Volume: volumeReq,
@@ -53,7 +60,7 @@ func GetVolumeResponseFromSnapshot(snapshot *types.Snapshot, arrayId, protocol s
 	return volumeResp
 }
 
-func getVolumeResponse(name, protocol, arrayId, resourceId string, size uint64) *csi.CreateVolumeResponse {
+func getVolumeResponse(name, protocol, arrayId, resourceId string, size uint64, preferredAccessibility []*csi.Topology) *csi.CreateVolumeResponse {
 	volId := fmt.Sprintf("%s-%s-%s-%s", name, protocol, arrayId, resourceId)
 	VolumeContext := make(map[string]string)
 	VolumeContext["protocol"] = protocol
@@ -65,7 +72,10 @@ func getVolumeResponse(name, protocol, arrayId, resourceId string, size uint64) 
 		CapacityBytes: int64(size),
 		VolumeContext: VolumeContext,
 	}
-
+	// For NFS we will not add topology constraint since topology is not enabled for that protocol
+	if preferredAccessibility != nil {
+		volumeReq.AccessibleTopology = preferredAccessibility
+	}
 	volumeResp := &csi.CreateVolumeResponse{
 		Volume: volumeReq,
 	}
@@ -295,4 +305,43 @@ func GetWwnFromVolumeContentWwn(wwn string) string {
 func GetFcPortWwnFromVolumeContentWwn(wwn string) string {
 	wwn = GetWwnFromVolumeContentWwn(wwn)
 	return wwn[16:32]
+}
+
+// parse size for ephemeral volumes
+func ParseSize(size string) (int64, error) {
+	size = strings.Trim(size, " ")
+	patternMap := make(map[string]string)
+	patternMap["Mi"] = `[0-9]+[ ]*Mi`
+	patternMap["Gi"] = `[0-9]+[ ]*Gi`
+	patternMap["Ti"] = `[0-9]+[ ]*Ti`
+	patternMap["Pi"] = `[0-9]+[ ]*Pi`
+	var unit string
+	var value string
+	var match bool
+	for key, pattern := range patternMap {
+		match, _ = regexp.MatchString(pattern, size)
+		if match {
+			re := regexp.MustCompile("[0-9]+")
+			unit = key
+			valueList := re.FindAllString(size, -1)
+			if len(valueList) > 1 {
+				return 0, errors.New("Failed to parse size")
+			}
+			value = valueList[0]
+			break
+		}
+	}
+	if !match {
+		return 0, errors.New("Failed to parse size")
+	}
+	valueInt, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return 0, errors.New("Failed to parse bytes")
+	}
+	valueMap := make(map[string]int64)
+	valueMap["Mi"] = 1048576
+	valueMap["Gi"] = 1073741824
+	valueMap["Ti"] = 1099511627776
+	valueMap["Pi"] = 1125899906842624
+	return valueInt * valueMap[unit], nil
 }

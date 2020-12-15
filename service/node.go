@@ -4,6 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path"
+	"regexp"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/dell/csi-unity/service/utils"
 	"github.com/dell/gobrick"
@@ -14,26 +24,23 @@ import (
 	"github.com/dell/gounity/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"io"
-	"io/ioutil"
-	"os"
-	"os/exec"
-	"path"
-	"regexp"
-	"strings"
-	"sync"
-	"time"
 )
 
 var (
 	targetMountRecheckSleepTime = 3 * time.Second
 	disconnectVolumeRetryTime   = 1 * time.Second
-	nodeStartTimeout			= 3 * time.Second
+	nodeStartTimeout            = 3 * time.Second
 	lunzMutex                   sync.Mutex
 	LUNZHLU                     = 0
 	nodeMutex                   sync.Mutex
 	sysBlock                    = "/sys/block"
 	syncNodeInfoChan            chan bool
+	connectedSystemID           = make([]string, 0)
+	VolumeNameLengthConstraint  = 63
+)
+
+const (
+	componentOkMessage = "ALRT_COMPONENT_OK"
 )
 
 func (s *service) NodeStageVolume(
@@ -66,7 +73,9 @@ func (s *service) NodeStageVolume(
 		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "access mode is required"))
 	}
 
-	protocol, err = s.validateAndGetProtocol(ctx, protocol, req.GetVolumeContext()[keyProtocol])
+	isBlock := accTypeBlock(vc)
+
+	protocol, err = ValidateAndGetProtocol(ctx, protocol, req.GetVolumeContext()[keyProtocol])
 	if err != nil {
 		return nil, err
 	}
@@ -98,11 +107,6 @@ func (s *service) NodeStageVolume(
 		return &csi.NodeStageVolumeResponse{}, nil
 	} else {
 		//Protocol if FC or iSCSI
-
-		err = s.checkVolumeCapability(ctx, req)
-		if err != nil {
-			return nil, err
-		}
 
 		volumeApi := gounity.NewVolume(unity)
 		volume, err := volumeApi.FindVolumeById(ctx, volId)
@@ -146,12 +150,11 @@ func (s *service) NodeStageVolume(
 		} else if protocol == FC {
 			useFC = true
 			var targetWwns []string
-			hostName := s.opts.NodeName
 
 			hostAPI := gounity.NewHost(unity)
-			host, err := hostAPI.FindHostByName(ctx, hostName)
+			host, err := s.getHostId(ctx, arrayId, s.opts.NodeName, s.opts.LongNodeName)
 			if err != nil {
-				return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find Host Failed [%v]", err))
+				return nil, err
 			}
 
 			for _, initiator := range host.HostContent.FcInitiators {
@@ -192,9 +195,12 @@ func (s *service) NodeStageVolume(
 			return nil, err
 		}
 
-		err = stageVolume(ctx, req, stagingPath, devicePath)
-		if err != nil {
-			return nil, err
+		//Skip staging for Block devices
+		if !isBlock {
+			err = stageVolume(ctx, req, stagingPath, devicePath)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		log.Debugf("Node Stage completed successfully - Device path is %s", devicePath)
@@ -252,12 +258,9 @@ func (s *service) NodeUnstageVolume(
 		//Volume is mounted via CSI-Unity v1.0 or v1.1 and hence different staging target path was used
 		stageTgt = path.Join(s.opts.PvtMountDir, volId)
 
-		hostName := s.opts.NodeName
-
-		hostAPI := gounity.NewHost(unity)
-		host, err := hostAPI.FindHostByName(ctx, hostName)
+		host, err := s.getHostId(ctx, arrayId, s.opts.NodeName, s.opts.LongNodeName)
 		if err != nil {
-			return nil, errors.New(fmt.Sprintf("Find Host Failed %v", err))
+			return nil, err
 		}
 
 		if len(host.HostContent.FcInitiators) == 0 {
@@ -340,6 +343,16 @@ func (s *service) NodePublishVolume(
 	ctx, log, rid := GetRunidLog(ctx)
 	log.Debugf("Executing NodePublishVolume with args: %+v", *req)
 
+	var ephemeralVolume bool
+	ephemeral, ok := req.VolumeContext["csi.storage.k8s.io/ephemeral"]
+	if ok {
+		ephemeralVolume = strings.ToLower(ephemeral) == "true"
+	}
+
+	if ephemeralVolume {
+		return s.ephemeralNodePublishVolume(ctx, req)
+	}
+
 	volID, protocol, arrayId, unity, err := s.validateAndGetResourceDetails(ctx, req.GetVolumeId(), volumeType)
 	if err != nil {
 		return nil, err
@@ -392,6 +405,14 @@ func (s *service) NodePublishVolume(
 		return &csi.NodePublishVolumeResponse{}, nil
 	}
 
+	//Protocol FC or iSCSI
+
+	isBlock := accTypeBlock(volCap)
+
+	if isBlock && req.GetReadonly() == true {
+		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "readonly not supported for Block"))
+	}
+
 	volumeApi := gounity.NewVolume(unity)
 	volume, err := volumeApi.FindVolumeById(ctx, volID)
 	if err != nil {
@@ -407,6 +428,110 @@ func (s *service) NodePublishVolume(
 
 	if err := publishVolume(ctx, req, targetPath, symlinkPath, s.opts.Chroot); err != nil {
 		return nil, err
+	}
+
+	return &csi.NodePublishVolumeResponse{}, nil
+}
+
+func (s *service) ephemeralNodePublishVolume(
+	ctx context.Context,
+	req *csi.NodePublishVolumeRequest) (
+	*csi.NodePublishVolumeResponse, error) {
+	ctx, log, rid := GetRunidLog(ctx)
+
+	//Create Ephemeral Volume
+	volName := req.VolumeId
+	if len(volName) > VolumeNameLengthConstraint {
+		volName = volName[0 : VolumeNameLengthConstraint-1]
+	}
+	size, err := utils.ParseSize(req.VolumeContext["size"])
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Unable to parse size. Error: %v", err))
+	}
+	createVolResp, err := s.CreateVolume(ctx, &csi.CreateVolumeRequest{
+		Name: volName,
+		CapacityRange: &csi.CapacityRange{
+			RequiredBytes: size,
+		},
+		VolumeCapabilities: []*csi.VolumeCapability{req.VolumeCapability},
+		Parameters:         req.VolumeContext,
+		Secrets:            req.Secrets,
+	})
+	if err != nil {
+		return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Create Ephemeral Volume %s Failed with error: %v", volName, err))
+	}
+	log.Debugf("Ephemeral Volume %s created successfully", volName)
+
+	//Create NodeUnpublishRequest for rollback scenario
+	nodeUnpublishRequest := &csi.NodeUnpublishVolumeRequest{
+		VolumeId:   createVolResp.Volume.VolumeId,
+		TargetPath: req.TargetPath,
+	}
+
+	//ControllerPublishVolume to current node
+	controllerPublishResp, err := s.ControllerPublishVolume(ctx, &csi.ControllerPublishVolumeRequest{
+		VolumeId:         createVolResp.Volume.VolumeId,
+		NodeId:           s.opts.NodeName + "," + s.opts.LongNodeName,
+		VolumeCapability: req.VolumeCapability,
+		Readonly:         req.Readonly,
+		Secrets:          req.Secrets,
+		VolumeContext:    createVolResp.Volume.VolumeContext,
+	})
+	if err != nil {
+		//Call Ephemeral Node Unpublish for recovery
+		_, _ = s.ephemeralNodeUnpublish(ctx, nodeUnpublishRequest, req.VolumeId)
+		return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Ephemeral Controller Publish Volume failed with error: %v", err))
+	}
+	log.Debug("Ephemeral Controller Publish successful")
+
+	stagingMountPath := path.Join(s.opts.EnvEphemeralStagingTargetPath, req.VolumeId)
+
+	//Node Stage for Ephemeral Volume
+	_, err = s.NodeStageVolume(ctx, &csi.NodeStageVolumeRequest{
+		VolumeId:          createVolResp.Volume.VolumeId,
+		PublishContext:    controllerPublishResp.PublishContext,
+		StagingTargetPath: path.Join(stagingMountPath, "globalmount"),
+		VolumeCapability:  req.VolumeCapability,
+		Secrets:           req.Secrets,
+		VolumeContext:     createVolResp.Volume.VolumeContext,
+	})
+	if err != nil {
+		//Call Ephemeral Node Unpublish for recovery
+		_, _ = s.ephemeralNodeUnpublish(ctx, nodeUnpublishRequest, req.VolumeId)
+		return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Ephemeral Node Stage Volume failed with error: %v", err))
+	}
+	log.Debug("Ephemeral Node Stage Successful")
+
+	//Node Publish for Ephemeral Volume
+	_, err = s.NodePublishVolume(ctx, &csi.NodePublishVolumeRequest{
+		VolumeId:          createVolResp.Volume.VolumeId,
+		PublishContext:    controllerPublishResp.PublishContext,
+		StagingTargetPath: path.Join(stagingMountPath, "globalmount"),
+		TargetPath:        req.TargetPath,
+		VolumeCapability:  req.VolumeCapability,
+		Readonly:          req.Readonly,
+		Secrets:           req.Secrets,
+		VolumeContext:     createVolResp.Volume.VolumeContext,
+	})
+	if err != nil {
+		//Call Ephemeral Node Unpublish for recovery
+		_, _ = s.ephemeralNodeUnpublish(ctx, nodeUnpublishRequest, req.VolumeId)
+		return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Ephemeral Node Publish Volume failed with error: %v", err))
+	}
+	log.Debug("Ephemeral Node Publish Successful")
+
+	f, err := os.Create(path.Join(stagingMountPath, "id"))
+	if err != nil {
+		//Call Ephemeral Node Unpublish for recovery
+		_, _ = s.ephemeralNodeUnpublish(ctx, nodeUnpublishRequest, req.VolumeId)
+		return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Creation of file failed with error: %v", err))
+	}
+	defer f.Close()
+	_, err2 := f.WriteString(createVolResp.Volume.VolumeId)
+	if err2 != nil {
+		//Call Ephemeral Node Unpublish for recovery
+		_, _ = s.ephemeralNodeUnpublish(ctx, nodeUnpublishRequest, req.VolumeId)
+		return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Save Volume Id in file failed with error: %v", err))
 	}
 
 	return &csi.NodePublishVolumeResponse{}, nil
@@ -432,19 +557,19 @@ func checkAndRemoveLunz(ctx context.Context) error {
 		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Error during command execution: %v", err))
 	}
 
-	var modelString = regexp.MustCompile(`Model:\s+(\w.*?)\s*Rev:`)
+	var modelString = regexp.MustCompile(`Model:\s+(\w*.*?)\s*Rev:`)
 	modelResult := modelString.FindAllStringSubmatch(string(stdout), -1)
 
-	var vendorString = regexp.MustCompile(`Vendor:\s+(\w.*?)\s*Model:`)
+	var vendorString = regexp.MustCompile(`Vendor:\s+(\w*.*?)\s*Model:`)
 	vendorResult := vendorString.FindAllStringSubmatch(string(stdout), -1)
 
-	var hostString = regexp.MustCompile(`Host:\s+scsi(\w.*?)\s*Channel:`)
+	var hostString = regexp.MustCompile(`Host:\s+scsi(\w*.*?)\s*Channel:`)
 	hostResult := hostString.FindAllStringSubmatch(string(stdout), -1)
 
-	var idString = regexp.MustCompile(`Id:\s+(\w.*?)\s*Lun:`)
+	var idString = regexp.MustCompile(`Id:\s+(\w*.*?)\s*Lun:`)
 	idResult := idString.FindAllStringSubmatch(string(stdout), -1)
 
-	var channelString = regexp.MustCompile(`Channel:\s+(\w.*?)\s*Id:`)
+	var channelString = regexp.MustCompile(`Channel:\s+(\w*.*?)\s*Id:`)
 	channelResult := channelString.FindAllStringSubmatch(string(stdout), -1)
 
 	resultID := []string{}
@@ -513,6 +638,22 @@ func (s *service) NodeUnpublishVolume(
 	ctx, log, rid := GetRunidLog(ctx)
 	log.Debugf("Executing NodeUnpublishVolume with args: %+v", *req)
 
+	var isEphemeralVolume bool
+	volName := req.VolumeId
+	file := s.opts.EnvEphemeralStagingTargetPath + req.VolumeId + "/id"
+	if _, err := os.Stat(file); err == nil {
+		isEphemeralVolume = true
+		dat, err := ioutil.ReadFile(file)
+		if err != nil {
+			return nil, errors.New("Unable to get volume id for ephemeral volume")
+		}
+		req.VolumeId = string(dat)
+	}
+
+	if isEphemeralVolume {
+		return s.ephemeralNodeUnpublish(ctx, req, volName)
+	}
+
 	volId, protocol, arrayId, unity, err := s.validateAndGetResourceDetails(ctx, req.GetVolumeId(), volumeType)
 	if err != nil {
 		return nil, err
@@ -580,6 +721,54 @@ func (s *service) NodeUnpublishVolume(
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
+func (s *service) ephemeralNodeUnpublish(
+	ctx context.Context,
+	req *csi.NodeUnpublishVolumeRequest, volName string) (
+	*csi.NodeUnpublishVolumeResponse, error) {
+	ctx, _, rid := GetRunidLog(ctx)
+
+	//Node Unpublish for Ephemeral Volume
+	_, err := s.NodeUnpublishVolume(ctx, &csi.NodeUnpublishVolumeRequest{
+		VolumeId:   req.VolumeId,
+		TargetPath: req.TargetPath,
+	})
+	if err != nil {
+		return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Node Unpublish for ephemeral volume failed with error: %v", err))
+	}
+
+	//Node Unstage for Ephemeral Volume
+	_, err = s.NodeUnstageVolume(ctx, &csi.NodeUnstageVolumeRequest{
+		VolumeId:          req.VolumeId,
+		StagingTargetPath: path.Join(s.opts.EnvEphemeralStagingTargetPath, volName, "globalmount"),
+	})
+	if err != nil {
+		return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Node Unstage for ephemeral volume failed with error: %v", err))
+	}
+
+	//Controller Unpublish for Ephemeral Volume
+	_, err = s.ControllerUnpublishVolume(ctx, &csi.ControllerUnpublishVolumeRequest{
+		VolumeId: req.VolumeId,
+		NodeId:   s.opts.NodeName + "," + s.opts.LongNodeName,
+	})
+	if err != nil {
+		return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Controller Unpublish for ephemeral volume failed with error: %v", err))
+	}
+
+	//Delete Volume for Ephemeral Volume
+	_, err = s.DeleteVolume(ctx, &csi.DeleteVolumeRequest{
+		VolumeId: req.VolumeId,
+	})
+	if err != nil {
+		return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Delete Volume for ephemeral volume failed with error: %v", err))
+	}
+
+	err = os.RemoveAll(s.opts.EnvEphemeralStagingTargetPath + volName + "/id")
+	if err != nil {
+		return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Unable to clean id file"))
+	}
+	return &csi.NodeUnpublishVolumeResponse{}, nil
+}
+
 func (s *service) NodeGetInfo(
 	ctx context.Context,
 	req *csi.NodeGetInfoRequest) (
@@ -591,7 +780,9 @@ func (s *service) NodeGetInfo(
 	atleastOneArraySuccess := false
 	//Sleep for a while and wait untill iscsi discovery is completed
 	time.Sleep(nodeStartTimeout)
-	for _, array := range s.getStorageArrayList() {
+	arraysList := s.getStorageArrayList()
+
+	for _, array := range arraysList {
 		if array.IsHostAdded {
 			atleastOneArraySuccess = true
 		}
@@ -599,9 +790,15 @@ func (s *service) NodeGetInfo(
 
 	if atleastOneArraySuccess {
 		log.Info("NodeGetInfo success")
-		//hostName would be the Node ID
+		s.validateProtocols(ctx, arraysList)
+		topology := getTopology()
+		// If topology keys are empty then this node is not capable of either iSCSI/FC but can still provision NFS volumes by default
+		log.Debugf("Topology Keys--->%+v", topology)
 		return &csi.NodeGetInfoResponse{
-			NodeId: s.opts.NodeName,
+			NodeId: s.opts.NodeName + "," + s.opts.LongNodeName,
+			AccessibleTopology: &csi.Topology{
+				Segments: topology,
+			},
 		}, nil
 	}
 
@@ -692,6 +889,36 @@ func (s *service) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolum
 	//Locate and fetch all (multipath/regular) mounted paths using this volume
 	devMnt, err := gofsutil.GetMountInfoFromDevice(ctx, volName)
 	if err != nil {
+		//No mounts found - Could be raw block device
+		volWwn := utils.GetWwnFromVolumeContentWwn(volume.VolumeContent.Wwn)
+		deviceNames, _ := gofsutil.GetSysBlockDevicesForVolumeWWN(context.Background(), volWwn)
+		if len(deviceNames) > 0 {
+			for _, deviceName := range deviceNames {
+				devicePath := sysBlock + "/" + deviceName
+				log.Infof("Rescanning raw block device %s to expand size", deviceName)
+				err = gofsutil.DeviceRescan(context.Background(), devicePath)
+				if err != nil {
+					log.Errorf("Failed to rescan device (%s) with error (%s)", devicePath, err.Error())
+					return nil, status.Error(codes.Internal, err.Error())
+				}
+			}
+
+			mpathName, err := getMpathDevFromWwn(ctx, volWwn)
+			if err != nil {
+				return nil, err
+			}
+
+			// Resize the corresponding multipath device
+			if mpathName != "" {
+				err = gofsutil.ResizeMultipath(ctx, mpathName)
+				if err != nil {
+					return nil, status.Error(codes.Internal,
+						utils.GetMessageWithRunID(rid, "Failed to resize multipath device  (%s) with error %v", mpathName, err))
+				}
+			}
+
+			return &csi.NodeExpandVolumeResponse{}, nil
+		}
 		return nil, status.Error(codes.Internal,
 			utils.GetMessageWithRunID(rid, "Failed to find mount info for (%s) with error %v", volName, err))
 	}
@@ -818,16 +1045,15 @@ func (s *service) getNFSShare(ctx context.Context, filesystemId, arrayId string)
 func (s *service) checkFilesystemMapping(ctx context.Context, nfsShare *types.NFSShare, am *csi.VolumeCapability_AccessMode, arrayId string) error {
 	ctx, _, rid := GetRunidLog(ctx)
 	ctx, _ = setArrayIdContext(ctx, arrayId)
-	unity, err := s.getUnityClient(ctx, arrayId)
+	_, err := s.getUnityClient(ctx, arrayId)
 	var accessType gounity.AccessType
 	if err != nil {
 		return err
 	}
 
-	hostAPI := gounity.NewHost(unity)
-	host, err := hostAPI.FindHostByName(ctx, s.opts.NodeName)
+	host, err := s.getHostId(ctx, arrayId, s.opts.NodeName, s.opts.LongNodeName)
 	if err != nil {
-		return status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Host: %s not found. Error: %v", s.opts.NodeName, err))
+		return err
 	}
 	hostContent := host.HostContent
 	hostID := hostContent.ID
@@ -849,7 +1075,7 @@ func (s *service) checkFilesystemMapping(ctx context.Context, nfsShare *types.NF
 		}
 	}
 	if !hostHasAccess {
-		return status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Host: %s does not have access: %s on NFS Share: %s", s.opts.NodeName, accessType, nfsShare.NFSShareContent.Id))
+		return status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Host: %s does not have access: %s on NFS Share: %s", host.HostContent.Name, accessType, nfsShare.NFSShareContent.Id))
 	}
 	return nil
 }
@@ -857,15 +1083,13 @@ func (s *service) checkFilesystemMapping(ctx context.Context, nfsShare *types.NF
 // Check if the volume is published to the node
 func (s *service) checkVolumeMapping(ctx context.Context, volume *types.Volume, arrayId string) (int, error) {
 	rid, log := utils.GetRunidAndLogger(ctx)
-	//Get Host Name
-	hostName := s.opts.NodeName
-	unity, err := s.getUnityClient(ctx, arrayId)
+
+	_, err := s.getUnityClient(ctx, arrayId)
 	if err != nil {
 		return 0, err
 	}
 
-	hostAPI := gounity.NewHost(unity)
-	host, err := hostAPI.FindHostByName(ctx, hostName)
+	host, err := s.getHostId(ctx, arrayId, s.opts.NodeName, s.opts.LongNodeName)
 	if err != nil {
 		return 0, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find Host Failed [%v]", err))
 	}
@@ -879,43 +1103,12 @@ func (s *service) checkVolumeMapping(ctx context.Context, volume *types.Volume, 
 		hostcontent := hostaccess.HostContent
 		hostAccessID := hostcontent.ID
 		if hostAccessID == hostID {
-			log.Debugf(fmt.Sprintf("Volume %s has been published to the current node %s.", volName, hostName))
+			log.Debugf(fmt.Sprintf("Volume %s has been published to the current node %s.", volName, host.HostContent.Name))
 			return hostaccess.HLU, nil
 		}
 	}
 
-	return 0, status.Error(codes.Aborted, utils.GetMessageWithRunID(rid, "Volume %s has not been published to this node %s.", volName, hostName))
-}
-
-// Check Volume capabilities and access modes
-func (s *service) checkVolumeCapability(ctx context.Context, req *csi.NodeStageVolumeRequest) error {
-	rid, _ := utils.GetRunidAndLogger(ctx)
-
-	volCap := req.GetVolumeCapability()
-	if volCap == nil {
-		return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "volume capability required"))
-	}
-
-	accMode := volCap.GetAccessMode()
-	if accMode == nil {
-		return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "volume access mode required"))
-	}
-
-	if blockVol := volCap.GetBlock(); blockVol != nil {
-		// BlockVolume is not supported
-		return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Block Volume not supported"))
-	}
-
-	mntVol := volCap.GetMount()
-	if mntVol != nil {
-		ro := false //Since only SINGLE_NODE_WRITER is supported
-		if ro {
-			return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "read only not supported for Mount Volume"))
-		}
-	} else {
-		return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Volume capability - Mount param has not been provided"))
-	}
-	return nil
+	return 0, status.Error(codes.Aborted, utils.GetMessageWithRunID(rid, "Volume %s has not been published to this node %s.", volName, host.HostContent.Name))
 }
 
 func getTargetMount(ctx context.Context, target string) (gofsutil.Info, error) {
@@ -1219,74 +1412,53 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 		return status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Unable to get node IP. Error: %v", err))
 	}
 
+	fqdnHost := false
 	//Find Host on the Array
 	host, err := hostApi.FindHostByName(ctx, s.opts.NodeName)
 	if err != nil {
 		if err == gounity.HostNotFoundError {
-			//Create Host
-			hostApi := gounity.NewHost(unity)
-			host, err := hostApi.CreateHost(ctx, s.opts.NodeName)
-			if err != nil {
-				return err
+			host, err = hostApi.FindHostByName(ctx, s.opts.LongNodeName)
+			if err == nil {
+				fqdnHost = true
+			} else {
+				addHostErr := s.addNewNodeToArray(ctx, array, nodeIps, iqns, wwns)
+				if addHostErr != nil {
+					return addHostErr
+				}
 			}
-			hostContent := host.HostContent
-			log.Debugf("New Host Id: %s", hostContent.ID)
-
-			//Create Host Ip Port
-			_, err = hostApi.CreateHostIpPort(ctx, hostContent.ID, s.opts.LongNodeName)
+		} else {
+			return status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Unable to find host. Error: %v", err))
+		}
+	}
+	if err == nil || fqdnHost {
+		log.Debugf("Host %s exists on the array", s.opts.NodeName)
+		hostContent := host.HostContent
+		fqdnHost, addNewInitiators, err := s.checkHostIdempotency(ctx, array, host, iqns, wwns)
+		if err != nil {
+			return err
+		}
+		if fqdnHost {
+			host, err = hostApi.FindHostByName(ctx, s.opts.LongNodeName)
 			if err != nil {
-				return err
-			}
-			for _, nodeIp := range nodeIps {
-				_, err = hostApi.CreateHostIpPort(ctx, hostContent.ID, nodeIp)
+				if err == gounity.HostNotFoundError {
+					addHostErr := s.addNewNodeToArray(ctx, array, nodeIps, iqns, wwns)
+					if addHostErr != nil {
+						return addHostErr
+					}
+					addNewInitiators = false
+				} else {
+					return status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Unable to find host. Error: %v", err))
+				}
+			} else {
+				hostContent = host.HostContent
+				_, addNewInitiators, err = s.checkHostIdempotency(ctx, array, host, iqns, wwns)
 				if err != nil {
 					return err
 				}
 			}
-
-			if len(wwns) > 0 {
-				//Create Host FC Initiators
-				log.Debugf("FC Initiators found: %s", wwns)
-				for _, wwn := range wwns {
-					log.Debugf("Adding wwn Initiator: %s to host: %s ", hostContent.ID, wwn)
-					_, err = hostApi.CreateHostInitiator(ctx, hostContent.ID, wwn, gounityapi.FCInitiatorType)
-					if err != nil {
-						return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Adding wwn initiator error: %v", err))
-					}
-				}
-			}
-			if len(iqns) > 0 {
-				//Create Host iSCSI Initiators
-				log.Debugf("iSCSI Initiators found: %s", iqns)
-				for _, iqn := range iqns {
-					log.Debugf("Adding iSCSI Initiator: %s to host: %s ", hostContent.ID, iqn)
-					_, err = hostApi.CreateHostInitiator(ctx, hostContent.ID, iqn, gounityapi.ISCSCIInitiatorType)
-					if err != nil {
-						return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Adding iSCSI initiator error: %v", err))
-					}
-				}
-			}
-		} else {
-			return err
-		}
-	} else {
-		log.Debugf("Host %s exists on the array", s.opts.NodeName)
-		hostContent := host.HostContent
-		arrayHostWwns, err := s.getArrayHostInitiators(ctx, host, array.ArrayId)
-		if err != nil {
-			return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Error while finding initiators for host %s on the array: %s error: %v", hostContent.ID, array, err))
 		}
 
-		//Check if all elements of wwns is present inside arrayHostWwns
-		if utils.ArrayContainsAll(append(wwns, iqns...), arrayHostWwns) && len(append(wwns, iqns...)) == len(arrayHostWwns) {
-			log.Info("Node initiators are synchronized with the Host Wwns on the array")
-		} else {
-			//Find Initiators on the array host that are not present on the node
-			extraWwns := utils.FindAdditionalWwns(append(wwns, iqns...), arrayHostWwns)
-			if len(extraWwns) > 0 {
-				return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Host has got foreign Initiators. Host initiators on the array require correction before proceeding further."))
-			}
-
+		if addNewInitiators {
 			//Modify host operation
 			for _, wwn := range wwns {
 				log.Debugf("Adding wwn Initiator: %s to host: %s ", hostContent.ID, wwn)
@@ -1358,6 +1530,81 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 	return nil
 }
 
+//Host idempotency check
+func (s *service) checkHostIdempotency(ctx context.Context, array *StorageArrayConfig, host *types.Host, iqns, wwns []string) (bool, bool, error) {
+	ctx, log, rid := GetRunidLog(ctx)
+	hostContent := host.HostContent
+	arrayHostWwns, err := s.getArrayHostInitiators(ctx, host, array.ArrayId)
+	if err != nil {
+		return false, false, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Error while finding initiators for host %s on the array: %s error: %v", hostContent.ID, array, err))
+	}
+
+	//Check if all elements of wwns is present inside arrayHostWwns
+	if utils.ArrayContainsAll(append(wwns, iqns...), arrayHostWwns) && len(append(wwns, iqns...)) == len(arrayHostWwns) {
+		log.Info("Node initiators are synchronized with the Host Wwns on the array")
+		return false, true, nil
+	}
+	extraWwns := utils.FindAdditionalWwns(append(wwns, iqns...), arrayHostWwns)
+	if len(extraWwns) > 0 {
+		if host.HostContent.Name == s.opts.LongNodeName {
+			return false, false, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Host has got foreign Initiators. Host initiators on the array require correction before proceeding further."))
+		}
+		return true, false, nil
+	}
+	return false, true, nil
+}
+
+//Adding a new node to array
+func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConfig, nodeIps, iqns, wwns []string) error {
+	ctx, log, rid := GetRunidLog(ctx)
+	ctx, log = setArrayIdContext(ctx, array.ArrayId)
+	unity := array.UnityClient
+	//Create Host
+	hostApi := gounity.NewHost(unity)
+	host, err := hostApi.CreateHost(ctx, s.opts.LongNodeName)
+	if err != nil {
+		return err
+	}
+	hostContent := host.HostContent
+	log.Debugf("New Host Id: %s", hostContent.ID)
+
+	//Create Host Ip Port
+	_, err = hostApi.CreateHostIpPort(ctx, hostContent.ID, s.opts.LongNodeName)
+	if err != nil {
+		return err
+	}
+	for _, nodeIp := range nodeIps {
+		_, err = hostApi.CreateHostIpPort(ctx, hostContent.ID, nodeIp)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(wwns) > 0 {
+		//Create Host FC Initiators
+		log.Debugf("FC Initiators found: %s", wwns)
+		for _, wwn := range wwns {
+			log.Debugf("Adding wwn Initiator: %s to host: %s ", hostContent.ID, wwn)
+			_, err = hostApi.CreateHostInitiator(ctx, hostContent.ID, wwn, gounityapi.FCInitiatorType)
+			if err != nil {
+				return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Adding wwn initiator error: %v", err))
+			}
+		}
+	}
+	if len(iqns) > 0 {
+		//Create Host iSCSI Initiators
+		log.Debugf("iSCSI Initiators found: %s", iqns)
+		for _, iqn := range iqns {
+			log.Debugf("Adding iSCSI Initiator: %s to host: %s ", hostContent.ID, iqn)
+			_, err = hostApi.CreateHostInitiator(ctx, hostContent.ID, iqn, gounityapi.ISCSCIInitiatorType)
+			if err != nil {
+				return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Adding iSCSI initiator error: %v", err))
+			}
+		}
+	}
+	return nil
+}
+
 func (s *service) syncNodeInfoRoutine(ctx context.Context) {
 	ctx, log := setRunIdContext(ctx, "node-0")
 	log.Info("Starting goroutine to add Node information to storage array")
@@ -1368,7 +1615,7 @@ func (s *service) syncNodeInfoRoutine(ctx context.Context) {
 			s.syncNodeInfo(ctx)
 			ctx, log = incrementLogId(ctx, "node")
 		case <-time.After(time.Duration(s.opts.SyncNodeInfoTimeInterval) * time.Minute):
-			log.Debug("Invoking adding host information to array")
+			log.Debug("Checking if host information is added to array")
 			var allHostsAdded = true
 			s.arrays.Range(func(key, value interface{}) bool {
 				array := value.(*StorageArrayConfig)
@@ -1380,7 +1627,7 @@ func (s *service) syncNodeInfoRoutine(ctx context.Context) {
 			})
 
 			if !allHostsAdded {
-				log.Debug("Some of the hosts are not added, invoking adding host information to array")
+				log.Debug("Some of the hosts are not added, invoking add host information to array")
 				s.syncNodeInfo(ctx)
 				ctx, log = incrementLogId(ctx, "node")
 			}
@@ -1411,10 +1658,94 @@ func (s *service) syncNodeInfo(ctx context.Context) {
 					array.IsHostAdded = true
 					log.Debugf("Node [%s] Added successfully", array.ArrayId)
 				} else {
-					log.Debugf("Adding node [%s] failed", array.ArrayId)
+					log.Debugf("Adding node [%s] failed, Error: [%v]", array.ArrayId, err)
 				}
 			}()
 		}
 		return true
 	})
+}
+
+func getTopology() map[string]string {
+	// Create the topology keys
+	// csi-unity.dellemc.com/<arrayID>/<protocol>: true
+	topology := map[string]string{}
+
+	for _, sysID := range connectedSystemID {
+		// In connected system ID we will get slice in this format [arrayID/protcol]
+		tokens := strings.Split(sysID, "/")
+		arrayID := tokens[0]
+		protocol := tokens[1]
+		// whatever array and protocol present in connected systems is already validated hence it is set to true
+		topology[Name+"/"+arrayID+"-"+protocol] = "true"
+	}
+	return topology
+}
+
+// validateProtocols will check for iSCSI and FC connectivity and updates same in connectedSystemID list
+func (s *service) validateProtocols(ctx context.Context, arraysList []*StorageArrayConfig) {
+	ctx, log, _ := GetRunidLog(ctx)
+	for _, array := range arraysList {
+		if array.IsHostAdded {
+			iscsiInitiators, err := s.iscsiClient.GetInitiators("")
+			fcInitiators, err := utils.GetFCInitiators(ctx)
+
+			if len(iscsiInitiators) != 0 || len(fcInitiators) != 0 {
+				log.Info("iSCSI/FC package found in this node proceeding to further validations")
+				//To get all iSCSI initiators and FC Initiators
+				ctx, _ = setArrayIdContext(ctx, array.ArrayId)
+				unity, err := s.getUnityClient(ctx, array.ArrayId)
+
+				if err != nil {
+					log.Infof("Unable to get unity client for topology validation: %v", err)
+				}
+
+				hostAPI := gounity.NewHost(unity)
+				host, err := s.getHostId(ctx, array.ArrayId, s.opts.NodeName, s.opts.LongNodeName)
+				if err != nil {
+					log.Infof("Host not found. Error: %v", err)
+				}
+				if host != nil && len(host.HostContent.FcInitiators) != 0 {
+					log.Infof("Got FC Initiators, Checking health of initiators:%s", host.HostContent.FcInitiators)
+					for _, initiator := range host.HostContent.FcInitiators {
+						initiatorID := initiator.Id
+						hostInitiator, err := hostAPI.FindHostInitiatorById(ctx, initiatorID)
+						if err != nil {
+							log.Infof("Unable to get initiators: %s", err)
+						}
+						if hostInitiator != nil {
+							healtContent := hostInitiator.HostInitiatorContent.Health
+							if healtContent.DescriptionIDs[0] == componentOkMessage {
+								log.Infof("FC Health is good for array:%s, Health:%s", array.ArrayId, healtContent.DescriptionIDs[0])
+								connectedSystemID = append(connectedSystemID, array.ArrayId+"/"+strings.ToLower(FC))
+							} else {
+								log.Infof("FC Health is bad for array:%s, Health:%s", array.ArrayId, healtContent.DescriptionIDs[0])
+							}
+						}
+					}
+				}
+				if host != nil && len(host.HostContent.IscsiInitiators) != 0 {
+					log.Infof("Got iSCSI Initiators, Checking health of initiators:%s", host.HostContent.IscsiInitiators)
+					for _, initiator := range host.HostContent.IscsiInitiators {
+						initiatorID := initiator.Id
+						hostInitiator, err := hostAPI.FindHostInitiatorById(ctx, initiatorID)
+						if err != nil {
+							log.Infof("Unable to get initiators: %s", err)
+						}
+						if hostInitiator != nil {
+							healtContent := hostInitiator.HostInitiatorContent.Health
+							if healtContent.DescriptionIDs[0] == componentOkMessage {
+								log.Infof("iSCSI health is good for array:%s, Health:%s", array.ArrayId, healtContent.DescriptionIDs[0])
+								connectedSystemID = append(connectedSystemID, array.ArrayId+"/"+strings.ToLower(ISCSI))
+							} else {
+								log.Infof("iSCSI Health is bad for array:%s, Health:%s", array.ArrayId, healtContent.DescriptionIDs[0])
+							}
+						}
+					}
+				}
+			} else {
+				log.Info("this node doesn't support either iSCSI or FC protocol, only NFS is supported", err)
+			}
+		}
+	}
 }

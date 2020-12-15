@@ -18,7 +18,7 @@ function git_version {
 
 function build_image {
    echo $BUILDCMD build -t ${IMAGE_NAME}:${IMAGE_TAG} .
-   (cd .. && $BUILDCMD build -t ${IMAGE_NAME}:${IMAGE_TAG} --build-arg GOPROXY=$GOPROXY -f csi-unity/Dockerfile . --format=docker)
+   (cd .. && $BUILDCMD build -t ${IMAGE_NAME}:${IMAGE_TAG} --build-arg GOPROXY=$GOPROXY -f csi-unity/Dockerfile.podman . --format=docker)
    echo $BUILDCMD tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_REPO}/${IMAGE_REPO_NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}
    $BUILDCMD tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_REPO}/${IMAGE_REPO_NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}
 }
