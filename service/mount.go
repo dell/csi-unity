@@ -30,8 +30,6 @@ func stagePublishNFS(ctx context.Context, req *csi.NodeStageVolumeRequest, expor
 
 	stagingTargetPath := req.GetStagingTargetPath()
 
-	accMode := req.GetVolumeCapability().GetAccessMode()
-
 	volCap := req.GetVolumeCapability()
 	mntVol := volCap.GetMount()
 	mntFlags := mntVol.GetMountFlags()
@@ -42,9 +40,7 @@ func stagePublishNFS(ctx context.Context, req *csi.NodeStageVolumeRequest, expor
 	}
 
 	rwo := "rw"
-	if accMode.GetMode() == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
-		rwo = "ro"
-	}
+
 	mntFlags = append(mntFlags, rwo)
 
 	mnts, err := gofsutil.GetMounts(ctx)
@@ -75,7 +71,18 @@ func stagePublishNFS(ctx context.Context, req *csi.NodeStageVolumeRequest, expor
 		}
 	}
 
-	if nfsv4 {
+	log.Debugf("Stage - Mount flags for NFS: %s", mntFlags)
+
+	var mountOverride = false
+	for _, flag := range mntFlags {
+		if strings.Contains(flag, "vers") {
+			mountOverride = true
+			break
+		}
+	}
+
+	//if nfsv4 specified or mount options is provided, mount as is
+	if nfsv4 || mountOverride {
 		nfsv4 = false
 		for _, exportPathURL := range exportPaths {
 			err = gofsutil.Mount(ctx, exportPathURL, stagingTargetPath, "nfs", mntFlags...)
@@ -86,8 +93,9 @@ func stagePublishNFS(ctx context.Context, req *csi.NodeStageVolumeRequest, expor
 		}
 	}
 
-	if !nfsv4 && nfsv3 {
-		rwo += ",vers=3"
+	//Try remount as nfsv3 only if NAS server supports nfs v3
+	if nfsv3 && !nfsv4 && !mountOverride {
+		mntFlags = append(mntFlags, "vers=3")
 		for _, exportPathURL := range exportPaths {
 			err = gofsutil.Mount(ctx, exportPathURL, stagingTargetPath, "nfs", mntFlags...)
 			if err == nil {
@@ -120,7 +128,7 @@ func publishNFS(ctx context.Context, req *csi.NodePublishVolumeRequest, exportPa
 
 	var rwoArray []string
 	rwo := "rw"
-	if accMode.GetMode() == csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY {
+	if req.Readonly {
 		rwo = "ro"
 	}
 	rwoArray = append(rwoArray, rwo)
@@ -184,8 +192,19 @@ func publishNFS(ctx context.Context, req *csi.NodePublishVolumeRequest, exportPa
 		}
 	}
 
+	log.Debugf("Publish - Mount flags for NFS: %s", mntFlags)
+
+	var mountOverride = false
+	for _, flag := range mntFlags {
+		if strings.Contains(flag, "vers") {
+			mountOverride = true
+			break
+		}
+	}
+
+	//if nfsv4 specified or mount options is provided, mount as is
 	//Proceeding to perform bind mount to target path
-	if nfsv4 {
+	if nfsv4 || mountOverride {
 		nfsv4 = false
 		err = gofsutil.BindMount(ctx, stagingTargetPath, targetPath, rwoArray...)
 		if err == nil {
@@ -193,7 +212,7 @@ func publishNFS(ctx context.Context, req *csi.NodePublishVolumeRequest, exportPa
 		}
 	}
 
-	if !nfsv4 && nfsv3 {
+	if nfsv3 && !nfsv4 && !mountOverride {
 		rwo += ",vers=3"
 		rwoArray = append(rwoArray, "vers=3")
 		err = gofsutil.BindMount(ctx, stagingTargetPath, targetPath, rwoArray...)
@@ -263,8 +282,11 @@ func stageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest, stagingPa
 			fs := mntVol.GetFsType()
 			mntFlags := mntVol.GetMountFlags()
 
+			log.Debugf("Stage - Mount flags for Volume: %s", mntFlags)
+
 			if fs != "ext3" && fs != "ext4" && fs != "xfs" {
-				return status.Error(codes.Unavailable, utils.GetMessageWithRunID(rid, "Fs type %s not supported", fs))
+				log.Info("Using default FS Type ext4 since no FS Type is provided")
+				fs = "ext4"
 			}
 
 			if fs == "xfs" {
@@ -316,11 +338,22 @@ func publishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, targe
 	volCap := req.GetVolumeCapability()
 	accMode := volCap.GetAccessMode()
 	mntVol := volCap.GetMount()
+	isBlock := accTypeBlock(volCap)
 
 	// make sure device is valid
 	sysDevice, err := GetDevice(ctx, symlinkPath)
 	if err != nil {
 		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "error getting block device for volume: %s, err: %s", id, err.Error()))
+	}
+
+	if isBlock {
+		_, err = mkfile(ctx, targetPath)
+		if err != nil {
+			return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Could not create %s: %v", targetPath, err))
+		}
+		mntFlags := mntVol.GetMountFlags()
+		err = mountBlock(ctx, sysDevice, targetPath, mntFlags, SingleAccessMode(accMode))
+		return err
 	}
 
 	// Check if target is not mounted
@@ -371,6 +404,7 @@ func publishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, targe
 
 	// Make sure target is created. The spec says the driver is responsible
 	// for creating the target, but Kubernetes generally creates the target.
+
 	_, err = mkdir(ctx, targetPath)
 	if err != nil {
 		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Could not create %s: %v", targetPath, err))
@@ -381,6 +415,8 @@ func publishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, targe
 	if accMode.GetMode() == csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY {
 		mntFlags = append(mntFlags, "ro")
 	}
+
+	log.Debugf("Publish - Mount flags for Volume: %s", mntFlags)
 
 	if err := gofsutil.BindMount(ctx, stagingPath, targetPath, mntFlags...); err != nil {
 		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "error publish volume to target path: %v", err))
@@ -627,6 +663,29 @@ func getDevMounts(ctx context.Context, sysDevice *Device) ([]gofsutil.Info, erro
 	return devMnts, nil
 }
 
+func getMpathDevFromWwn(ctx context.Context, volumeWwn string) (string, error) {
+	ctx, log, rid := GetRunidLog(ctx)
+	symlinkPath, _, err := gofsutil.WWNToDevicePathX(ctx, volumeWwn)
+	if err != nil {
+		return "", status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Disk path not found. Error: %v", err))
+	}
+
+	sysDevice, err := GetDevice(ctx, symlinkPath)
+	if err != nil {
+		return "", status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "error getting block device for volume wwn: %s, err: %s", volumeWwn, err.Error()))
+	}
+
+	mpDevName := strings.TrimPrefix(sysDevice.RealDev, "/dev/")
+	filename := fmt.Sprintf("/sys/devices/virtual/block/%s/dm/name", mpDevName)
+	if name, err := ioutil.ReadFile(filename); err != nil {
+		log.Error("Could not read mp dev name file ", filename, err)
+		return "", err
+	} else {
+		mpathDev := strings.TrimPrefix(strings.TrimSpace(string(name)), "3")
+		return mpathDev, nil
+	}
+}
+
 func createDirIfNotExist(ctx context.Context, path, arrayId string) error {
 	ctx, _, rid := GetRunidLog(ctx)
 	ctx, _ = setArrayIdContext(ctx, arrayId)
@@ -665,6 +724,28 @@ func mkdir(ctx context.Context, path string) (bool, error) {
 	}
 	if !st.IsDir() {
 		return false, fmt.Errorf("existing path is not a directory")
+	}
+	return false, nil
+}
+
+// mkfile creates a file specified by the path
+// returna a pair - bool flag of whether file was created, and an error
+func mkfile(ctx context.Context, path string) (bool, error) {
+	log := utils.GetRunidLogger(ctx)
+	st, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		file, err := os.OpenFile(path, os.O_CREATE, 0600)
+		if err != nil {
+			log.WithField("path", path).WithError(
+				err).Error("Unable to create file")
+			return false, err
+		}
+		file.Close()
+		log.WithField("path", path).Debug("created file")
+		return true, nil
+	}
+	if st.IsDir() {
+		return false, fmt.Errorf("existing path is a directory")
 	}
 	return false, nil
 }
@@ -803,4 +884,29 @@ func getPathMounts(ctx context.Context, path string) ([]gofsutil.Info, error) {
 		}
 	}
 	return devMnts, nil
+}
+
+// mountBlock bind mounts the device to the required target
+func mountBlock(ctx context.Context, device *Device, target string, mntFlags []string, singleAccess bool) error {
+	rid, log := utils.GetRunidAndLogger(ctx)
+	log.Debugf("mountBlock called for device %#v target %s mntFlags %#v", device, target, mntFlags)
+	// Check to see if already mounted
+	mnts, err := getDevMounts(ctx, device)
+	if err != nil {
+		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Could not getDevMounts for: %s", device.RealDev))
+	}
+	for _, mnt := range mnts {
+		if mnt.Path == target {
+			log.Info("Block volume target is already mounted")
+			return nil
+		} else if singleAccess {
+			return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Access mode conflicts with existing mounts"))
+		}
+	}
+
+	err = gofsutil.BindMount(ctx, device.RealDev, target, mntFlags...)
+	if err != nil {
+		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Block Mount error: bind mounting to target path: %s", target))
+	}
+	return nil
 }

@@ -45,6 +45,7 @@ type feature struct {
 	volIDList                         []string
 	maxRetryCount                     int
 	nodeId                            string
+	ephemeral						  bool
 }
 
 //addError method appends an error to the error list
@@ -66,6 +67,7 @@ func (f *feature) aCSIService() error {
 	f.createVolumeRequest = nil
 	f.createVolumeResponse = nil
 	f.volIDList = f.volIDList[:0]
+	f.ephemeral = false
 
 	ctx := context.Background()
 	fmt.Printf("testing Identity Probe\n")
@@ -109,6 +111,41 @@ func (f *feature) aCSIServiceWithNode() error {
 	return nil
 }
 
+//aCSIServiceWithNodeTopology method is used to add node, initiators and validate topology
+func (f *feature) aCSIServiceWithNodeTopology() error {
+	stop()
+	time.Sleep(10 * time.Second)
+	os.Setenv("X_CSI_MODE", "node")
+	ctx := context.Background()
+	grpcClient, stop = startServer(ctx)
+	time.Sleep(5 * time.Second)
+
+	ctx = context.Background()
+	fmt.Printf("testing Identity Probe\n")
+	client := csi.NewIdentityClient(grpcClient)
+	probeResp, err := client.Probe(ctx, &csi.ProbeRequest{})
+	time.Sleep(120 * time.Second)
+	if err != nil {
+		fmt.Printf("Probe failed with error: %s:\n", err.Error())
+	} else {
+		fmt.Printf("Probe passed: %s\n", probeResp.Ready)
+	}
+
+	nodeReq := new(csi.NodeGetInfoRequest)
+	nodeClient := csi.NewNodeClient(grpcClient)
+	nodeResp, e := nodeClient.NodeGetInfo(ctx, nodeReq)
+	if nodeResp.AccessibleTopology.Segments == nil || e != nil {
+		fmt.Printf("Erro getting topology segments")
+	}
+	stop()
+	time.Sleep(10 * time.Second)
+	os.Setenv("X_CSI_MODE", "")
+	ctx = context.Background()
+	grpcClient, stop = startServer(ctx)
+	time.Sleep(5 * time.Second)
+	return nil
+}
+
 //aBasicBlockVolumeRequest method is used to build a Create volume request
 func (f *feature) aBasicBlockVolumeRequest(volumeName, arrayId, protocol string, size int) error {
 	f.createVolumeRequest = nil
@@ -132,6 +169,40 @@ func (f *feature) aBasicBlockVolumeRequest(volumeName, arrayId, protocol string,
 	mountType := new(csi.VolumeCapability_Mount)
 	mountType.Mount = mount
 	capability.AccessType = mountType
+	accessMode := new(csi.VolumeCapability_AccessMode)
+	accessMode.Mode = csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER
+	capability.AccessMode = accessMode
+	f.capability = capability
+	capabilities := make([]*csi.VolumeCapability, 0)
+	capabilities = append(capabilities, capability)
+	req.VolumeCapabilities = capabilities
+	f.createVolumeRequest = req
+	return nil
+}
+
+//aBasicRawBlockVolumeRequest method is used to build a Create volume request
+func (f *feature) aBasicRawBlockVolumeRequest(volumeName, arrayId, protocol string, size int) error {
+	f.createVolumeRequest = nil
+	req := new(csi.CreateVolumeRequest)
+	params := make(map[string]string)
+	params["storagePool"] = os.Getenv("STORAGE_POOL")
+	params["thinProvisioned"] = "true"
+	params["isDataReductionEnabled"] = "false"
+	params["tieringPolicy"] = "0"
+	params["description"] = "CSI Volume Unit Test"
+	params["arrayId"] = os.Getenv(arrayId)
+	params["protocol"] = protocol
+	req.Parameters = params
+	req.Name = volumeName
+	capacityRange := new(csi.CapacityRange)
+	capacityRange.RequiredBytes = int64(size * 1024 * 1024 * 1024)
+	req.CapacityRange = capacityRange
+
+	block := new(csi.VolumeCapability_BlockVolume)
+	capability := new(csi.VolumeCapability)
+	accessType := new(csi.VolumeCapability_Block)
+	accessType.Block = block
+	capability.AccessType = accessType
 	accessMode := new(csi.VolumeCapability_AccessMode)
 	accessMode.Mode = csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER
 	capability.AccessMode = accessMode
@@ -365,9 +436,8 @@ func (f *feature) whenICallDeleteAllCreatedVolumes() error {
 func (f *feature) whenICallPublishVolume() error {
 	req := new(csi.ControllerPublishVolumeRequest)
 	req.VolumeId = f.volID
-	req.NodeId = os.Getenv("X_CSI_UNITY_NODENAME")
+	req.NodeId = os.Getenv("X_CSI_UNITY_NODENAME")+","+os.Getenv("X_CSI_UNITY_LONGNODENAME")
 	f.nodeId = req.NodeId
-	fmt.Printf("req.NodeId %s\n", req.NodeId)
 	req.Readonly = false
 	req.VolumeCapability = f.capability
 	req.VolumeContext = f.volumeContext
@@ -389,9 +459,8 @@ func (f *feature) whenICallPublishVolume() error {
 func (f *feature) whenICallPublishVolumeWithParam(hostName, readonly string) error {
 	req := new(csi.ControllerPublishVolumeRequest)
 	req.VolumeId = f.volID
-	req.NodeId = hostName
+	req.NodeId = os.Getenv("X_CSI_UNITY_NODENAME")+","+os.Getenv("X_CSI_UNITY_LONGNODENAME")
 	f.nodeId = req.NodeId
-	fmt.Printf("req.NodeId %s\n", req.NodeId)
 	read, _ := strconv.ParseBool(readonly)
 	req.Readonly = read
 	req.VolumeCapability = f.capability
@@ -414,9 +483,8 @@ func (f *feature) whenICallPublishVolumeWithParam(hostName, readonly string) err
 func (f *feature) whenICallPublishVolumeWithVolumeId(volId string) error {
 	req := new(csi.ControllerPublishVolumeRequest)
 	req.VolumeId = volId
-	req.NodeId = os.Getenv("X_CSI_UNITY_NODENAME")
+	req.NodeId = os.Getenv("X_CSI_UNITY_NODENAME")+","+os.Getenv("X_CSI_UNITY_LONGNODENAME")
 	f.nodeId = req.NodeId
-	fmt.Printf("req.NodeId %s\n", req.NodeId)
 	req.Readonly = false
 	req.VolumeCapability = f.capability
 	req.VolumeContext = f.volumeContext
@@ -438,7 +506,7 @@ func (f *feature) whenICallPublishVolumeWithVolumeId(volId string) error {
 func (f *feature) whenICallUnpublishVolume() error {
 	req := new(csi.ControllerUnpublishVolumeRequest)
 	req.VolumeId = f.volID
-	req.NodeId = f.nodeId
+	req.NodeId = os.Getenv("X_CSI_UNITY_NODENAME")+","+os.Getenv("X_CSI_UNITY_LONGNODENAME")
 	ctx := context.Background()
 	client := csi.NewControllerClient(grpcClient)
 	_, err := client.ControllerUnpublishVolume(ctx, req)
@@ -456,7 +524,7 @@ func (f *feature) whenICallUnpublishVolume() error {
 func (f *feature) iCallUnpublishVolumeWithVolumeId(volId string) error {
 	req := new(csi.ControllerUnpublishVolumeRequest)
 	req.VolumeId = volId
-	req.NodeId = f.nodeId
+	req.NodeId = os.Getenv("X_CSI_UNITY_NODENAME")+","+os.Getenv("X_CSI_UNITY_LONGNODENAME")
 	ctx := context.Background()
 	client := csi.NewControllerClient(grpcClient)
 	_, err := client.ControllerUnpublishVolume(ctx, req)
@@ -750,9 +818,66 @@ func (f *feature) whenICallNodePublishVolume(fsType, readonly string) error {
 	accessMode := new(csi.VolumeCapability_AccessMode)
 	accessMode.Mode = f.capability.AccessMode.Mode
 	capability.AccessMode = accessMode
-	req.VolumeCapability = capability
+	if fsType == "" {
+		req.VolumeCapability = f.capability
+	} else {
+		req.VolumeCapability = capability
+	}
 	read, _ := strconv.ParseBool(readonly)
 	req.Readonly = read
+	f.nodePublishVolumeRequest = req
+
+	ctx := context.Background()
+	client := csi.NewNodeClient(grpcClient)
+	_, err := client.NodePublishVolume(ctx, req)
+	if err != nil {
+		fmt.Printf("Node publish volume failed: %s\n", err.Error())
+		f.addError(err)
+	} else {
+		fmt.Printf("Node publish volume completed successfully\n")
+	}
+	return nil
+}
+
+//whenICallEphemeralNodePublishVolume - Test case for ephemeral node publish volume
+func (f *feature) whenICallEphemeralNodePublishVolume(volName, fsType, arrayId, am, size, storagePool, protocol, nasServer, thinProvision, dataReduction string) error {
+	f.nodePublishVolumeRequest = nil
+	req := new(csi.NodePublishVolumeRequest)
+	req.VolumeId = volName
+	f.volID = req.VolumeId
+	f.ephemeral = true
+	req.StagingTargetPath = path.Join(os.Getenv("X_CSI_STAGING_TARGET_PATH"), f.volID)
+	req.TargetPath = path.Join(os.Getenv("X_CSI_PUBLISH_TARGET_PATH"), f.volID)
+	capability := new(csi.VolumeCapability)
+	mount := new(csi.VolumeCapability_MountVolume)
+	mount.FsType = fsType
+	mountType := new(csi.VolumeCapability_Mount)
+	mountType.Mount = mount
+	capability.AccessType = mountType
+	accessMode := new(csi.VolumeCapability_AccessMode)
+	if am == "ROX" {
+		accessMode.Mode = csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY
+	} else if am == "RWX" {
+		accessMode.Mode = csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER
+	} else if am == "RWO" {
+		accessMode.Mode = csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER
+	} else {
+		accessMode.Mode = csi.VolumeCapability_AccessMode_UNKNOWN
+	}
+	capability.AccessMode = accessMode
+	capability.AccessMode = accessMode
+	req.VolumeCapability = capability
+	req.Readonly = false
+	params := make(map[string]string)
+	params["arrayId"] = os.Getenv(arrayId)
+	params["size"] = size
+	params["storagePool"] = storagePool
+	params["protocol"] = protocol
+	params["nasServer"] = nasServer
+	params["thinProvisioned"] = thinProvision
+	params["isDataReductionEnabled"] = dataReduction
+	params["csi.storage.k8s.io/ephemeral"] = "true"
+	req.VolumeContext = params
 	f.nodePublishVolumeRequest = req
 
 	ctx := context.Background()
@@ -771,11 +896,12 @@ func (f *feature) whenICallNodePublishVolume(fsType, readonly string) error {
 func (f *feature) whenICallNodePublishVolumeWithTargetPath(target_path, fsType string) error {
 	f.nodePublishVolumeRequest = nil
 	req := new(csi.NodePublishVolumeRequest)
-	if f.createVolumeResponse != nil {
+	if f.createVolumeResponse != nil || f.ephemeral == true{
 		req.VolumeId = f.volID
 	} else {
 		req.VolumeId = ""
 	}
+	fmt.Println("========================",req.VolumeId)
 	req.StagingTargetPath = path.Join(os.Getenv("X_CSI_STAGING_TARGET_PATH"), f.volID)
 	req.TargetPath = target_path
 	capability := new(csi.VolumeCapability)
@@ -841,8 +967,8 @@ func (f *feature) whenICallNodePublishVolumeWithoutAccessmode(fsType string) err
 func (f *feature) whenICallNodeUnPublishVolume() error {
 	f.nodeUnpublishVolumeRequest = nil
 	req := new(csi.NodeUnpublishVolumeRequest)
-	if f.createVolumeResponse != nil {
-		req.VolumeId = f.volID
+	if f.nodePublishVolumeRequest != nil {
+		req.VolumeId = f.nodePublishVolumeRequest.VolumeId
 	} else {
 		req.VolumeId = ""
 	}
@@ -883,7 +1009,11 @@ func (f *feature) whenICallNodeStageVolume(fsType string) error {
 	accessMode := new(csi.VolumeCapability_AccessMode)
 	accessMode.Mode = f.capability.AccessMode.Mode
 	capability.AccessMode = accessMode
-	req.VolumeCapability = capability
+	if fsType == "" {
+		req.VolumeCapability = f.capability
+	} else {
+		req.VolumeCapability = capability
+	}
 	f.nodeStageVolumeRequest = req
 
 	ctx := context.Background()
@@ -1023,11 +1153,43 @@ func (f *feature) whenICallGetPluginInfo() error {
 	return nil
 }
 
+//whenICallNodeExpandVolume - Test case to expand volume on node
+func (f *feature) whenICallNodeExpandVolume() error {
+	nodePublishReq := f.nodePublishVolumeRequest
+	if nodePublishReq == nil {
+		err := fmt.Errorf("Volume is not stage, nodePublishVolumeRequest not found")
+		return err
+	}
+	err := f.nodeExpandVolume(f.volID, nodePublishReq.TargetPath)
+	if err != nil {
+		fmt.Printf("NodeExpandVolume %s:\n", err.Error())
+		f.addError(err)
+	} else {
+		fmt.Printf("NodeExpandVolume completed successfully\n")
+	}
+	time.Sleep(SleepTime)
+	return nil
+}
+
+func (f *feature) nodeExpandVolume(volID, volPath string) error {
+	var err error
+	req := &csi.NodeExpandVolumeRequest{
+		VolumeId:   volID,
+		VolumePath: volPath,
+	}
+	ctx := context.Background()
+	client := csi.NewNodeClient(grpcClient)
+	_, err = client.NodeExpandVolume(ctx, req)
+	return err
+}
+
 func FeatureContext(s *godog.Suite) {
 	f := &feature{}
 	s.Step(`^a CSI service$`, f.aCSIService)
 	s.Step(`^a CSI service with node$`, f.aCSIServiceWithNode)
+	s.Step(`^a CSI service with node topology$`, f.aCSIServiceWithNodeTopology)
 	s.Step(`^a basic block volume request name "([^"]*)" arrayId "([^"]*)" protocol "([^"]*)" size "(\d+)"$`, f.aBasicBlockVolumeRequest)
+	s.Step(`^a basic raw block volume request name "([^"]*)" arrayId "([^"]*)" protocol "([^"]*)" size "(\d+)"$`, f.aBasicRawBlockVolumeRequest)
 	s.Step(`^a basic filesystem request name "([^"]*)" arrayId "([^"]*)" protocol "([^"]*)" accessMode "([^"]*)" size "(\d+)"$`, f.aBasicFilesystemRequest)
 	s.Step(`^I change volume capability accessmode$`, f.iChangeVolumeCapabilityAccessmode)
 	s.Step(`^a basic block volume request with volumeName "([^"]*)" arrayId "([^"]*)" protocol "([^"]*)" size "([^"]*)" storagepool "([^"]*)" thinProvisioned "([^"]*)" isDataReductionEnabled "([^"]*)" tieringPolicy "([^"]*)"$`, f.aBasicBlockVolumeRequestWithParameters)
@@ -1056,6 +1218,7 @@ func FeatureContext(s *godog.Suite) {
 	s.Step(`^I call Controller Expand Volume "([^"]*)" with volume "([^"]*)"$`, f.iCallControllerExpandVolumeWithVolume)
 	s.Step(`^when I call NodePublishVolume fsType "([^"]*)" readonly "([^"]*)"$`, f.whenICallNodePublishVolume)
 	s.Step(`^when I call NodePublishVolume targetpath "([^"]*)" fsType "([^"]*)"$`, f.whenICallNodePublishVolumeWithTargetPath)
+	s.Step(`^when I call EphemeralNodePublishVolume with volName "([^"]*)" fsType "([^"]*)" arrayId "([^"]*)" am "([^"]*)" size "([^"]*)" storagePool "([^"]*)" protocol "([^"]*)" nasServer "([^"]*)" thinProvision "([^"]*)" dataReduction "([^"]*)"$`, f.whenICallEphemeralNodePublishVolume)
 	s.Step(`^when I call NodeUnPublishVolume$`, f.whenICallNodeUnPublishVolume)
 	s.Step(`^when I call NodeStageVolume fsType "([^"]*)"$`, f.whenICallNodeStageVolume)
 	s.Step(`^when I call NodeStageVolume fsType "([^"]*)" with StagingTargetPath "([^"]*)"$`, f.whenICallNodeStageVolumeWithTargetPath)
@@ -1065,4 +1228,5 @@ func FeatureContext(s *godog.Suite) {
 	s.Step(`^when I call NodePublishVolume without accessmode and fsType "([^"]*)"$`, f.whenICallNodePublishVolumeWithoutAccessmode)
 	s.Step(`^When I call GetPluginCapabilities$`, f.whenICallGetPluginCapabilities)
 	s.Step(`^When I call GetPluginInfo$`, f.whenICallGetPluginInfo)
+	s.Step(`^when I call Node Expand Volume$`, f.whenICallNodeExpandVolume)
 }

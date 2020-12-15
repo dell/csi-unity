@@ -19,6 +19,9 @@ const (
 	//as a global mount via CSI-Unity v1.0 or v1.1
 	EnvPvtMountDir = "X_CSI_PRIVATE_MOUNT_DIR"
 
+	//EnvEphemeralStagingPath
+	EnvEphemeralStagingPath = "X_CSI_EPHEMERAL_STAGING_PATH"
+
 	// EnvISCSIChroot is the path to which the driver will chroot before
 	// running any iscsi commands. This value should only be set when instructed
 	// by technical support.

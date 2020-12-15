@@ -81,14 +81,15 @@ type Service interface {
 
 // Opts defines service configuration options.
 type Opts struct {
-	NodeName                 string
-	LongNodeName             string
-	Chroot                   string
-	Thick                    bool
-	AutoProbe                bool
-	PvtMountDir              string
-	Debug                    bool
-	SyncNodeInfoTimeInterval int
+	NodeName                      string
+	LongNodeName                  string
+	Chroot                        string
+	Thick                         bool
+	AutoProbe                     bool
+	PvtMountDir                   string
+	Debug                         bool
+	SyncNodeInfoTimeInterval      int
+	EnvEphemeralStagingTargetPath string
 }
 
 type service struct {
@@ -185,6 +186,10 @@ func (s *service) BeforeServe(
 	//Global mount directory will be used to node unstage volumes mounted via CSI-Unity v1.0 or v1.1
 	if pvtmountDir, ok := csictx.LookupEnv(ctx, EnvPvtMountDir); ok {
 		opts.PvtMountDir = pvtmountDir
+	}
+
+	if ephemeralStagePath, ok := csictx.LookupEnv(ctx, EnvEphemeralStagingPath); ok {
+		opts.EnvEphemeralStagingTargetPath = ephemeralStagePath
 	}
 
 	// setup the iscsi client

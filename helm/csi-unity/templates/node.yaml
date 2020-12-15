@@ -51,10 +51,14 @@ spec:
               value: unix:///var/lib/kubelet/plugins/unity.emc.dell.com/csi_sock
             - name: X_CSI_MODE
               value: node
+            - name: X_CSI_UNITY_AUTOPROBE
+              value: "true"
             - name: X_CSI_DEBUG
               value: {{ .Values.csiDebug | default "false" | lower | quote }}
             - name: X_CSI_PRIVATE_MOUNT_DIR
               value: "/var/lib/kubelet/plugins/unity.emc.dell.com/disks"
+            - name: X_CSI_EPHEMERAL_STAGING_PATH
+              value: "/var/lib/kubelet/plugins/kubernetes.io/csi/pv/"
             - name: X_CSI_ISCSI_CHROOT
               value: {{ .Values.ISCSIChroot | default "/noderoot" }}
             - name: X_CSI_UNITY_NODENAME
@@ -74,7 +78,7 @@ spec:
             - name: driver-path
               mountPath: /var/lib/kubelet/plugins/unity.emc.dell.com
             - name: volumedevices-path
-              mountPath: /var/lib/kubelet/plugins/kubernetes.io/csi/pv
+              mountPath: /var/lib/kubelet/plugins/kubernetes.io/csi
               mountPropagation: "Bidirectional"
             - name: pods-path
               mountPath: /var/lib/kubelet/pods
@@ -118,7 +122,7 @@ spec:
             type: DirectoryOrCreate
         - name: volumedevices-path
           hostPath:
-            path: /var/lib/kubelet/plugins/kubernetes.io/csi/pv
+            path: /var/lib/kubelet/plugins/kubernetes.io/csi
             type: DirectoryOrCreate
         - name: pods-path
           hostPath:

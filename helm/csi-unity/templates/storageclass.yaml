@@ -1,7 +1,7 @@
 {{ $global := . }}
-{{- range $i, $v := .Values.storageArrayList }}
-{{- range $j, $p := $global.Values.storageClassProtocols }}
-{{- if eq $p.protocol "FC"}}
+  {{- range $i, $v := .Values.storageArrayList }}
+  {{- range $j, $p := $global.Values.storageClassProtocols }}
+  {{- if eq $p.protocol "FC"}}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -24,9 +24,17 @@ parameters:
   isDataReductionEnabled: {{ $v.storageClass.isDataReductionEnabled | default $global.Values.storageClass.isDataReductionEnabled |  quote }}
   tieringPolicy: {{ $v.storageClass.tieringPolicy | default $global.Values.storageClass.tieringPolicy | quote }}
   hostIOLimitName: {{ $v.storageClass.hostIOLimitName | default $global.Values.storageClass.hostIOLimitName | quote }}
+  {{ if eq $.Values.createStorageClassesWithTopology true }}
+volumeBindingMode: WaitForFirstConsumer
+allowedTopologies:
+  - matchLabelExpressions:
+      - key: csi-unity.dellemc.com/{{ required "Must provide a arrayId" $v.name | lower }}-fc
+        values:
+          - "true"
+  {{- end }}
 ---
-{{- end }}
-{{- if eq $p.protocol "iSCSI"}}
+  {{- end }}
+  {{- if eq $p.protocol "iSCSI"}}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -47,10 +55,18 @@ parameters:
   isDataReductionEnabled: {{ $v.storageClass.isDataReductionEnabled | default $global.Values.storageClass.isDataReductionEnabled |  quote }}
   tieringPolicy: {{ $v.storageClass.tieringPolicy | default $global.Values.storageClass.tieringPolicy | quote }}
   hostIOLimitName: {{ $v.storageClass.hostIOLimitName | default $global.Values.storageClass.hostIOLimitName | quote }}
+  {{ if eq $.Values.createStorageClassesWithTopology true }}
+volumeBindingMode: WaitForFirstConsumer
+allowedTopologies:
+  - matchLabelExpressions:
+      - key: csi-unity.dellemc.com/{{ required "Must provide a arrayId" $v.name | lower }}-iscsi
+        values:
+          - "true"
+  {{- end }}
 ---
-{{- end }}
-{{- if eq $p.protocol "NFS"}}
-{{- if $v.storageClass.nasServer }}
+  {{- end }}
+  {{- if eq $p.protocol "NFS"}}
+  {{- if $v.storageClass.nasServer }}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -75,4 +91,4 @@ parameters:
 {{- end }}
 {{- end }}
 {{- end }}
-{{- end }}
+  {{- end }}

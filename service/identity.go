@@ -1,10 +1,11 @@
 package service
 
 import (
+	"strings"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/dell/csi-unity/core"
 	"golang.org/x/net/context"
-	"strings"
 )
 
 func (s *service) Probe(
@@ -67,6 +68,13 @@ func (s *service) GetPluginCapabilities(
 				Type: &csi.PluginCapability_VolumeExpansion_{
 					VolumeExpansion: &csi.PluginCapability_VolumeExpansion{
 						Type: csi.PluginCapability_VolumeExpansion_OFFLINE,
+					},
+				},
+			},
+			{
+				Type: &csi.PluginCapability_Service_{
+					Service: &csi.PluginCapability_Service{
+						Type: csi.PluginCapability_Service_VOLUME_ACCESSIBILITY_CONSTRAINTS,
 					},
 				},
 			},

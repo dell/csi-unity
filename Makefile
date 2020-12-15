@@ -36,6 +36,18 @@ podman-build: go-build
 podman-push: go-build
 	sh build.sh -p
 
+#
+# Docker-related tasks
+#
+# Generates the docker container (but does not push)
+docker-build: go-build
+	cd core && go generate
+	go run core/semver/semver.go -f mk >semver.mk
+	make -f docker.mk docker-build
+
+docker-push:
+	make -f docker.mk docker-push
+
 version:
 	go generate
 	go run core/semver/semver.go -f mk >semver.mk
