@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DATA-DOG/godog"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/cucumber/godog"
 )
 
 const (

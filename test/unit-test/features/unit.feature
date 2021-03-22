@@ -124,7 +124,7 @@ Feature: CSI interface
 
   Scenario: Create a volume without thinProvisioned parameter
     Given a CSI service
-    And a basic block volume request with volumeName "gdtest-vol7" arrayId "Array1-Id" protocol "FC" size "2" storagepool "pool_1" thinProvisioned "" isDataReductionEnabled "false" tieringPolicy "0"
+    And a basic block volume request with volumeName "gdtest-vol7" arrayId "Array1-Id" protocol "FC" size "2" storagepool "id" thinProvisioned "" isDataReductionEnabled "false" tieringPolicy "0"
     When I call CreateVolume
     Then there are no errors
     And when I call DeleteVolume
@@ -132,7 +132,7 @@ Feature: CSI interface
 
   Scenario: Create a volume without isCompressionEnabled parameter
     Given a CSI service
-    And a basic block volume request with volumeName "gdtest-vol8" arrayId "Array1-Id" protocol "FC" size "2" storagepool "pool_1" thinProvisioned "true" isDataReductionEnabled "false" tieringPolicy "0"
+    And a basic block volume request with volumeName "gdtest-vol8" arrayId "Array1-Id" protocol "FC" size "2" storagepool "id" thinProvisioned "true" isDataReductionEnabled "false" tieringPolicy "0"
     When I call CreateVolume
     Then there are no errors
     And when I call DeleteVolume
@@ -140,7 +140,7 @@ Feature: CSI interface
 
   Scenario: Create a volume without isDataReductionEnabled parameter
     Given a CSI service
-    And a basic block volume request with volumeName "gdtest-vol9" arrayId "Array1-Id" protocol "FC" size "2" storagepool "pool_1" thinProvisioned "true" isDataReductionEnabled "" tieringPolicy "0"
+    And a basic block volume request with volumeName "gdtest-vol9" arrayId "Array1-Id" protocol "FC" size "2" storagepool "id" thinProvisioned "true" isDataReductionEnabled "" tieringPolicy "0"
     When I call CreateVolume
     Then there are no errors
     And when I call DeleteVolume
@@ -148,7 +148,7 @@ Feature: CSI interface
 
   Scenario: Create a volume without isDataReductionEnabled parameter
     Given a CSI service
-    And a basic block volume request with volumeName "gdtest-vol10" arrayId "Array1-Id" protocol "FC" size "2" storagepool "pool_1" thinProvisioned "true" isDataReductionEnabled "false" tieringPolicy ""
+    And a basic block volume request with volumeName "gdtest-vol10" arrayId "Array1-Id" protocol "FC" size "2" storagepool "id" thinProvisioned "true" isDataReductionEnabled "false" tieringPolicy ""
     When I call CreateVolume
     Then there are no errors
     And when I call DeleteVolume
@@ -298,18 +298,6 @@ Feature: CSI interface
     And when I call PublishVolume with host "host" readonly "true"
     Then the error message should contain "Readonly must be false"
     And when I call DeleteVolume
-    Then there are no errors 
-
-  Scenario: Publish and unpublish a volume to host without giving hostname
-    Given a CSI service
-    And a basic block volume request name "gdtest-vol19" arrayId "Array1-Id" protocol "FC" size "5"
-    When I call CreateVolume
-    And there are no errors
-    And when I call PublishVolume with host "" readonly "false"
-    Then the error message should contain "required: NodeID"
-    And when I call UnpublishVolume
-    Then the error message should contain "Node ID is required"
-    And when I call DeleteVolume
     Then there are no errors
 
   Scenario: Publish a volume to host with VolumeCapability_AccessMode other than SINGLE_NODE_WRITER
@@ -320,18 +308,6 @@ Feature: CSI interface
     Then the error message should contain "not supported"
     And when I call PublishVolume
     Then the error message should contain "Access mode MULTI_NODE_SINGLE_WRITER is not supported"
-    And when I call DeleteVolume
-    Then there are no errors
-
-  Scenario: Publish and unpublish a volume to host with incorrect hostname
-    Given a CSI service
-    And a basic block volume request name "gdtest-vol21" arrayId "Array1-Id" protocol "FC" size "5"
-    When I call CreateVolume
-    And there are no errors
-    And when I call PublishVolume with host "host" readonly "false"
-    Then the error message should contain "unable to find host"
-    And when I call UnpublishVolume
-    Then the error message should contain "unable to find host"
     And when I call DeleteVolume
     Then there are no errors
 
@@ -752,21 +728,21 @@ Feature: CSI interface
 
   Scenario: Ephemeral Inline FC Volume
     Given a CSI service
-    And when I call EphemeralNodePublishVolume with volName "gdtest-ephemeralvolfc" fsType "ext4" arrayId "Array1-Id" am "RWO" size "5 Gi" storagePool "pool_1" protocol "FC" nasServer "nas_1" thinProvision "true" dataReduction "true"
+    And when I call EphemeralNodePublishVolume with volName "gdtest-ephemeralvolfc" fsType "ext4" arrayId "Array1-Id" am "RWO" size "5 Gi" storagePool "id" protocol "FC" nasServer "nas_1" thinProvision "true" dataReduction "true"
     Then there are no errors
     And when I call NodeUnPublishVolume
     Then there are no errors
 
   Scenario: Ephemeral Inline iSCSI Volume
     Given a CSI service
-    And when I call EphemeralNodePublishVolume with volName "gdtest-ephemeralvoliscsi" fsType "ext4" arrayId "Array1-Id" am "RWO" size "5 Gi" storagePool "pool_1" protocol "FC" nasServer "nas_1" thinProvision "true" dataReduction "true"
+    And when I call EphemeralNodePublishVolume with volName "gdtest-ephemeralvoliscsi" fsType "ext4" arrayId "Array1-Id" am "RWO" size "5 Gi" storagePool "id" protocol "iSCSI" nasServer "nas_1" thinProvision "true" dataReduction "true"
     Then there are no errors
     And when I call NodeUnPublishVolume
     Then there are no errors
 
   Scenario: Ephemeral Inline NFS Volume
     Given a CSI service
-    And when I call EphemeralNodePublishVolume with volName "gdtest-ephemeralvolnfs" fsType "ext4" arrayId "Array1-Id" am "RWO" size "5 Gi" storagePool "pool_1" protocol "FC" nasServer "nas_1" thinProvision "true" dataReduction "true"
+    And when I call EphemeralNodePublishVolume with volName "gdtest-ephemeralvolnfs" fsType "ext4" arrayId "Array1-Id" am "RWO" size "5 Gi" storagePool "id" protocol "NFS" nasServer "nas_1" thinProvision "true" dataReduction "true"
     Then there are no errors
     And when I call NodeUnPublishVolume
     Then there are no errors
@@ -791,6 +767,30 @@ Feature: CSI interface
     And when I call UnpublishVolume
     And there are no errors
     And when I call NodeUnstageVolume
+    And there are no errors
+    And when I call DeleteVolume
+    Then there are no errors
+
+  Scenario: Node publish to different target paths with AllowRWOMultiPodAccess true
+    Given a CSI service
+    And a basic block volume request name "gdtest-vol56" arrayId "Array1-Id" protocol "FC" size "5"
+    When I call CreateVolume
+    And there are no errors
+    And when I call PublishVolume
+    And there are no errors
+    And when I call NodeStageVolume fsType "ext4"
+    And there are no errors
+    And when I call NodePublishVolume fsType "ext4" readonly "false"
+    Then there are no errors
+    And when I call NodePublishVolume targetpath "/root/gdmounts/publishmountpath/mount2" fsType "ext4"
+    Then there are no errors
+    And when I call NodeUnPublishVolume targetpath "/root/gdmounts/publishmountpath/mount2"
+    And there are no errors
+    And when I call NodeUnPublishVolume
+    And there are no errors
+    And when I call NodeUnstageVolume
+    And there are no errors
+    And when I call UnpublishVolume
     And there are no errors
     And when I call DeleteVolume
     Then there are no errors

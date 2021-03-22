@@ -5,6 +5,6 @@
 rm -f /root/go/bin/csi.sock
 source ../../env.sh
 echo $SDC_GUID
-go test -v -coverprofile=c.out -timeout 30m -coverpkg=github.com/dell/csi-unity/service *test.go &
+go test -v -coverprofile=c.out -timeout 60m -coverpkg=github.com/dell/csi-unity/service *test.go &
 wait 
 go tool cover -html=c.out

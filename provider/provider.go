@@ -6,17 +6,18 @@ package provider
 
 import (
 	"github.com/dell/csi-unity/service"
-	"github.com/rexray/gocsi"
+	"github.com/dell/gocsi"
 )
 
 // New returns a new CSI Storage Plug-in Provider.
 func New() gocsi.StoragePluginProvider {
 	svc := service.New()
 	return &gocsi.StoragePlugin{
-		Controller:  svc,
-		Identity:    svc,
-		Node:        svc,
-		BeforeServe: svc.BeforeServe,
+		Controller:                svc,
+		Identity:                  svc,
+		Node:                      svc,
+		BeforeServe:               svc.BeforeServe,
+		RegisterAdditionalServers: svc.RegisterAdditionalServers,
 
 		EnvVars: []string{
 			// Enable request validation

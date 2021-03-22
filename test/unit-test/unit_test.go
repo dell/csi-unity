@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DATA-DOG/godog"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/cucumber/godog"
 )
 
 const (
@@ -45,7 +45,7 @@ type feature struct {
 	volIDList                         []string
 	maxRetryCount                     int
 	nodeId                            string
-	ephemeral						  bool
+	ephemeral                         bool
 }
 
 //addError method appends an error to the error list
@@ -436,7 +436,7 @@ func (f *feature) whenICallDeleteAllCreatedVolumes() error {
 func (f *feature) whenICallPublishVolume() error {
 	req := new(csi.ControllerPublishVolumeRequest)
 	req.VolumeId = f.volID
-	req.NodeId = os.Getenv("X_CSI_UNITY_NODENAME")+","+os.Getenv("X_CSI_UNITY_LONGNODENAME")
+	req.NodeId = os.Getenv("X_CSI_UNITY_NODENAME") + "," + os.Getenv("X_CSI_UNITY_LONGNODENAME")
 	f.nodeId = req.NodeId
 	req.Readonly = false
 	req.VolumeCapability = f.capability
@@ -459,7 +459,7 @@ func (f *feature) whenICallPublishVolume() error {
 func (f *feature) whenICallPublishVolumeWithParam(hostName, readonly string) error {
 	req := new(csi.ControllerPublishVolumeRequest)
 	req.VolumeId = f.volID
-	req.NodeId = os.Getenv("X_CSI_UNITY_NODENAME")+","+os.Getenv("X_CSI_UNITY_LONGNODENAME")
+	req.NodeId = os.Getenv("X_CSI_UNITY_NODENAME") + "," + os.Getenv("X_CSI_UNITY_LONGNODENAME")
 	f.nodeId = req.NodeId
 	read, _ := strconv.ParseBool(readonly)
 	req.Readonly = read
@@ -483,7 +483,7 @@ func (f *feature) whenICallPublishVolumeWithParam(hostName, readonly string) err
 func (f *feature) whenICallPublishVolumeWithVolumeId(volId string) error {
 	req := new(csi.ControllerPublishVolumeRequest)
 	req.VolumeId = volId
-	req.NodeId = os.Getenv("X_CSI_UNITY_NODENAME")+","+os.Getenv("X_CSI_UNITY_LONGNODENAME")
+	req.NodeId = os.Getenv("X_CSI_UNITY_NODENAME") + "," + os.Getenv("X_CSI_UNITY_LONGNODENAME")
 	f.nodeId = req.NodeId
 	req.Readonly = false
 	req.VolumeCapability = f.capability
@@ -506,7 +506,7 @@ func (f *feature) whenICallPublishVolumeWithVolumeId(volId string) error {
 func (f *feature) whenICallUnpublishVolume() error {
 	req := new(csi.ControllerUnpublishVolumeRequest)
 	req.VolumeId = f.volID
-	req.NodeId = os.Getenv("X_CSI_UNITY_NODENAME")+","+os.Getenv("X_CSI_UNITY_LONGNODENAME")
+	req.NodeId = os.Getenv("X_CSI_UNITY_NODENAME") + "," + os.Getenv("X_CSI_UNITY_LONGNODENAME")
 	ctx := context.Background()
 	client := csi.NewControllerClient(grpcClient)
 	_, err := client.ControllerUnpublishVolume(ctx, req)
@@ -524,7 +524,7 @@ func (f *feature) whenICallUnpublishVolume() error {
 func (f *feature) iCallUnpublishVolumeWithVolumeId(volId string) error {
 	req := new(csi.ControllerUnpublishVolumeRequest)
 	req.VolumeId = volId
-	req.NodeId = os.Getenv("X_CSI_UNITY_NODENAME")+","+os.Getenv("X_CSI_UNITY_LONGNODENAME")
+	req.NodeId = os.Getenv("X_CSI_UNITY_NODENAME") + "," + os.Getenv("X_CSI_UNITY_LONGNODENAME")
 	ctx := context.Background()
 	client := csi.NewControllerClient(grpcClient)
 	_, err := client.ControllerUnpublishVolume(ctx, req)
@@ -872,6 +872,9 @@ func (f *feature) whenICallEphemeralNodePublishVolume(volName, fsType, arrayId, 
 	params["arrayId"] = os.Getenv(arrayId)
 	params["size"] = size
 	params["storagePool"] = storagePool
+	if storagePool == "id" {
+		params["storagePool"] = os.Getenv("STORAGE_POOL")
+	}
 	params["protocol"] = protocol
 	params["nasServer"] = nasServer
 	params["thinProvisioned"] = thinProvision
@@ -896,12 +899,12 @@ func (f *feature) whenICallEphemeralNodePublishVolume(volName, fsType, arrayId, 
 func (f *feature) whenICallNodePublishVolumeWithTargetPath(target_path, fsType string) error {
 	f.nodePublishVolumeRequest = nil
 	req := new(csi.NodePublishVolumeRequest)
-	if f.createVolumeResponse != nil || f.ephemeral == true{
+	if f.createVolumeResponse != nil || f.ephemeral == true {
 		req.VolumeId = f.volID
 	} else {
 		req.VolumeId = ""
 	}
-	fmt.Println("========================",req.VolumeId)
+	fmt.Println("========================", req.VolumeId)
 	req.StagingTargetPath = path.Join(os.Getenv("X_CSI_STAGING_TARGET_PATH"), f.volID)
 	req.TargetPath = target_path
 	capability := new(csi.VolumeCapability)
@@ -977,6 +980,31 @@ func (f *feature) whenICallNodeUnPublishVolume() error {
 	} else {
 		req.TargetPath = ""
 	}
+	f.nodeUnpublishVolumeRequest = req
+
+	ctx := context.Background()
+	client := csi.NewNodeClient(grpcClient)
+	_, err := client.NodeUnpublishVolume(ctx, req)
+	if err != nil {
+		fmt.Printf("Node unpublish volume failed: %s\n", err.Error())
+		f.addError(err)
+	} else {
+		fmt.Printf("Node unpublish volume completed successfully\n")
+	}
+	return nil
+}
+
+//whenICallNodeUnPublishVolumeWithTargetPath - Test case for node unpublish volume with target path
+func (f *feature) whenICallNodeUnPublishVolumeWithTargetPath(target_path string) error {
+	f.nodeUnpublishVolumeRequest = nil
+	req := new(csi.NodeUnpublishVolumeRequest)
+	if f.nodePublishVolumeRequest != nil {
+		req.VolumeId = f.nodePublishVolumeRequest.VolumeId
+	} else {
+		req.VolumeId = ""
+	}
+
+	req.TargetPath = target_path
 	f.nodeUnpublishVolumeRequest = req
 
 	ctx := context.Background()
@@ -1220,6 +1248,7 @@ func FeatureContext(s *godog.Suite) {
 	s.Step(`^when I call NodePublishVolume targetpath "([^"]*)" fsType "([^"]*)"$`, f.whenICallNodePublishVolumeWithTargetPath)
 	s.Step(`^when I call EphemeralNodePublishVolume with volName "([^"]*)" fsType "([^"]*)" arrayId "([^"]*)" am "([^"]*)" size "([^"]*)" storagePool "([^"]*)" protocol "([^"]*)" nasServer "([^"]*)" thinProvision "([^"]*)" dataReduction "([^"]*)"$`, f.whenICallEphemeralNodePublishVolume)
 	s.Step(`^when I call NodeUnPublishVolume$`, f.whenICallNodeUnPublishVolume)
+	s.Step(`^when I call NodeUnPublishVolume targetpath "([^"]*)"$`, f.whenICallNodeUnPublishVolumeWithTargetPath)
 	s.Step(`^when I call NodeStageVolume fsType "([^"]*)"$`, f.whenICallNodeStageVolume)
 	s.Step(`^when I call NodeStageVolume fsType "([^"]*)" with StagingTargetPath "([^"]*)"$`, f.whenICallNodeStageVolumeWithTargetPath)
 	s.Step(`^when I call NodeUnstageVolume$`, f.whenICallNodeUnstageVolume)

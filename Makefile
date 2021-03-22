@@ -12,7 +12,7 @@ go-vendor:
 	go mod vendor
 
 .PHONY: go-build
-go-build: clean go-vendor
+go-build: clean
 	git config core.hooksPath hooks
 	rm -f core/core_generated.go
 	cd core && go generate

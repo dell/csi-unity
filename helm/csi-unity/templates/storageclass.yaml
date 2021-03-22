@@ -5,10 +5,11 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  {{- if $v.isDefaultArray }}
-  name: "unity"
   annotations:
+    "helm.sh/resource-policy": keep
+  {{- if $v.isDefaultArray }}
     storageclass.beta.kubernetes.io/is-default-class: {{ $v.isDefaultArray | quote }}
+  name: "unity"
   {{ else }}
   name: {{ "unity" }}-{{ $v.name | lower }}-{{ "fc" }}
   {{- end }}
@@ -38,6 +39,8 @@ allowedTopologies:
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
+  annotations:
+    "helm.sh/resource-policy": keep
   {{- if $v.isDefaultArray }}
   name: "unity-iscsi"
   {{ else }}
@@ -70,6 +73,8 @@ allowedTopologies:
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
+  annotations:
+    "helm.sh/resource-policy": keep
   {{- if $v.isDefaultArray }}
   name: "unity-nfs"
   {{ else }}
@@ -87,6 +92,14 @@ parameters:
   tieringPolicy: {{ $v.storageClass.tieringPolicy | default $global.Values.storageClass.tieringPolicy | quote }}
   nasServer: {{ $v.storageClass.nasServer | default $global.Values.storageClass.nasServer | quote }}
   hostIoSize: {{ $v.storageClass.hostIoSize | default $global.Values.storageClass.hostIoSize | lower | quote }}
+  {{ if eq $.Values.createStorageClassesWithTopology true }}
+volumeBindingMode: WaitForFirstConsumer
+allowedTopologies:
+  - matchLabelExpressions:
+      - key: csi-unity.dellemc.com/{{ required "Must provide a arrayId" $v.name | lower }}-nfs
+        values:
+          - "true"
+  {{- end }}
 ---
 {{- end }}
 {{- end }}

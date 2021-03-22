@@ -32,9 +32,9 @@ func GetVolumeResponseFromVolume(volume *types.Volume, arrayId, protocol string,
 }
 
 //GetVolumeResponseFromFilesystem Utility method to convert Unity rest Filesystem response to CSI standard Volume Response
-func GetVolumeResponseFromFilesystem(filesystem *types.Filesystem, arrayId, protocol string) *csi.CreateVolumeResponse {
+func GetVolumeResponseFromFilesystem(filesystem *types.Filesystem, arrayId, protocol string, preferredAccessibility []*csi.Topology) *csi.CreateVolumeResponse {
 	content := filesystem.FileContent
-	return getVolumeResponse(content.Name, protocol, arrayId, content.Id, content.SizeTotal, nil)
+	return getVolumeResponse(content.Name, protocol, arrayId, content.Id, content.SizeTotal, preferredAccessibility)
 }
 
 func GetVolumeResponseFromSnapshot(snapshot *types.Snapshot, arrayId, protocol string, preferredAccessibility []*csi.Topology) *csi.CreateVolumeResponse {
@@ -45,15 +45,11 @@ func GetVolumeResponseFromSnapshot(snapshot *types.Snapshot, arrayId, protocol s
 	VolumeContext["volumeId"] = snapshot.SnapshotContent.ResourceId
 
 	volumeReq := &csi.Volume{
-		VolumeId:      volId,
-		CapacityBytes: int64(snapshot.SnapshotContent.Size),
-		VolumeContext: VolumeContext,
+		VolumeId:           volId,
+		CapacityBytes:      int64(snapshot.SnapshotContent.Size),
+		VolumeContext:      VolumeContext,
+		AccessibleTopology: preferredAccessibility,
 	}
-	// For NFS we will not add topology constraint since topology is not enabled for that protocol
-	if preferredAccessibility != nil {
-		volumeReq.AccessibleTopology = preferredAccessibility
-	}
-
 	volumeResp := &csi.CreateVolumeResponse{
 		Volume: volumeReq,
 	}
@@ -68,13 +64,10 @@ func getVolumeResponse(name, protocol, arrayId, resourceId string, size uint64, 
 	VolumeContext["volumeId"] = resourceId
 
 	volumeReq := &csi.Volume{
-		VolumeId:      volId,
-		CapacityBytes: int64(size),
-		VolumeContext: VolumeContext,
-	}
-	// For NFS we will not add topology constraint since topology is not enabled for that protocol
-	if preferredAccessibility != nil {
-		volumeReq.AccessibleTopology = preferredAccessibility
+		VolumeId:           volId,
+		CapacityBytes:      int64(size),
+		VolumeContext:      VolumeContext,
+		AccessibleTopology: preferredAccessibility,
 	}
 	volumeResp := &csi.CreateVolumeResponse{
 		Volume: volumeReq,

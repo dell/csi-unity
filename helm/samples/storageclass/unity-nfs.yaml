@@ -1,0 +1,32 @@
+# This is a sample manifest for utilizing the topology feature and mount options.
+# PVCs created using this storage class will be scheduled on any available node
+
+# Change all instances of <ARRAY_ID> to the array serial ID of the unisphere instance used
+
+# Provide mount options through "mountOptions" attribute 
+# to create PVCs with mount options.
+
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: unity-<ARRAY_ID>-nfs
+provisioner: csi-unity.dellemc.com
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  protocol: NFS #Protocol that will be used for provisioning. NFS denotes that the provisioning will be via NFS protocol
+  arrayId: <ARRAY_ID> #Serial Id of the array that will be used for provisioning. Example APM00000000000
+  storagePool: <STORAGE_POOL> #Insert Storage pool CLI Id here. Example pool_0
+  thinProvisioned: true #Boolean to choose value of thinProvisioned while creating a new filesystem
+  isDataReductionEnabled: true #Boolean to choose value of isDataReductionEnabled while creating a new filesystem
+  tieringPolicy: <TIERING_POLICY> #Insert Tiering policy that is to be used for provisioning here.  Example 0
+  nasServer: <NAS_SERVER> #Insert NAS Server for the filesystem here. Example nasserver_0
+  hostIoSize: <HOST_IO_SIZE> #Insert Host IO Size that is to be set for the filesystem here. Example 8192
+allowedTopologies:
+  - matchLabelExpressions:
+      - key: csi-unity.dellemc.com/<array_id>-nfs
+        values:
+          - "true"
+
+mountOptions: ["<mountOption1>", "<mountOption2>", ..., "<mountOptionN>"]

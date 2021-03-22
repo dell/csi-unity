@@ -33,7 +33,7 @@ IMAGE_NAME=${NAME}-${USER}
 VERSION=$(date +%Y%m%d%H%M%S)
 BIN_DIR=bin
 BIN_NAME=${NAME}
-IMAGE_REPO=amaas-eos-mw1.cec.lab.emc.com:5028
+IMAGE_REPO=dellemc
 IMAGE_REPO_NAMESPACE=csi-unity
 IMAGE_TAG=${VERSION}
 

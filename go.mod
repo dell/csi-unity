@@ -1,22 +1,25 @@
 module github.com/dell/csi-unity
 
-go 1.13
+go 1.15
+
+//TODO: remove before release
+replace github.com/dell/gounity => ../gounity
 
 require (
-	github.com/DATA-DOG/godog v0.7.13
-	github.com/Showmax/go-fqdn v1.0.0 // indirect
 	github.com/container-storage-interface/spec v1.2.0
+	github.com/cucumber/godog v0.10.0
+	github.com/dell/dell-csi-extensions/podmon v0.1.0
 	github.com/dell/gobrick v1.0.0
-	github.com/dell/gofsutil v1.4.0
+	github.com/dell/gocsi v1.2.3
+	github.com/dell/gofsutil v1.6.0
 	github.com/dell/goiscsi v1.2.0
-	github.com/dell/gounity v1.4.0
+	github.com/dell/gounity v1.5.0
 	github.com/fsnotify/fsnotify v1.4.9
-	github.com/golang/protobuf v1.4.2
+	github.com/golang/protobuf v1.4.3
 	github.com/kubernetes-csi/csi-lib-utils v0.7.0
-	github.com/rexray/gocsi v1.2.1
 	github.com/sirupsen/logrus v1.6.0
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.6.1
 	golang.org/x/net v0.0.0-20200625001655-4c5254603344
-	google.golang.org/grpc v1.27.0
+	google.golang.org/grpc v1.29.0
 	k8s.io/client-go v0.18.6
 )

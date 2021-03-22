@@ -5,19 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/dell/csi-unity/core"
-	"github.com/dell/csi-unity/service/utils"
-	"github.com/dell/gobrick"
-	"github.com/dell/goiscsi"
-	"github.com/dell/gounity"
-	"github.com/fsnotify/fsnotify"
-	"github.com/rexray/gocsi"
-	csictx "github.com/rexray/gocsi/context"
-	"github.com/sirupsen/logrus"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/status"
+	"github.com/dell/dell-csi-extensions/podmon"
+	"google.golang.org/grpc"
 	"io/ioutil"
 	"net"
 	"path/filepath"
@@ -26,6 +15,20 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/dell/csi-unity/core"
+	"github.com/dell/csi-unity/service/utils"
+	"github.com/dell/gobrick"
+	"github.com/dell/gocsi"
+	csictx "github.com/dell/gocsi/context"
+	"github.com/dell/goiscsi"
+	"github.com/dell/gounity"
+	"github.com/fsnotify/fsnotify"
+	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -77,6 +80,7 @@ type Service interface {
 	csi.IdentityServer
 	csi.NodeServer
 	BeforeServe(context.Context, *gocsi.StoragePlugin, net.Listener) error
+	RegisterAdditionalServers(*grpc.Server)
 }
 
 // Opts defines service configuration options.
@@ -86,6 +90,7 @@ type Opts struct {
 	Chroot                        string
 	Thick                         bool
 	AutoProbe                     bool
+	AllowRWOMultiPodAccess        bool
 	PvtMountDir                   string
 	Debug                         bool
 	SyncNodeInfoTimeInterval      int
@@ -182,6 +187,11 @@ func (s *service) BeforeServe(
 	}
 
 	opts.AutoProbe = pb(EnvAutoProbe)
+	opts.AllowRWOMultiPodAccess = pb(EnvAllowRWOMultiPodAccess)
+
+	if opts.AllowRWOMultiPodAccess {
+		log.Infof("AllowRWOMultiPodAccess has been set to true. PVCs will now be accessible by multiple pods on the same node.")
+	}
 
 	//Global mount directory will be used to node unstage volumes mounted via CSI-Unity v1.0 or v1.1
 	if pvtmountDir, ok := csictx.LookupEnv(ctx, EnvPvtMountDir); ok {
@@ -225,6 +235,13 @@ func (s *service) BeforeServe(
 	}
 
 	return nil
+}
+
+// RegisterAdditionalServers registers any additional grpc services that use the CSI socket.
+func (s *service) RegisterAdditionalServers(server *grpc.Server) {
+	_, log := setRunIdContext(context.Background(), "RegisterAdditionalServers")
+	log.Info("Registering additional GRPC servers")
+	podmon.RegisterPodmonServer(server, s)
 }
 
 //Get storage array from sync Map

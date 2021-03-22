@@ -86,14 +86,18 @@ func valVolumeCaps(vcs []*csi.VolumeCapability, protocol string) (bool, string) 
 		case csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY:
 			break
 		case csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY:
-			if protocol == "NFS" || isBlock {
-				break
-			}
-			fallthrough
+			if isBlock {
+				supported = false
+				reason = errBlockReadOnly
+			} else if protocol == FC || protocol == ISCSI {
+				supported = false
+				reason = errNoMultiNodeReader
+			} //else NFS case
+			break
 		case csi.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER:
 			fallthrough
 		case csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER:
-			if protocol == "NFS" || isBlock {
+			if protocol == NFS || isBlock {
 				break
 			}
 

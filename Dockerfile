@@ -1,4 +1,4 @@
-# Dockerfile to build PowerStore CSI Driver
+# Dockerfile to build Unity CSI Driver
 FROM centos:7.6.1810
 
 # dependencies, following by cleaning the cache
