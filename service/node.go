@@ -397,7 +397,7 @@ func (s *service) NodePublishVolume(
 		if len(exportPaths) == 0 {
 			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Export paths not exist on NFS Share: %s", nfsShare.NFSShareContent.Id))
 		}
-		err = publishNFS(ctx, req, exportPaths, arrayId, s.opts.Chroot, nfsv3, nfsv4)
+		err = publishNFS(ctx, req, exportPaths, arrayId, s.opts.Chroot, nfsv3, nfsv4, s.opts.AllowRWOMultiPodAccess)
 		if err != nil {
 			return nil, err
 		}
@@ -426,7 +426,7 @@ func (s *service) NodePublishVolume(
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Disk path not found. Error: %v", err))
 	}
 
-	if err := publishVolume(ctx, req, targetPath, symlinkPath, s.opts.Chroot); err != nil {
+	if err := publishVolume(ctx, req, targetPath, symlinkPath, s.opts.Chroot, s.opts.AllowRWOMultiPodAccess); err != nil {
 		return nil, err
 	}
 
@@ -1689,6 +1689,8 @@ func (s *service) validateProtocols(ctx context.Context, arraysList []*StorageAr
 		if array.IsHostAdded {
 			iscsiInitiators, err := s.iscsiClient.GetInitiators("")
 			fcInitiators, err := utils.GetFCInitiators(ctx)
+			// we will enable NFS by default
+			connectedSystemID = append(connectedSystemID, array.ArrayId+"/"+strings.ToLower(NFS))
 
 			if len(iscsiInitiators) != 0 || len(fcInitiators) != 0 {
 				log.Info("iSCSI/FC package found in this node proceeding to further validations")

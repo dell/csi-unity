@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DATA-DOG/godog"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/cucumber/godog"
 	"github.com/dell/csi-unity/provider"
 	"github.com/dell/csi-unity/service"
-	"github.com/rexray/gocsi/utils"
+	"github.com/dell/gocsi/utils"
 	"google.golang.org/grpc"
 )
 

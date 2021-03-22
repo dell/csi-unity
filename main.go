@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/rexray/gocsi"
+	"github.com/dell/gocsi"
 	"os"
 	"strings"
 

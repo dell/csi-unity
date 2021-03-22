@@ -143,7 +143,7 @@ The script will then perform the following steps:
   - Modify the Helm charts or Operator configuration to refer to the newly tagged/pushed images
 
 
-An example of preparing the bundle for installation (1.1.1.4:5000 refers to a image registry accessible to Kubernetes/OpenShift):
+An example of preparing the bundle for installation (192.168.75.40:5000 refers to a image registry accessible to Kubernetes/OpenShift):
 ```
 [user@anothersystem /tmp]# tar xvfz dell-csi-operator-bundle.tar.gz
 dell-csi-operator-bundle/
@@ -158,7 +158,7 @@ dell-csi-operator-bundle/README.md
 [user@anothersystem /tmp]# cd dell-csi-operator-bundle
 ```
 ```
-[user@anothersystem /tmp/dell-csi-operator-bundle]# scripts/csi-offline-bundle.sh -p -r 1.1.1.4:5000/operator
+[user@anothersystem /tmp/dell-csi-operator-bundle]# scripts/csi-offline-bundle.sh -p -r 192.168.75.40:5000/operator
 Preparing a offline bundle for installation
 
 *
@@ -168,44 +168,44 @@ Preparing a offline bundle for installation
 *
 * Tagging and pushing images
 
-   dellemc/csi-isilon:v1.2.0 -> 1.1.1.4:5000/operator/csi-isilon:v1.2.0
-   dellemc/csi-isilon:v1.3.0.000R -> 1.1.1.4:5000/operator/csi-isilon:v1.3.0.000R
-   dellemc/csipowermax-reverseproxy:v1.0.0.000R -> 1.1.1.4:5000/operator/csipowermax-reverseproxy:v1.0.0.000R
-   dellemc/csi-powermax:v1.2.0.000R -> 1.1.1.4:5000/operator/csi-powermax:v1.2.0.000R
-   dellemc/csi-powermax:v1.4.0.000R -> 1.1.1.4:5000/operator/csi-powermax:v1.4.0.000R
-   dellemc/csi-powerstore:v1.1.0.000R -> 1.1.1.4:5000/operator/csi-powerstore:v1.1.0.000R
-   dellemc/csi-unity:v1.3.0.000R -> 1.1.1.4:5000/operator/csi-unity:v1.3.0.000R
-   dellemc/csi-vxflexos:v1.1.5.000R -> 1.1.1.4:5000/operator/csi-vxflexos:v1.1.5.000R
-   dellemc/csi-vxflexos:v1.2.0.000R -> 1.1.1.4:5000/operator/csi-vxflexos:v1.2.0.000R
-   dellemc/dell-csi-operator:v1.1.0.000R -> 1.1.1.4:5000/operator/dell-csi-operator:v1.1.0.000R
-   quay.io/k8scsi/csi-attacher:v2.0.0 -> 1.1.1.4:5000/operator/csi-attacher:v2.0.0
-   quay.io/k8scsi/csi-attacher:v2.2.0 -> 1.1.1.4:5000/operator/csi-attacher:v2.2.0
-   quay.io/k8scsi/csi-node-driver-registrar:v1.2.0 -> 1.1.1.4:5000/operator/csi-node-driver-registrar:v1.2.0
-   quay.io/k8scsi/csi-provisioner:v1.4.0 -> 1.1.1.4:5000/operator/csi-provisioner:v1.4.0
-   quay.io/k8scsi/csi-provisioner:v1.6.0 -> 1.1.1.4:5000/operator/csi-provisioner:v1.6.0
-   quay.io/k8scsi/csi-resizer:v0.5.0 -> 1.1.1.4:5000/operator/csi-resizer:v0.5.0
-   quay.io/k8scsi/csi-snapshotter:v2.1.1 -> 1.1.1.4:5000/operator/csi-snapshotter:v2.1.1
+   dellemc/csi-isilon:v1.2.0 -> 192.168.75.40:5000/operator/csi-isilon:v1.2.0
+   dellemc/csi-isilon:v1.3.0.000R -> 192.168.75.40:5000/operator/csi-isilon:v1.3.0.000R
+   dellemc/csipowermax-reverseproxy:v1.0.0.000R -> 192.168.75.40:5000/operator/csipowermax-reverseproxy:v1.0.0.000R
+   dellemc/csi-powermax:v1.2.0.000R -> 192.168.75.40:5000/operator/csi-powermax:v1.2.0.000R
+   dellemc/csi-powermax:v1.4.0.000R -> 192.168.75.40:5000/operator/csi-powermax:v1.4.0.000R
+   dellemc/csi-powerstore:v1.1.0.000R -> 192.168.75.40:5000/operator/csi-powerstore:v1.1.0.000R
+   dellemc/csi-unity:v1.3.0.000R -> 192.168.75.40:5000/operator/csi-unity:v1.3.0.000R
+   dellemc/csi-vxflexos:v1.1.5.000R -> 192.168.75.40:5000/operator/csi-vxflexos:v1.1.5.000R
+   dellemc/csi-vxflexos:v1.2.0.000R -> 192.168.75.40:5000/operator/csi-vxflexos:v1.2.0.000R
+   dellemc/dell-csi-operator:v1.1.0.000R -> 192.168.75.40:5000/operator/dell-csi-operator:v1.1.0.000R
+   quay.io/k8scsi/csi-attacher:v2.0.0 -> 192.168.75.40:5000/operator/csi-attacher:v2.0.0
+   quay.io/k8scsi/csi-attacher:v2.2.0 -> 192.168.75.40:5000/operator/csi-attacher:v2.2.0
+   quay.io/k8scsi/csi-node-driver-registrar:v1.2.0 -> 192.168.75.40:5000/operator/csi-node-driver-registrar:v1.2.0
+   quay.io/k8scsi/csi-provisioner:v1.4.0 -> 192.168.75.40:5000/operator/csi-provisioner:v1.4.0
+   quay.io/k8scsi/csi-provisioner:v1.6.0 -> 192.168.75.40:5000/operator/csi-provisioner:v1.6.0
+   quay.io/k8scsi/csi-resizer:v0.5.0 -> 192.168.75.40:5000/operator/csi-resizer:v0.5.0
+   quay.io/k8scsi/csi-snapshotter:v2.1.1 -> 192.168.75.40:5000/operator/csi-snapshotter:v2.1.1
 
 *
 * Preparing operator files within /tmp/dell-csi-operator-bundle
 
-   changing: dellemc/csi-isilon:v1.2.0 -> 1.1.1.4:5000/operator/csi-isilon:v1.2.0
-   changing: dellemc/csi-isilon:v1.3.0.000R -> 1.1.1.4:5000/operator/csi-isilon:v1.3.0.000R
-   changing: dellemc/csipowermax-reverseproxy:v1.0.0.000R -> 1.1.1.4:5000/operator/csipowermax-reverseproxy:v1.0.0.000R
-   changing: dellemc/csi-powermax:v1.2.0.000R -> 1.1.1.4:5000/operator/csi-powermax:v1.2.0.000R
-   changing: dellemc/csi-powermax:v1.4.0.000R -> 1.1.1.4:5000/operator/csi-powermax:v1.4.0.000R
-   changing: dellemc/csi-powerstore:v1.1.0.000R -> 1.1.1.4:5000/operator/csi-powerstore:v1.1.0.000R
-   changing: dellemc/csi-unity:v1.3.0.000R -> 1.1.1.4:5000/operator/csi-unity:v1.3.0.000R
-   changing: dellemc/csi-vxflexos:v1.1.5.000R -> 1.1.1.4:5000/operator/csi-vxflexos:v1.1.5.000R
-   changing: dellemc/csi-vxflexos:v1.2.0.000R -> 1.1.1.4:5000/operator/csi-vxflexos:v1.2.0.000R
-   changing: dellemc/dell-csi-operator:v1.1.0.000R -> 1.1.1.4:5000/operator/dell-csi-operator:v1.1.0.000R
-   changing: quay.io/k8scsi/csi-attacher:v2.0.0 -> 1.1.1.4:5000/operator/csi-attacher:v2.0.0
-   changing: quay.io/k8scsi/csi-attacher:v2.2.0 -> 1.1.1.4:5000/operator/csi-attacher:v2.2.0
-   changing: quay.io/k8scsi/csi-node-driver-registrar:v1.2.0 -> 1.1.1.4:5000/operator/csi-node-driver-registrar:v1.2.0
-   changing: quay.io/k8scsi/csi-provisioner:v1.4.0 -> 1.1.1.4:5000/operator/csi-provisioner:v1.4.0
-   changing: quay.io/k8scsi/csi-provisioner:v1.6.0 -> 1.1.1.4:5000/operator/csi-provisioner:v1.6.0
-   changing: quay.io/k8scsi/csi-resizer:v0.5.0 -> 1.1.1.4:5000/operator/csi-resizer:v0.5.0
-   changing: quay.io/k8scsi/csi-snapshotter:v2.1.1 -> 1.1.1.4:5000/operator/csi-snapshotter:v2.1.1
+   changing: dellemc/csi-isilon:v1.2.0 -> 192.168.75.40:5000/operator/csi-isilon:v1.2.0
+   changing: dellemc/csi-isilon:v1.3.0.000R -> 192.168.75.40:5000/operator/csi-isilon:v1.3.0.000R
+   changing: dellemc/csipowermax-reverseproxy:v1.0.0.000R -> 192.168.75.40:5000/operator/csipowermax-reverseproxy:v1.0.0.000R
+   changing: dellemc/csi-powermax:v1.2.0.000R -> 192.168.75.40:5000/operator/csi-powermax:v1.2.0.000R
+   changing: dellemc/csi-powermax:v1.4.0.000R -> 192.168.75.40:5000/operator/csi-powermax:v1.4.0.000R
+   changing: dellemc/csi-powerstore:v1.1.0.000R -> 192.168.75.40:5000/operator/csi-powerstore:v1.1.0.000R
+   changing: dellemc/csi-unity:v1.3.0.000R -> 192.168.75.40:5000/operator/csi-unity:v1.3.0.000R
+   changing: dellemc/csi-vxflexos:v1.1.5.000R -> 192.168.75.40:5000/operator/csi-vxflexos:v1.1.5.000R
+   changing: dellemc/csi-vxflexos:v1.2.0.000R -> 192.168.75.40:5000/operator/csi-vxflexos:v1.2.0.000R
+   changing: dellemc/dell-csi-operator:v1.1.0.000R -> 192.168.75.40:5000/operator/dell-csi-operator:v1.1.0.000R
+   changing: quay.io/k8scsi/csi-attacher:v2.0.0 -> 192.168.75.40:5000/operator/csi-attacher:v2.0.0
+   changing: quay.io/k8scsi/csi-attacher:v2.2.0 -> 192.168.75.40:5000/operator/csi-attacher:v2.2.0
+   changing: quay.io/k8scsi/csi-node-driver-registrar:v1.2.0 -> 192.168.75.40:5000/operator/csi-node-driver-registrar:v1.2.0
+   changing: quay.io/k8scsi/csi-provisioner:v1.4.0 -> 192.168.75.40:5000/operator/csi-provisioner:v1.4.0
+   changing: quay.io/k8scsi/csi-provisioner:v1.6.0 -> 192.168.75.40:5000/operator/csi-provisioner:v1.6.0
+   changing: quay.io/k8scsi/csi-resizer:v0.5.0 -> 192.168.75.40:5000/operator/csi-resizer:v0.5.0
+   changing: quay.io/k8scsi/csi-snapshotter:v2.1.1 -> 192.168.75.40:5000/operator/csi-snapshotter:v2.1.1
 
 *
 * Complete

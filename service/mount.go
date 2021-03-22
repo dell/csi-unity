@@ -3,13 +3,14 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/dell/csi-unity/service/utils"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/dell/csi-unity/service/utils"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/dell/gofsutil"
@@ -111,7 +112,7 @@ func stagePublishNFS(ctx context.Context, req *csi.NodeStageVolumeRequest, expor
 	return nil
 }
 
-func publishNFS(ctx context.Context, req *csi.NodePublishVolumeRequest, exportPaths []string, arrayId, chroot string, nfsv3, nfsv4 bool) error {
+func publishNFS(ctx context.Context, req *csi.NodePublishVolumeRequest, exportPaths []string, arrayId, chroot string, nfsv3, nfsv4, allowRWOmultiPodAccess bool) error {
 	ctx, log, rid := GetRunidLog(ctx)
 	ctx, log = setArrayIdContext(ctx, arrayId)
 
@@ -181,11 +182,11 @@ func publishNFS(ctx context.Context, req *csi.NodePublishVolumeRequest, exportPa
 				} else if m.Path == stagingTargetPath || m.Path == chroot+stagingTargetPath {
 					continue
 				} else {
-					if accMode.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
+					if accMode.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER && !allowRWOmultiPodAccess {
 						return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Export path: %s is already mounted to different target path: %s", stageExportPathURL, m.Path))
 					} else {
-						//For multi-node access modes target mount will be executed
-						break
+						//For multi-node access modes and when allowRWOmultiPodAccess is true for single-node access, target mount will be executed
+						continue
 					}
 				}
 			}
@@ -330,7 +331,7 @@ func stageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest, stagingPa
 	return nil
 }
 
-func publishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, targetPath, symlinkPath, chroot string) error {
+func publishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, targetPath, symlinkPath, chroot string, allowRWOmultiPodAccess bool) error {
 
 	rid, log := utils.GetRunidAndLogger(ctx)
 	stagingPath := req.GetStagingTargetPath()
@@ -381,7 +382,7 @@ func publishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, targe
 				return nil
 			} else if m.Path == stagingPath || m.Path == chroot+stagingPath {
 				continue
-			} else {
+			} else if !allowRWOmultiPodAccess {
 				//Device has been mounted aleady to another target
 				return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "device already in use and mounted elsewhere"))
 			}
@@ -650,9 +651,9 @@ func getDevMounts(ctx context.Context, sysDevice *Device) ([]gofsutil.Info, erro
 			mpDevName := strings.TrimPrefix(sysDevice.RealDev, "/dev/")
 			filename := fmt.Sprintf("/sys/devices/virtual/block/%s/dm/name", mpDevName)
 			if name, err := ioutil.ReadFile(filename); err != nil {
-				log.Error("Could not read mp dev name file ", filename, err)
+				log.Debugf("Could not read mp dev name file ", filename, err)
 			} else {
-				mpathDev := strings.TrimPrefix(strings.TrimSpace(string(name)), "3")
+				mpathDev := strings.TrimSpace(string(name))
 				mapperDevice := fmt.Sprintf("/dev/mapper/%s", mpathDev)
 				if m.Source == mapperDevice || m.Device == mapperDevice || m.Path == mapperDevice {
 					devMnts = append(devMnts, m)

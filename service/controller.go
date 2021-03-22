@@ -55,8 +55,9 @@ var (
 	errUnknownAccessType      = "unknown access type is not Block or Mount"
 	errUnknownAccessMode      = "access mode cannot be UNKNOWN"
 	errIncompatibleAccessMode = "access mode should be single node reader or single node writer"
-	errNoMultiNodeWriter      = "multi-node with writer(s) only supported for block access type"
-	errBlockReadOnly          = "Read only not supported for Block Volume"
+	errNoMultiNodeWriter      = "Multi-node with writer(s) only supported for block access type"
+	errNoMultiNodeReader      = "Multi-node Reader access mode is only supported for block access type"
+	errBlockReadOnly          = "Read Only Many access mode not supported for Block Volume"
 	errBlockNFS               = "Block Volume Capability is not supported for NFS"
 )
 
@@ -182,7 +183,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 			if int64(content.SizeTotal) == size && content.NASServer.Id == nasServer && content.Pool.Id == storagePool {
 				log.Info("Filesystem exists in the requested state with same size, NAS server and storage pool")
 				filesystem.FileContent.SizeTotal -= AdditionalFilesystemSize
-				return utils.GetVolumeResponseFromFilesystem(filesystem, arrayID, protocol), nil
+				return utils.GetVolumeResponseFromFilesystem(filesystem, arrayID, protocol, preferredAccessibility), nil
 			} else {
 				log.Info("'Filesystem name' already exists and size/NAS server/storage pool is different")
 				return nil, status.Error(codes.AlreadyExists, utils.GetMessageWithRunID(rid, "'Filesystem name' already exists and size/NAS server/storage pool is different."))
@@ -205,7 +206,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 
 		if resp != nil {
 			resp.FileContent.SizeTotal -= AdditionalFilesystemSize
-			filesystemResp := utils.GetVolumeResponseFromFilesystem(resp, arrayID, protocol)
+			filesystemResp := utils.GetVolumeResponseFromFilesystem(resp, arrayID, protocol, preferredAccessibility)
 			return filesystemResp, nil
 		}
 	} else {
@@ -346,13 +347,13 @@ func (s *service) ControllerPublishVolume(
 	pinfo["arrayId"] = arrayID
 	pinfo["host"] = nodeID
 
-	if protocol == FC || protocol == ISCSI {
-		resp, err := s.exportVolume(ctx, protocol, volID, hostID, nodeID, arrayID, unity, pinfo, host)
-		return resp, err
-	}
-
 	vc := req.GetVolumeCapability()
 	am := vc.GetAccessMode()
+
+	if protocol == FC || protocol == ISCSI {
+		resp, err := s.exportVolume(ctx, protocol, volID, hostID, nodeID, arrayID, unity, pinfo, host, vc)
+		return resp, err
+	}
 
 	//Export for NFS
 	resp, err := s.exportFilesystem(ctx, volID, hostID, nodeID, arrayID, unity, pinfo, am)
@@ -405,8 +406,21 @@ func (s *service) ControllerUnpublishVolume(
 		//Idempotency check
 		content := vol.VolumeContent
 		if len(content.HostAccessResponse) > 0 {
-			log.Debug("Removing Host access on Volume ", volID)
-			err = volumeAPI.UnexportVolume(ctx, volID)
+
+			hostIDList := make([]string, 0)
+
+			//Check if the volume is published to any other node and retain it - RWX raw block
+			for _, hostaccess := range content.HostAccessResponse {
+				hostcontent := hostaccess.HostContent
+				hostAccessID := hostcontent.ID
+				if hostAccessID != hostID {
+					hostIDList = append(hostIDList, hostAccessID)
+				}
+			}
+
+			log.Debugf("Removing Host access on Volume ", volID)
+			log.Debugf("List of host access that will be retained on the volume: ", hostIDList)
+			err = volumeAPI.ModifyVolumeExport(ctx, volID, hostIDList)
 			if err != nil {
 				return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Unexport Volume Failed. %v", err))
 			}
@@ -1499,10 +1513,11 @@ func (s *service) exportFilesystem(ctx context.Context, volID, hostID, nodeID, a
 }
 
 //exportVolume - Method to export volume with idempotency
-func (s *service) exportVolume(ctx context.Context, protocol, volID, hostID, nodeID, arrayID string, unity *gounity.Client, pinfo map[string]string, host *types.Host) (*csi.ControllerPublishVolumeResponse, error) {
+func (s *service) exportVolume(ctx context.Context, protocol, volID, hostID, nodeID, arrayID string, unity *gounity.Client, pinfo map[string]string, host *types.Host, vc *csi.VolumeCapability) (*csi.ControllerPublishVolumeResponse, error) {
 
 	ctx, log, rid := GetRunidLog(ctx)
 	pinfo["lun"] = volID
+	am := vc.GetAccessMode()
 	hostContent := host.HostContent
 	if protocol == FC && len(hostContent.FcInitiators) == 0 {
 		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Cannot publish volume as protocol in the Storage class is 'FC' but the node has no valid FC initiators"))
@@ -1516,25 +1531,29 @@ func (s *service) exportVolume(ctx context.Context, protocol, volID, hostID, nod
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find volume Failed %v", err))
 	}
 
-	//Idempotency check
 	content := vol.VolumeContent
-	if len(content.HostAccessResponse) > 1 { //If the volume has 2 or more host access
-		return nil, status.Error(codes.Aborted, utils.GetMessageWithRunID(rid, "Volume has been published to multiple hosts already."))
-	}
+	hostIDList := make([]string, 0)
 
+	//Idempotency check
 	for _, hostaccess := range content.HostAccessResponse {
 		hostcontent := hostaccess.HostContent
 		hostAccessID := hostcontent.ID
 		if hostAccessID == hostID {
 			log.Debug("Volume has been published to the given host and exists in the required state.")
 			return &csi.ControllerPublishVolumeResponse{PublishContext: pinfo}, nil
-		} else {
+		} else if vc.GetMount() != nil && (am.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER || am.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY) {
 			return nil, status.Error(codes.Aborted, utils.GetMessageWithRunID(rid, "Volume has been published to a different host already."))
 		}
+		//Gather list of hosts to which the volume is already published to
+		hostIDList = append(hostIDList, hostAccessID)
 	}
 
+	//Append the curent hostID as well
+	hostIDList = append(hostIDList, hostID)
+
 	log.Debug("Adding host access to ", hostID, " on volume ", volID)
-	err = volumeAPI.ExportVolume(ctx, volID, hostID)
+	log.Debug("List of all hosts to which the volume will have access: ", hostIDList)
+	err = volumeAPI.ModifyVolumeExport(ctx, volID, hostIDList)
 	if err != nil {
 		return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Export Volume Failed %v", err))
 	}

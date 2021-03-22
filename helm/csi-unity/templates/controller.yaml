@@ -17,7 +17,11 @@ rules:
     verbs: ["list", "watch", "create", "update", "patch"]
   - apiGroups: [""]
     resources: ["nodes"]
+{{ if .Values.podmon.enabled }}
+    verbs: ["get", "list", "watch", "patch"]
+{{ else }}
     verbs: ["get", "list", "watch"]
+{{ end }}
   - apiGroups: [""]
     resources: ["persistentvolumes"]
     verbs: ["get", "list", "watch", "create", "delete", "update","patch"]
@@ -29,13 +33,27 @@ rules:
     verbs: ["get", "list", "watch"]
   - apiGroups: ["storage.k8s.io"]
     resources: ["volumeattachments"]
+{{ if .Values.podmon.enabled }}
+    verbs: ["get", "list", "watch", "update", "patch", "delete"]
+{{ else }}
     verbs: ["get", "list", "watch", "update","patch"]
+{{ end }}
   - apiGroups: ["storage.k8s.io"]
     resources: ["csinodes"]
     verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["volumeattachments/status"]
+    verbs: ["patch"]
+  - apiGroups: ["csi.storage.k8s.io"]
+    resources: ["csinodeinfos"]
+    verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources: ["pods"]
+{{ if .Values.podmon.enabled }}
+    verbs: ["get", "list", "watch", "update", "delete"]
+{{ else }}
     verbs: ["get", "list", "watch"]
+{{ end }}
 # below for snapshotter
   - apiGroups: [""]
     resources: ["secrets"]
@@ -115,6 +133,29 @@ spec:
       {{- toYaml .Values.controller.tolerations | nindent 6 }}
       {{ end }}
       containers:
+{{ if .Values.podmon.enabled }}
+        - name: podmon
+          imagePullPolicy: Always
+          image: {{ required "Must provide the podmon container image." .Values.podmon.image }}
+          args:
+            {{- toYaml .Values.podmon.controller.args | nindent 12 }}
+          env:
+            - name: MY_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/run/csi
+{{ end }}
         - name: attacher
           image: {{ required "Must provide the CSI attacher container image." .Values.images.attacher }}
           args:
@@ -137,8 +178,10 @@ spec:
             - "--worker-threads=6"
             - "--v=5"
             - "--feature-gates=Topology=true"
+            - "--strict-topology=true"
             - "--leader-election"
             - "--leader-election-namespace={{ .Release.Namespace }}"
+            - "--default-fstype={{ .Values.defaultFsType | default "ext4" }}"
           env:
             - name: ADDRESS
               value: /var/run/csi/csi.sock

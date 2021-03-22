@@ -1,7 +1,7 @@
 {{ $global := . }}
 {{- range $i, $v := .Values.storageArrayList }}
-{{- if eq $global.Values.kubeversion "v1.16" }}
-apiVersion: snapshot.storage.k8s.io/v1alpha1
+{{- if eq $global.Values.kubeversion "v1.20" }}
+apiVersion: snapshot.storage.k8s.io/v1
 {{- else }}
 apiVersion: snapshot.storage.k8s.io/v1beta1
 {{- end }}

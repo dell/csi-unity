@@ -4,6 +4,58 @@ metadata:
   name: {{ .Release.Name }}-node
   namespace: {{ .Release.Namespace }}
 ---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ .Release.Name }}-node
+rules:
+  - apiGroups: [ "" ]
+    resources: [ "persistentvolumes" ]
+    verbs: [ "create", "delete", "get", "list", "watch", "update" ]
+  - apiGroups: [ "" ]
+    resources: [ "persistentvolumesclaims" ]
+    verbs: [ "get", "list", "watch", "update" ]
+  - apiGroups: [ "" ]
+    resources: [ "events" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch" ]
+  - apiGroups: [ "" ]
+    resources: [ "nodes" ]
+    verbs: [ "get", "list", "watch", "update", "patch" ]
+  - apiGroups: [ "storage.k8s.io" ]
+    resources: [ "volumeattachments" ]
+    verbs: [ "get", "list", "watch", "update" ]
+  - apiGroups: [ "storage.k8s.io" ]
+    resources: [ "storageclasses" ]
+    verbs: [ "get", "list", "watch" ]
+  - apiGroups: [ "storage.k8s.io" ]
+    resources: [ "volumeattachments" ]
+    verbs: [ "get", "list", "watch", "update" ]
+  - apiGroups: [ "security.openshift.io" ]
+    resourceNames: [ "privileged" ]
+    resources: [ "securitycontextconstraints" ]
+    verbs: [ "use" ]
+{{ if .Values.podmon.enabled }}
+  - apiGroups: [ "" ]
+    resources: [ "pods" ]
+    verbs: [ "get", "list", "watch", "update", "delete" ]
+  - apiGroups: [ "coordination.k8s.io" ]
+    resources: [ "leases" ]
+    verbs: [ "get", "watch", "list", "delete", "update", "create" ]
+{{ end }}
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ .Release.Name }}-node
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}-node
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ .Release.Name }}-node
+  apiGroup: rbac.authorization.k8s.io
+---
 {{ $releaseName := .Release.Name }}
 kind: DaemonSet
 apiVersion: apps/v1
@@ -34,7 +86,46 @@ spec:
           effect: "NoExecute"
       hostIPC: true
       hostNetwork: true
-      containers:  
+      containers:
+{{ if .Values.podmon.enabled }}
+        - name: podmon
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true
+          imagePullPolicy: Always
+          image: {{ required "Must provide the podmon container image." .Values.podmon.image }}
+          args:
+          {{- toYaml .Values.podmon.node.args | nindent 12 }}
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+            - name: X_CSI_PRIVATE_MOUNT_DIR
+              value: "/var/lib/kubelet/plugins/unity.emc.dell.com/disks"
+            - name: MY_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          volumeMounts:
+            - name: kubelet-pods
+              mountPath: /var/lib/kubelet/pods
+            - name: driver-path
+              mountPath: /var/lib/kubelet/plugins/unity.emc.dell.com
+            - name: usr-bin
+              mountPath: /usr-bin
+{{ end }}
         - name: driver
           securityContext:
             privileged: true
@@ -53,6 +144,8 @@ spec:
               value: node
             - name: X_CSI_UNITY_AUTOPROBE
               value: "true"
+            - name: X_CSI_UNITY_ALLOW_MULTI_POD_ACCESS
+              value: {{ .Values.allowRWOMultiPodAccess | default "false" | lower | quote }}
             - name: X_CSI_DEBUG
               value: {{ .Values.csiDebug | default "false" | lower | quote }}
             - name: X_CSI_PRIVATE_MOUNT_DIR
@@ -149,3 +242,13 @@ spec:
         - name: unity-config
           secret:
               secretName: {{ .Release.Name }}-creds
+{{ if .Values.podmon.enabled }}
+        - name: usr-bin
+          hostPath:
+            path: /usr/bin
+            type: Directory
+        - name: kubelet-pods
+          hostPath:
+            path: /var/lib/kubelet/pods
+            type: Directory
+{{ end }}

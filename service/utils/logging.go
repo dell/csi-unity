@@ -3,7 +3,7 @@ package utils
 import (
 	"context"
 	"fmt"
-	"github.com/rexray/gocsi"
+	"github.com/dell/gocsi"
 	"github.com/sirupsen/logrus"
 	"os"
 	"reflect"
