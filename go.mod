@@ -2,9 +2,6 @@ module github.com/dell/csi-unity
 
 go 1.15
 
-//TODO: remove before release
-replace github.com/dell/gounity => ../gounity
-
 require (
 	github.com/container-storage-interface/spec v1.2.0
 	github.com/cucumber/godog v0.10.0

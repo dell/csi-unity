@@ -3,12 +3,6 @@ FROM golang:1.15.6 as builder
 RUN mkdir -p /go/src
 COPY csi-unity/ /go/src/csi-unity
 
-#//@TODO remove gounity and gofsutil before release
-COPY gounity /go/src/gounity
-COPY gofsutil /go/src/gofsutil
-COPY gocsi /go/src/gocsi
-COPY dell-csi-extensions /go/src/dell-csi-extensions
-
 WORKDIR /go/src/csi-unity
 RUN mkdir -p bin
 RUN go generate
