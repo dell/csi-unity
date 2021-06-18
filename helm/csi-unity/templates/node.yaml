@@ -86,6 +86,7 @@ spec:
           effect: "NoExecute"
       hostIPC: true
       hostNetwork: true
+      dnsPolicy: {{ .Values.node.dnsPolicy }}
       containers:
 {{ if .Values.podmon.enabled }}
         - name: podmon
@@ -121,10 +122,14 @@ spec:
           volumeMounts:
             - name: kubelet-pods
               mountPath: /var/lib/kubelet/pods
+              mountPropagation: "Bidirectional"
             - name: driver-path
               mountPath: /var/lib/kubelet/plugins/unity.emc.dell.com
+              mountPropagation: "Bidirectional"
             - name: usr-bin
               mountPath: /usr-bin
+            - name: var-run
+              mountPath: /var/run
 {{ end }}
         - name: driver
           securityContext:
@@ -146,8 +151,6 @@ spec:
               value: "true"
             - name: X_CSI_UNITY_ALLOW_MULTI_POD_ACCESS
               value: {{ .Values.allowRWOMultiPodAccess | default "false" | lower | quote }}
-            - name: X_CSI_DEBUG
-              value: {{ .Values.csiDebug | default "false" | lower | quote }}
             - name: X_CSI_PRIVATE_MOUNT_DIR
               value: "/var/lib/kubelet/plugins/unity.emc.dell.com/disks"
             - name: X_CSI_EPHEMERAL_STAGING_PATH
@@ -161,8 +164,6 @@ spec:
                   fieldPath: spec.nodeName
             - name: X_CSI_UNITY_NODENAME_PREFIX
               value: {{ .Values.nodeNamePrefix }}
-            - name: GOUNITY_DEBUG
-              value: {{ .Values.csiDebug | default "false" | lower | quote }}
             - name: SSL_CERT_DIR
               value: /certs
             - name: X_CSI_UNITY_SYNC_NODEINFO_INTERVAL
@@ -250,5 +251,9 @@ spec:
         - name: kubelet-pods
           hostPath:
             path: /var/lib/kubelet/pods
+            type: Directory
+        - name: var-run
+          hostPath:
+            path: /var/run
             type: Directory
 {{ end }}

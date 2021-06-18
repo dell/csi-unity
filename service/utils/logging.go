@@ -3,9 +3,7 @@ package utils
 import (
 	"context"
 	"fmt"
-	"github.com/dell/gocsi"
 	"github.com/sirupsen/logrus"
-	"os"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -107,33 +105,52 @@ func GetLogger() *logrus.Logger {
 	once.Do(func() {
 		singletonLog = logrus.New()
 		fmt.Println("csi-unity logger initiated. This should be called only once.")
-		var debug bool
-		debugStr := os.Getenv(gocsi.EnvVarDebug)
-		debug, _ = strconv.ParseBool(debugStr)
-		if debug {
-			singletonLog.Level = logrus.DebugLevel
-			singletonLog.SetReportCaller(true)
-			singletonLog.Formatter = &Formatter{
-				CallerPrettyfier: func(f *runtime.Frame) (string, string) {
-					filename1 := strings.Split(f.File, "dell/csi-unity")
-					if len(filename1) > 1 {
-						return fmt.Sprintf("%s()", f.Function), fmt.Sprintf("dell/csi-unity%s:%d", filename1[1], f.Line)
-					}
 
-					filename2 := strings.Split(f.File, "dell/gounity")
-					if len(filename2) > 1 {
-						return fmt.Sprintf("%s()", f.Function), fmt.Sprintf("dell/gounity%s:%d", filename2[1], f.Line)
-					}
+		//Setting default level to Info since the driver is yet to read secrect that has the debug level set
+		singletonLog.Level = logrus.InfoLevel
 
-					return fmt.Sprintf("%s()", f.Function), fmt.Sprintf("%s:%d", f.File, f.Line)
-				},
-			}
-		} else {
-			singletonLog.Formatter = &Formatter{}
+		singletonLog.SetReportCaller(true)
+		singletonLog.Formatter = &Formatter{
+			CallerPrettyfier: func(f *runtime.Frame) (string, string) {
+				filename1 := strings.Split(f.File, "dell/csi-unity")
+				if len(filename1) > 1 {
+					return fmt.Sprintf("%s()", f.Function), fmt.Sprintf("dell/csi-unity%s:%d", filename1[1], f.Line)
+				}
+				filename2 := strings.Split(f.File, "dell/gounity")
+				if len(filename2) > 1 {
+					return fmt.Sprintf("%s()", f.Function), fmt.Sprintf("dell/gounity%s:%d", filename2[1], f.Line)
+				}
+				return fmt.Sprintf("%s()", f.Function), fmt.Sprintf("%s:%d", f.File, f.Line)
+			},
 		}
 	})
 
 	return singletonLog
+}
+
+func ChangeLogLevel(logLevel string) {
+
+	switch strings.ToLower(logLevel) {
+
+	case "debug":
+		singletonLog.Level = logrus.DebugLevel
+		break
+
+	case "warn", "warning":
+		singletonLog.Level = logrus.WarnLevel
+		break
+
+	case "error":
+		singletonLog.Level = logrus.ErrorLevel
+		break
+
+	case "info":
+		//Default level will be Info
+		fallthrough
+
+	default:
+		singletonLog.Level = logrus.InfoLevel
+	}
 }
 
 const (

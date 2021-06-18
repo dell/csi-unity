@@ -87,7 +87,7 @@ func GetFCInitiators(ctx context.Context) ([]string, error) {
 	fcHostsDir := "/sys/class/fc_host"
 	hostEntries, err := ioutil.ReadDir(fcHostsDir)
 	if err != nil {
-		log.Errorf("Cannot read directory: %s Error: %v", fcHostsDir, err)
+		log.Warnf("Cannot read directory: %s : %v", fcHostsDir, err)
 		return portWWNs, err
 	}
 
@@ -99,7 +99,7 @@ func GetFCInitiators(ctx context.Context) ([]string, error) {
 		portPath := fcHostsDir + "/" + host.Name() + "/" + "port_name"
 		portName, err := ioutil.ReadFile(portPath)
 		if err != nil {
-			log.Errorf("Error reading file: %s Error: %v", portPath, err)
+			log.Warnf("Error reading file: %s Error: %v", portPath, err)
 			continue
 		}
 		portNameStr := strings.TrimSpace(string(portName))
@@ -107,7 +107,7 @@ func GetFCInitiators(ctx context.Context) ([]string, error) {
 		nodePath := fcHostsDir + "/" + host.Name() + "/" + "node_name"
 		nodeName, err := ioutil.ReadFile(nodePath)
 		if err != nil {
-			log.Errorf("Error reading file: %s Error: %v", nodePath, err)
+			log.Warnf("Error reading file: %s Error: %v", nodePath, err)
 			continue
 		}
 		nodeNameStr := strings.TrimSpace(string(nodeName))

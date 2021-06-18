@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dell/dell-csi-extensions/podmon"
-	"google.golang.org/grpc"
 	"io/ioutil"
 	"net"
 	"path/filepath"
@@ -16,19 +14,26 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/dell/dell-csi-extensions/podmon"
+	"google.golang.org/grpc"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/dell/csi-unity/core"
+	"github.com/dell/csi-unity/k8sutils"
 	"github.com/dell/csi-unity/service/utils"
 	"github.com/dell/gobrick"
 	"github.com/dell/gocsi"
 	csictx "github.com/dell/gocsi/context"
 	"github.com/dell/goiscsi"
 	"github.com/dell/gounity"
+	"github.com/dell/gounity/util"
 	"github.com/fsnotify/fsnotify"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -59,19 +64,27 @@ var Manifest = map[string]string{
 
 //To parse the secret json file
 type StorageArrayList struct {
-	StorageArrayList []StorageArrayConfig `json:"storageArrayList"`
+	StorageArrayList         []StorageArrayConfig `json:"storageArrayList" yaml:"storageArrayList"`
+	LogLevel                 string               `json:"logLevel" yaml:"logLevel"`
+	MaxUnityVolumesPerNode   int64                `json:"maxUnityVolumesPerNode,omitempty" yaml:"maxUnityVolumesPerNode,omitempty"`
+	AllowRWOMultiPodAccess   *bool                `json:"allowRWOMultiPodAccess,omitempty" yaml:"allowRWOMultiPodAccess,omitempty"`
+	SyncNodeInfoTimeInterval *int64               `json:"syncNodeInfoTimeInterval,omitempty" yaml:"syncNodeInfoTimeInterval,omitempty"`
 }
 
 type StorageArrayConfig struct {
-	ArrayId        string `json:"arrayId"`
-	Username       string `json:"username"`
-	Password       string `json:"password"`
-	RestGateway    string `json:"restGateway"`
-	Insecure       bool   `json:"insecure, omitempty"`
-	IsDefaultArray bool   `json:"isDefaultArray, omitempty"`
-	IsProbeSuccess bool
-	IsHostAdded    bool
-	UnityClient    *gounity.Client
+	ArrayId                   string `json:"arrayId" yaml:"arrayId"`
+	Username                  string `json:"username" yaml:"username"`
+	Password                  string `json:"password" yaml:"password"`
+	RestGateway               string `json:"restGateway" yaml:"restGateway"`                           // To be deprecated in future
+	Insecure                  *bool  `json:"insecure,omitempty" yaml:"insecure,omitempty"`             // To be deprecated in future
+	IsDefaultArrayParam       *bool  `json:"isDefaultArray,omitempty" yaml:"isDefaultArray,omitempty"` // To be deprecated in future
+	Endpoint                  string `json:"endpoint,omitempty" yaml:"endpoint,omitempty"`
+	IsDefault                 *bool  `json:"isDefault,omitempty" yaml:"isDefault,omitempty"`
+	SkipCertificateValidation *bool  `json:"skipCertificateValidation,omitempty" yaml:"skipCertificateValidation,omitempty"`
+	IsProbeSuccess            bool
+	IsHostAdded               bool
+	IsDefaultArray            bool
+	UnityClient               *gounity.Client
 }
 
 // Service is a CSI SP and idempotency.Provider.
@@ -93,8 +106,11 @@ type Opts struct {
 	AllowRWOMultiPodAccess        bool
 	PvtMountDir                   string
 	Debug                         bool
-	SyncNodeInfoTimeInterval      int
+	SyncNodeInfoTimeInterval      int64
 	EnvEphemeralStagingTargetPath string
+	KubeConfigPath                string
+	MaxVolumesPerNode             int64
+	LogLevel                      string
 }
 
 type service struct {
@@ -156,19 +172,14 @@ func (s *service) BeforeServe(
 		opts.Debug, _ = strconv.ParseBool(name)
 	}
 	if name, ok := csictx.LookupEnv(ctx, EnvNodeName); ok {
-		log.Info("X_CSI_UNITY_NODENAME:", name)
+		log.Infof("%s: %s", EnvNodeName, name)
 		opts.LongNodeName = name
 		shortHostName := strings.Split(name, ".")[0]
 		opts.NodeName = shortHostName
 	}
 
-	opts.SyncNodeInfoTimeInterval = 15
-	if syncNodeInfoTimeInterval, ok := csictx.LookupEnv(ctx, SyncNodeInfoTimeInterval); ok {
-		opts.SyncNodeInfoTimeInterval, err = strconv.Atoi(syncNodeInfoTimeInterval)
-		log.Debugf("SyncNodeInfoTimeInterval %d", opts.SyncNodeInfoTimeInterval)
-		if err != nil {
-			opts.SyncNodeInfoTimeInterval = 15
-		}
+	if kubeConfigPath, ok := csictx.LookupEnv(ctx, EnvKubeConfigPath); ok {
+		opts.KubeConfigPath = kubeConfigPath
 	}
 
 	// pb parses an environment variable into a boolean value. If an error
@@ -177,7 +188,7 @@ func (s *service) BeforeServe(
 		if v, ok := csictx.LookupEnv(ctx, n); ok {
 			b, err := strconv.ParseBool(v)
 			if err != nil {
-				log.WithField(n, v).Debug(
+				log.WithField(n, v).Warn(
 					"invalid boolean value. defaulting to false")
 				return false
 			}
@@ -186,12 +197,23 @@ func (s *service) BeforeServe(
 		return false
 	}
 
-	opts.AutoProbe = pb(EnvAutoProbe)
-	opts.AllowRWOMultiPodAccess = pb(EnvAllowRWOMultiPodAccess)
+	opts.MaxVolumesPerNode = 0 // With 0 there is no limit on Volumes per node
 
-	if opts.AllowRWOMultiPodAccess {
-		log.Infof("AllowRWOMultiPodAccess has been set to true. PVCs will now be accessible by multiple pods on the same node.")
+	if syncNodeInfoTimeInterval, ok := csictx.LookupEnv(ctx, SyncNodeInfoTimeInterval); ok {
+		opts.SyncNodeInfoTimeInterval, err = strconv.ParseInt(syncNodeInfoTimeInterval, 10, 64)
+		log.Debugf("SyncNodeInfoTimeInterval %d", opts.SyncNodeInfoTimeInterval)
+		if err != nil {
+			log.Warn("Failed to parse syncNodeInfoTimeInterval provided by user, hence reverting to default value")
+			opts.SyncNodeInfoTimeInterval = 15
+		}
 	}
+
+	opts.AllowRWOMultiPodAccess = pb(EnvAllowRWOMultiPodAccess)
+	if opts.AllowRWOMultiPodAccess {
+		log.Warn("AllowRWOMultiPodAccess has been set to true. PVCs will now be accessible by multiple pods on the same node.")
+	}
+
+	opts.AutoProbe = pb(EnvAutoProbe)
 
 	//Global mount directory will be used to node unstage volumes mounted via CSI-Unity v1.0 or v1.1
 	if pvtmountDir, ok := csictx.LookupEnv(ctx, EnvPvtMountDir); ok {
@@ -344,7 +366,7 @@ func (s *service) loadDynamicConfig(ctx context.Context, configFile string) erro
 					return
 				}
 				if event.Op&fsnotify.Create == fsnotify.Create && event.Name == parentFolder+"/..data" {
-					log.Infof("****************Driver config file modified. Loading the config file:%s****************", event.Name)
+					log.Warnf("****************Driver config file modified. Loading the config file:%s****************", event.Name)
 					err := s.syncDriverConfig(ctx)
 					if err != nil {
 						log.Debug("Driver configuration array length:", s.getStorageArrayLength())
@@ -408,13 +430,51 @@ func (s *service) syncDriverConfig(ctx context.Context) error {
 	}
 
 	if string(configBytes) != "" {
+		log.Debugf("Trying to parse DriverConfig %s as json", DriverConfig)
+		var secretConfig *StorageArrayList
 		jsonConfig := new(StorageArrayList)
 		err := json.Unmarshal(configBytes, &jsonConfig)
 		if err != nil {
-			return errors.New(fmt.Sprintf("Unable to parse the credentials [%v]", err))
+			log.Warnf("Unable to parse the credentials [%v]", err)
+			log.Debugf("Trying to parse DriverConfig %s as yaml", DriverConfig)
+			yamlConfig := new(StorageArrayList)
+			yamlErr := yaml.Unmarshal(configBytes, yamlConfig)
+			if yamlErr != nil {
+				log.Errorf("Couldnt parse DriverConfig %s as json as well as yaml", DriverConfig)
+				return errors.New(fmt.Sprintf("Unable to parse the DriverConfig as json as well as yaml [%v]", yamlErr))
+			}
+			secretConfig = yamlConfig
+		} else {
+			secretConfig = jsonConfig
 		}
 
-		if len(jsonConfig.StorageArrayList) == 0 {
+		if secretConfig.AllowRWOMultiPodAccess != nil {
+			s.opts.AllowRWOMultiPodAccess = *secretConfig.AllowRWOMultiPodAccess
+			if s.opts.AllowRWOMultiPodAccess {
+				log.Warn("AllowRWOMultiPodAccess has been set to true. PVCs will now be accessible by multiple pods on the same node.")
+			}
+		}
+
+		if secretConfig.SyncNodeInfoTimeInterval != nil {
+			s.opts.SyncNodeInfoTimeInterval = *secretConfig.SyncNodeInfoTimeInterval
+		}
+
+		if secretConfig.MaxUnityVolumesPerNode > 0 {
+			s.opts.MaxVolumesPerNode = secretConfig.MaxUnityVolumesPerNode
+		}
+
+		if secretConfig.LogLevel == "" {
+			//setting default log level to Info
+			s.opts.LogLevel = "Info"
+		} else {
+			s.opts.LogLevel = secretConfig.LogLevel
+		}
+		utils.ChangeLogLevel(s.opts.LogLevel)
+		//Change log level on gounity
+		util.ChangeLogLevel(s.opts.LogLevel)
+		log.Warnf("Log level changed to: %s", s.opts.LogLevel)
+
+		if len(secretConfig.StorageArrayList) == 0 {
 			return errors.New("Arrays details are not provided in unity-creds secret")
 		}
 
@@ -422,8 +482,9 @@ func (s *service) syncDriverConfig(ctx context.Context) error {
 			s.arrays.Delete(key)
 			return true
 		})
+
 		var noOfDefaultArrays int
-		for i, config := range jsonConfig.StorageArrayList {
+		for i, config := range secretConfig.StorageArrayList {
 			if config.ArrayId == "" {
 				return errors.New(fmt.Sprintf("invalid value for ArrayID at index [%d]", i))
 			}
@@ -433,12 +494,39 @@ func (s *service) syncDriverConfig(ctx context.Context) error {
 			if config.Password == "" {
 				return errors.New(fmt.Sprintf("invalid value for Password at index [%d]", i))
 			}
-			if config.RestGateway == "" {
-				return errors.New(fmt.Sprintf("invalid value for RestGateway at index [%d]", i))
+
+			endpoint := config.Endpoint
+			if config.RestGateway == "" && config.Endpoint == "" {
+				return errors.New(fmt.Sprintf("invalid value for RestGateway or Endpoint at index [%d]", i))
+			} else if config.RestGateway != "" && config.Endpoint != "" {
+				return errors.New(fmt.Sprintf("RestGateway and Endpoint, both are specified. Use any one of the parameters to specify Rest Endpoit at index [%d]", i))
+			} else if config.RestGateway != "" {
+				endpoint = config.RestGateway
+			}
+
+			insecure := true
+			if config.Insecure == nil && config.SkipCertificateValidation == nil {
+				return errors.New(fmt.Sprintf("Specify either Insecure or SkipCertificateValidation at index [%d]", i))
+			} else if config.Insecure != nil && config.SkipCertificateValidation != nil {
+				return errors.New(fmt.Sprintf("Insecure and SkipCertificateValidation, both are specified. Kindly use any one of the parameters at index [%d]", i))
+			} else if config.SkipCertificateValidation != nil {
+				insecure = *config.SkipCertificateValidation
+			} else {
+				insecure = *config.Insecure
+			}
+
+			//Continue to use IsDefaultArray as this is references at multiple places
+			config.IsDefaultArray = false
+			if config.IsDefaultArrayParam != nil && config.IsDefault != nil {
+				return errors.New(fmt.Sprintf("IsDefaultArray and IsDefault, both are specified. Kindly use any one of the parameters at index [%d]", i))
+			} else if config.IsDefaultArrayParam != nil {
+				config.IsDefaultArray = *config.IsDefaultArrayParam
+			} else if config.IsDefault != nil {
+				config.IsDefaultArray = *config.IsDefault
 			}
 
 			config.ArrayId = strings.ToLower(config.ArrayId)
-			unityClient, err := gounity.NewClientWithArgs(ctx, config.RestGateway, config.Insecure)
+			unityClient, err := gounity.NewClientWithArgs(ctx, endpoint, insecure)
 			if err != nil {
 				return errors.New(fmt.Sprintf("unable to initialize the Unity client [%v]", err))
 			}
@@ -454,12 +542,12 @@ func (s *service) syncDriverConfig(ctx context.Context) error {
 			}
 
 			fields := logrus.Fields{
-				"RestGateway":    config.RestGateway,
-				"ArrayId":        config.ArrayId,
-				"username":       config.Username,
-				"password":       "*******",
-				"Insecure":       config.Insecure,
-				"IsDefaultArray": config.IsDefaultArray,
+				"ArrayId":                            config.ArrayId,
+				"username":                           config.Username,
+				"password":                           "*******",
+				"RestGateway/Endpoint":               endpoint,
+				"Insecure/SkipCertificateValidation": insecure,
+				"IsDefaultArray/IsDefault":           config.IsDefaultArray,
 			}
 			logrus.WithFields(fields).Infof("configured %s", Name)
 
@@ -718,4 +806,19 @@ func (s *service) validateAndGetResourceDetails(ctx context.Context, resourceCon
 		return "", "", "", nil, err
 	}
 	return
+}
+
+func (s *service) GetNodeLabels(ctx context.Context) (map[string]string, error) {
+	ctx, log, rid := GetRunidLog(ctx)
+	k8sclientset, err := k8sutils.CreateKubeClientSet(s.opts.KubeConfigPath)
+	if err != nil {
+		return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "init client failed with error: %v", err))
+	}
+	// access the API to fetch node object
+	node, err := k8sclientset.CoreV1().Nodes().Get(context.TODO(), s.opts.LongNodeName, v1.GetOptions{})
+	if err != nil {
+		return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Unable to fetch the node labels. Error: %v", err))
+	}
+	log.Debugf("Node labels: %v\n", node.Labels)
+	return node.Labels, nil
 }
