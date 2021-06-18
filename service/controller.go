@@ -418,8 +418,8 @@ func (s *service) ControllerUnpublishVolume(
 				}
 			}
 
-			log.Debugf("Removing Host access on Volume ", volID)
-			log.Debugf("List of host access that will be retained on the volume: ", hostIDList)
+			log.Debug("Removing Host access on Volume ", volID)
+			log.Debug("List of host access that will be retained on the volume: ", hostIDList)
 			err = volumeAPI.ModifyVolumeExport(ctx, volID, hostIDList)
 			if err != nil {
 				return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Unexport Volume Failed. %v", err))
@@ -1717,4 +1717,43 @@ func (s *service) unexportFilesystem(ctx context.Context, volID, hostID, nodeID,
 	log.Debugf("ControllerUnpublishVolume successful for volid: [%s]", volumeContextID)
 
 	return nil
+}
+
+//createMetricsCollection creates a RealTimeMetrics collection with the specified metric paths on an array
+func (s *service) createMetricsCollection(ctx context.Context, arrayId string, metricPaths []string, interval int) (*types.MetricQueryCreateResponse, error) {
+	ctx, _, rid := GetRunidLog(ctx)
+	unity, err := s.getUnityClient(ctx, arrayId)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Unable to get Unity client."))
+	}
+
+	metricsAPI := gounity.NewMetrics(unity)
+	query, err := metricsAPI.CreateRealTimeMetricsQuery(ctx, metricPaths, interval)
+	if err != nil {
+		return nil, err
+	}
+
+	return query, nil
+}
+
+//getMetricsCollection retrieves MetricsCollection data on an array given the collection 'id'
+func (s *service) getMetricsCollection(ctx context.Context, arrayId string, id int) (*types.MetricQueryResult, error) {
+	ctx, _, rid := GetRunidLog(ctx)
+	unity, err := s.getUnityClient(ctx, arrayId)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Unable to get Unity client."))
+	}
+
+	metricsAPI := gounity.NewMetrics(unity)
+	collection, err := metricsAPI.GetMetricsCollection(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return collection, nil
+}
+
+func (s *service) ControllerGetVolume(context.Context,
+	*csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "")
 }

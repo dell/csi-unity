@@ -229,10 +229,6 @@ spec:
               value: controller
             - name: X_CSI_UNITY_AUTOPROBE
               value: "true"
-            - name: X_CSI_DEBUG
-              value: {{ .Values.csiDebug | default "false" | lower | quote }}
-            - name: GOUNITY_DEBUG
-              value: {{ .Values.csiDebug | default "false" | lower | quote }}
             - name: SSL_CERT_DIR
               value: /certs
           volumeMounts:

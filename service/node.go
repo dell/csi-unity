@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -40,7 +41,10 @@ var (
 )
 
 const (
-	componentOkMessage = "ALRT_COMPONENT_OK"
+	componentOkMessage          = "ALRT_COMPONENT_OK"
+	maxUnityVolumesPerNodeLabel = "max-unity-volumes-per-node"
+	ubuntuNodeRoot              = "/noderoot"
+	devtmpfs                    = "devtmpfs"
 )
 
 func (s *service) NodeStageVolume(
@@ -605,17 +609,17 @@ func checkAndRemoveLunz(ctx context.Context) error {
 
 			file, err := os.OpenFile(filePath, os.O_WRONLY, os.ModeDevice)
 			if err != nil {
-				log.Errorf("Error opening file %v", err)
+				log.Warnf("Error opening file %v", err)
 				continue
 			}
 			if file != nil {
 				command := fmt.Sprintf("scsi remove-single-device %s %s %s %d", resultHost[index],
 					resultChannel[index], resultID[index], 0)
-				log.Errorf("Attempting to remove LUNZ with command %s", command)
+				log.Debugf("Attempting to remove LUNZ with command %s", command)
 
 				_, err = file.WriteString(command)
 				if err != nil {
-					log.Errorf("error while writing...%v", err)
+					log.Warnf("error while writing...%v", err)
 					file.Close()
 					continue
 				}
@@ -659,13 +663,10 @@ func (s *service) NodeUnpublishVolume(
 		return nil, err
 	}
 	ctx, log = setArrayIdContext(ctx, arrayId)
-	if err := s.requireProbe(ctx, arrayId); err != nil {
-		//Temporary fix for bug in kubernetes - Return error once issue is fixed on k8s
-		log.Debug("Probe has not been invoked. Hence invoking Probe before Node unpublish volume")
-		err = s.nodeProbe(ctx, arrayId)
-		if err != nil {
-			return nil, err
-		}
+
+	// Probe node if required
+	if err := s.nodeProbe(ctx, arrayId); err != nil {
+		return nil, err
 	}
 
 	// Get the target path
@@ -789,16 +790,40 @@ func (s *service) NodeGetInfo(
 	}
 
 	if atleastOneArraySuccess {
-		log.Info("NodeGetInfo success")
 		s.validateProtocols(ctx, arraysList)
 		topology := getTopology()
 		// If topology keys are empty then this node is not capable of either iSCSI/FC but can still provision NFS volumes by default
 		log.Debugf("Topology Keys--->%+v", topology)
+
+		// Check for node label 'max-unity-volumes-per-node'. If present set 'MaxVolumesPerNode' to this value.
+		// If node label is not present, set 'MaxVolumesPerNode' to default value i.e., 0
+		var maxUnityVolumesPerNode int64
+		labels, err := s.GetNodeLabels(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		if val, ok := labels[maxUnityVolumesPerNodeLabel]; ok {
+			maxUnityVolumesPerNode, err = strconv.ParseInt(val, 10, 64)
+			if err != nil {
+				return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "invalid value '%s' specified for 'max-unity-volumes-per-node' node label", val))
+			}
+		} else {
+			// As per the csi spec the plugin MUST NOT set negative values to
+			// 'MaxVolumesPerNode' in the NodeGetInfoResponse response
+			if s.opts.MaxVolumesPerNode < 0 {
+				return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "maxUnityVolumesPerNode MUST NOT be set to negative value"))
+			}
+			maxUnityVolumesPerNode = s.opts.MaxVolumesPerNode
+		}
+
+		log.Info("NodeGetInfo success")
 		return &csi.NodeGetInfoResponse{
 			NodeId: s.opts.NodeName + "," + s.opts.LongNodeName,
 			AccessibleTopology: &csi.Topology{
 				Segments: topology,
 			},
+			MaxVolumesPerNode: maxUnityVolumesPerNode,
 		}, nil
 	}
 
@@ -1394,13 +1419,13 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 	//Get FC Initiator WWNs
 	wwns, errFc := utils.GetFCInitiators(ctx)
 	if errFc != nil {
-		log.Info("'FC Initiators' cannot be retrieved.")
+		log.Warn("'FC Initiators' cannot be retrieved.")
 	}
 
 	//Get iSCSI Initiator IQN
 	iqns, errIscsi := s.iscsiClient.GetInitiators("")
 	if errIscsi != nil {
-		log.Info("'iSCSI Initiators' cannot be retrieved.")
+		log.Warn("'iSCSI Initiators' cannot be retrieved.")
 	}
 
 	if errFc != nil && errIscsi != nil {
@@ -1421,9 +1446,14 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 			if err == nil {
 				fqdnHost = true
 			} else {
-				addHostErr := s.addNewNodeToArray(ctx, array, nodeIps, iqns, wwns)
+				var addHostErr error
+				if err == gounity.HostNotFoundError {
+					addHostErr = s.addNewNodeToArray(ctx, array, nodeIps, iqns, wwns)
+				} else {
+					return status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Unable to add host. Error: %v", err))
+				}
 				if addHostErr != nil {
-					return addHostErr
+					return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Unable to add host. Error: %v", addHostErr))
 				}
 			}
 		} else {

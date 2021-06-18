@@ -12,7 +12,7 @@ DOCKER_IMAGE_NAME ?= ${NAME}-${USER}
 VERSION:=$(shell  date +%Y%m%d%H%M%S)
 BIN_DIR:=bin
 BIN_NAME:=${NAME}
-DOCKER_REPO ?= dellemc
+DOCKER_REPO ?= amaas-eos-mw1.cec.lab.emc.com:5028
 DOCKER_NAMESPACE ?= csi-unity
 DOCKER_IMAGE_TAG ?= ${VERSION}
 

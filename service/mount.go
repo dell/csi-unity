@@ -109,6 +109,11 @@ func stagePublishNFS(ctx context.Context, req *csi.NodeStageVolumeRequest, expor
 		return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Mount failed for NFS export paths: %s. Error: %v", exportPaths, err))
 	}
 
+	// Update permissions with 1777 in nfs share so every user can use it
+	if err := os.Chmod(stagingTargetPath, os.ModeSticky|os.ModePerm); err != nil {
+		return status.Errorf(codes.Internal, "can't change permissions of folder %s: %s", stagingTargetPath, err.Error())
+	}
+
 	return nil
 }
 
@@ -313,9 +318,9 @@ func stageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest, stagingPa
 				}
 				//@TODO: check contents of m.Opts if it has fs type and verify fs type as well
 				//Remove below debug once resolved
-				log.Debug("=============m.Opts: ", m.Opts)
+				log.Debug("m.Opts: ", m.Opts)
 				if utils.ArrayContains(m.Opts, rwo) {
-					log.Debug("staging mount already in place")
+					log.Warn("staging mount already in place")
 					break
 				} else {
 					return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "access mode conflicts with existing mounts"))
@@ -347,16 +352,6 @@ func publishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, targe
 		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "error getting block device for volume: %s, err: %s", id, err.Error()))
 	}
 
-	if isBlock {
-		_, err = mkfile(ctx, targetPath)
-		if err != nil {
-			return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Could not create %s: %v", targetPath, err))
-		}
-		mntFlags := mntVol.GetMountFlags()
-		err = mountBlock(ctx, sysDevice, targetPath, mntFlags, SingleAccessMode(accMode))
-		return err
-	}
-
 	// Check if target is not mounted
 	devMnts, err := getDevMounts(ctx, sysDevice)
 	if err != nil {
@@ -382,7 +377,7 @@ func publishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, targe
 				return nil
 			} else if m.Path == stagingPath || m.Path == chroot+stagingPath {
 				continue
-			} else if !allowRWOmultiPodAccess {
+			} else if accMode.GetMode() == csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER && !allowRWOmultiPodAccess {
 				//Device has been mounted aleady to another target
 				return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "device already in use and mounted elsewhere"))
 			}
@@ -401,6 +396,16 @@ func publishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest, targe
 				return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Target is mounted using a different device %s", m.Device))
 			}
 		}
+	}
+
+	if isBlock {
+		_, err = mkfile(ctx, targetPath)
+		if err != nil {
+			return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Could not create %s: %v", targetPath, err))
+		}
+		mntFlags := mntVol.GetMountFlags()
+		err = mountBlock(ctx, sysDevice, targetPath, mntFlags, SingleAccessMode(accMode), allowRWOmultiPodAccess)
+		return err
 	}
 
 	// Make sure target is created. The spec says the driver is responsible
@@ -456,10 +461,11 @@ func unpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) e
 	}
 
 	devicePath := targetMount.Device
-	if devicePath == "devtmpfs" || devicePath == "" {
+	if devicePath == devtmpfs || devicePath == "udev" || devicePath == "" {
 		devicePath = targetMount.Source
 	}
 	log.Debugf("TargetMount: %s", targetMount)
+	log.Debugf("DevicePath: %s", devicePath)
 
 	// make sure device is valid
 	sysDevice, err := GetDevice(ctx, devicePath)
@@ -477,6 +483,12 @@ func unpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) e
 	tgtMnt := false
 	for _, m := range mnts {
 		if m.Source == sysDevice.FullPath || m.Device == sysDevice.FullPath {
+			if m.Path == target {
+				tgtMnt = true
+				break
+			}
+		} else if (m.Source == ubuntuNodeRoot+sysDevice.RealDev || m.Source == sysDevice.RealDev) && m.Device == "udev" {
+			//For Ubuntu mounts
 			if m.Path == target {
 				tgtMnt = true
 				break
@@ -646,12 +658,14 @@ func getDevMounts(ctx context.Context, sysDevice *Device) ([]gofsutil.Info, erro
 	for _, m := range mnts {
 		if m.Device == sysDevice.RealDev || m.Device == sysDevice.FullPath || (m.Device == "devtmpfs" && m.Source == sysDevice.RealDev) {
 			devMnts = append(devMnts, m)
+		} else if (m.Source == ubuntuNodeRoot+sysDevice.RealDev || m.Source == sysDevice.RealDev) && m.Device == "udev" {
+			devMnts = append(devMnts, m)
 		} else {
 			//Find the multipath device mapper from the device obtained
 			mpDevName := strings.TrimPrefix(sysDevice.RealDev, "/dev/")
 			filename := fmt.Sprintf("/sys/devices/virtual/block/%s/dm/name", mpDevName)
 			if name, err := ioutil.ReadFile(filename); err != nil {
-				log.Debugf("Could not read mp dev name file ", filename, err)
+				log.Warn("Could not read mp dev name file ", filename, err)
 			} else {
 				mpathDev := strings.TrimSpace(string(name))
 				mapperDevice := fmt.Sprintf("/dev/mapper/%s", mpathDev)
@@ -823,11 +837,11 @@ func unmountStagingMount(
 		log.WithField("directory", target).Debug("removing directory")
 		err := removeWithRetry(ctx, target)
 		if err != nil {
-			log.Errorf("Error removing private mount target: %s Error:%v", target, err)
+			log.Warnf("Error removing private mount target: %s Error:%v", target, err)
 		}
 	} else {
 		for _, m := range mnts {
-			log.Debugf("Remaining dev mount: %#v", m)
+			log.Warnf("Remaining dev mount: %#v", m)
 		}
 	}
 
@@ -842,7 +856,7 @@ func removeWithRetry(ctx context.Context, target string) error {
 		log.Debug("Removing target:", target)
 		err = os.Remove(target)
 		if err != nil && !os.IsNotExist(err) {
-			log.Errorf("Error removing private mount target: %v", err)
+			log.Warnf("Error removing private mount target: %v", err)
 			cmd := exec.Command("/usr/bin/rmdir", target)
 			textBytes, err := cmd.CombinedOutput()
 			if err != nil {
@@ -866,7 +880,7 @@ func evalSymlinks(ctx context.Context, path string) string {
 	// eval any symlinks and make sure it points to a device
 	d, err := filepath.EvalSymlinks(path)
 	if err != nil {
-		log.Error("Could not evaluate symlinks for path: " + path)
+		log.Warn("Could not evaluate symlinks for path: " + path)
 		return path
 	}
 	return d
@@ -888,7 +902,7 @@ func getPathMounts(ctx context.Context, path string) ([]gofsutil.Info, error) {
 }
 
 // mountBlock bind mounts the device to the required target
-func mountBlock(ctx context.Context, device *Device, target string, mntFlags []string, singleAccess bool) error {
+func mountBlock(ctx context.Context, device *Device, target string, mntFlags []string, singleAccess, allowRWOMultiPodAccess bool) error {
 	rid, log := utils.GetRunidAndLogger(ctx)
 	log.Debugf("mountBlock called for device %#v target %s mntFlags %#v", device, target, mntFlags)
 	// Check to see if already mounted
@@ -900,7 +914,7 @@ func mountBlock(ctx context.Context, device *Device, target string, mntFlags []s
 		if mnt.Path == target {
 			log.Info("Block volume target is already mounted")
 			return nil
-		} else if singleAccess {
+		} else if singleAccess && !allowRWOMultiPodAccess {
 			return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Access mode conflicts with existing mounts"))
 		}
 	}
