@@ -3,9 +3,6 @@ FROM golang:1.16.3 as builder
 RUN mkdir -p /go/src
 COPY csi-unity/ /go/src/csi-unity
 
-#//@TODO remove gounity before release
-COPY gounity /go/src/gounity
-
 WORKDIR /go/src/csi-unity
 RUN mkdir -p bin
 RUN go generate
