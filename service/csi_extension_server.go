@@ -59,6 +59,9 @@ const (
 
 var RefreshDuration = refreshInterval * time.Second
 
+// MetricsTimeout is a timeout context used in Unity metrics creation/collection calls
+var MetricsTimeout = 30 * time.Second
+
 // ValidateVolumeHostConnectivity is for validating if there are signs of connectivity to a give Kubernetes node.
 func (s *service) ValidateVolumeHostConnectivity(ctx context.Context, req *podmon.ValidateVolumeHostConnectivityRequest) (*podmon.ValidateVolumeHostConnectivityResponse, error) {
 	ctx, log, _ := GetRunidLog(ctx)
@@ -437,8 +440,11 @@ func (s *service) getMetrics(ctx context.Context, arrayId string, metrics []stri
 	cacheKey := fmt.Sprintf("%s:%s", arrayId, strings.Join(metrics, ","))
 	collectionId, found := metricsCollectionCache.Load(cacheKey)
 	if found {
+		// Create a separate time to be used for metrics collection calls
+		getMetricCtx, getMetricCancel := context.WithTimeout(context.Background(), MetricsTimeout)
+		defer getMetricCancel()
 		// Validate that the query works.
-		result, getErr := GetMetricsCollection(s, ctx, arrayId, collectionId.(int))
+		result, getErr := GetMetricsCollection(s, getMetricCtx, arrayId, collectionId.(int))
 		if getErr == nil {
 			// No error on query, but validate that it has the requested metric path
 			hasAllPaths := true
@@ -478,7 +484,10 @@ func (s *service) getMetrics(ctx context.Context, arrayId string, metrics []stri
 		// There was a hit and it was different from what we had above.
 		// Return the metrics data based on this latest collection ID.
 		log.Infof("Retrieving results from latest collection %v", latestCollectionId)
-		return GetMetricsCollection(s, ctx, arrayId, latestCollectionId.(int))
+		// Create a separate time to be used for metrics collection calls
+		getMetricCtx, getMetricCancel := context.WithTimeout(context.Background(), MetricsTimeout)
+		defer getMetricCancel()
+		return GetMetricsCollection(s, getMetricCtx, arrayId, latestCollectionId.(int))
 	} else if foundAgain { // but collectionIds match, so a stale entry
 		// Clean up a stale cache instance
 		metricsCollectionCache.Delete(cacheKey)
@@ -489,8 +498,11 @@ func (s *service) getMetrics(ctx context.Context, arrayId string, metrics []stri
 	// should return metrics based on the cached collection ID.
 	log.Infof("Attempting to create a %v metrics collection for %s", metrics, arrayId)
 
+	// Create a separate time to be used for metrics creation calls
+	createMetricCtx, createMetricCancel := context.WithTimeout(context.Background(), MetricsTimeout)
+	defer createMetricCancel()
 	// Create the metrics collection because it doesn't exist
-	collection, createErr := CreateMetricsCollection(s, ctx, arrayId, metrics, MetricsCollectionInterval)
+	collection, createErr := CreateMetricsCollection(s, createMetricCtx, arrayId, metrics, MetricsCollectionInterval)
 	if createErr != nil {
 		return nil, createErr
 	}
@@ -500,8 +512,11 @@ func (s *service) getMetrics(ctx context.Context, arrayId string, metrics []stri
 	// Wait a bit before trying the first query
 	time.Sleep(time.Duration(CollectionWait) * time.Millisecond)
 
+	// Create a separate time to be used for metrics collection calls
+	getMetricCtx, getMetricCancel := context.WithTimeout(context.Background(), MetricsTimeout)
+	defer getMetricCancel()
 	// Cache the collection Id for subsequent use (above, when there is a cache hit)
-	results, getErr := GetMetricsCollection(s, ctx, arrayId, collection.Content.Id)
+	results, getErr := GetMetricsCollection(s, getMetricCtx, arrayId, collection.Content.Id)
 	if getErr != nil {
 		return nil, getErr
 	}
@@ -552,7 +567,6 @@ func (s *service) getMetricValues(ctx context.Context, metrics *types.MetricQuer
 // will be cleaned up by the array with 1 minute after creation.
 func (s *service) refreshMetricsCollections() {
 	ctx, log, _ := GetRunidLog(context.Background())
-	timeout := 30 * time.Second
 	var totalInterval int32
 	totalInterval = maxRefresh / refreshInterval
 
@@ -567,7 +581,7 @@ func (s *service) refreshMetricsCollections() {
 			// at any time, so that the refresh is restarted.
 			if refreshCount.Load() < totalInterval {
 				metricsCollectionCache.Range(func(cacheKey, collectionId interface{}) bool {
-					metricCtx, cancel := context.WithTimeout(ctx, timeout)
+					metricCtx, cancel := context.WithTimeout(ctx, MetricsTimeout)
 					comp := strings.Split(cacheKey.(string), ":")
 					log.Infof("Refreshing metric for %v collectionId %v", cacheKey, collectionId)
 					_, _ = GetMetricsCollection(s, metricCtx, comp[0], collectionId.(int))

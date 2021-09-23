@@ -95,7 +95,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          imagePullPolicy: Always
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
           image: {{ required "Must provide the podmon container image." .Values.podmon.image }}
           args:
           {{- toYaml .Values.podmon.node.args | nindent 12 }}
@@ -106,7 +106,7 @@ spec:
                   apiVersion: v1
                   fieldPath: spec.nodeName
             - name: X_CSI_PRIVATE_MOUNT_DIR
-              value: "/var/lib/kubelet/plugins/unity.emc.dell.com/disks"
+              value: "{{ .Values.kubeletConfigDir }}/plugins/unity.emc.dell.com/disks"
             - name: MY_NODE_NAME
               valueFrom:
                 fieldRef:
@@ -121,15 +121,17 @@ spec:
                   fieldPath: metadata.namespace
           volumeMounts:
             - name: kubelet-pods
-              mountPath: /var/lib/kubelet/pods
+              mountPath: {{ .Values.kubeletConfigDir }}/pods
               mountPropagation: "Bidirectional"
             - name: driver-path
-              mountPath: /var/lib/kubelet/plugins/unity.emc.dell.com
+              mountPath: {{ .Values.kubeletConfigDir }}/plugins/unity.emc.dell.com
               mountPropagation: "Bidirectional"
             - name: usr-bin
               mountPath: /usr-bin
             - name: var-run
               mountPath: /var/run
+            - name: unity-config
+              mountPath: /unity-config
 {{ end }}
         - name: driver
           securityContext:
@@ -140,11 +142,12 @@ spec:
           image: {{ required "Must provide the Unity driver container image." .Values.images.driver }}
           args:
             - "--driver-name=csi-unity.dellemc.com"
-            - "--driver-config=/unity-config/config"
+            - "--driver-config=/unity-config/driver-config-params.yaml"
+            - "--driver-secret=/unity-secret/config"
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
             - name: CSI_ENDPOINT
-              value: unix:///var/lib/kubelet/plugins/unity.emc.dell.com/csi_sock
+              value: {{ .Values.kubeletConfigDir }}/plugins/unity.emc.dell.com/csi_sock
             - name: X_CSI_MODE
               value: node
             - name: X_CSI_UNITY_AUTOPROBE
@@ -152,9 +155,9 @@ spec:
             - name: X_CSI_UNITY_ALLOW_MULTI_POD_ACCESS
               value: {{ .Values.allowRWOMultiPodAccess | default "false" | lower | quote }}
             - name: X_CSI_PRIVATE_MOUNT_DIR
-              value: "/var/lib/kubelet/plugins/unity.emc.dell.com/disks"
+              value: "{{ .Values.kubeletConfigDir }}/plugins/unity.emc.dell.com/disks"
             - name: X_CSI_EPHEMERAL_STAGING_PATH
-              value: "/var/lib/kubelet/plugins/kubernetes.io/csi/pv/"
+              value: "{{ .Values.kubeletConfigDir }}/plugins/kubernetes.io/csi/pv/"
             - name: X_CSI_ISCSI_CHROOT
               value: {{ .Values.ISCSIChroot | default "/noderoot" }}
             - name: X_CSI_UNITY_NODENAME
@@ -170,12 +173,12 @@ spec:
               value: {{ .Values.syncNodeInfoInterval | default "15" | quote }}
           volumeMounts:
             - name: driver-path
-              mountPath: /var/lib/kubelet/plugins/unity.emc.dell.com
+              mountPath: {{ .Values.kubeletConfigDir }}/plugins/unity.emc.dell.com
             - name: volumedevices-path
-              mountPath: /var/lib/kubelet/plugins/kubernetes.io/csi
+              mountPath: {{ .Values.kubeletConfigDir }}/plugins/kubernetes.io/csi
               mountPropagation: "Bidirectional"
             - name: pods-path
-              mountPath: /var/lib/kubelet/pods
+              mountPath: {{ .Values.kubeletConfigDir }}/pods
               mountPropagation: "Bidirectional"
             - name: dev
               mountPath: /dev
@@ -186,12 +189,14 @@ spec:
               readOnly: true
             - name: unity-config
               mountPath: /unity-config
+            - name: unity-secret
+              mountPath: /unity-secret
         - name: registrar
           image: {{ required "Must provide the CSI node registrar container image." .Values.images.registrar }}
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
-            - --kubelet-registration-path=/var/lib/kubelet/plugins/unity.emc.dell.com/csi_sock
+            - --kubelet-registration-path={{ .Values.kubeletConfigDir }}/plugins/unity.emc.dell.com/csi_sock
           env:
             - name: ADDRESS
               value: /csi/csi_sock
@@ -208,19 +213,19 @@ spec:
       volumes:
         - name: registration-dir
           hostPath:
-            path: /var/lib/kubelet/plugins_registry/
+            path: {{ .Values.kubeletConfigDir }}/plugins_registry/
             type: DirectoryOrCreate
         - name: driver-path
           hostPath:
-            path: /var/lib/kubelet/plugins/unity.emc.dell.com
+            path: {{ .Values.kubeletConfigDir }}/plugins/unity.emc.dell.com
             type: DirectoryOrCreate
         - name: volumedevices-path
           hostPath:
-            path: /var/lib/kubelet/plugins/kubernetes.io/csi
+            path: {{ .Values.kubeletConfigDir }}/plugins/kubernetes.io/csi
             type: DirectoryOrCreate
         - name: pods-path
           hostPath:
-            path: /var/lib/kubelet/pods
+            path: {{ .Values.kubeletConfigDir }}/pods
             type: Directory
         - name: dev
           hostPath:
@@ -241,6 +246,9 @@ spec:
                       path: cert-{{ $e }}
 {{- end }}
         - name: unity-config
+          configMap:
+              name: {{ .Release.Name }}-config-params
+        - name: unity-secret
           secret:
               secretName: {{ .Release.Name }}-creds
 {{ if .Values.podmon.enabled }}
@@ -250,7 +258,7 @@ spec:
             type: Directory
         - name: kubelet-pods
           hostPath:
-            path: /var/lib/kubelet/pods
+            path: {{ .Values.kubeletConfigDir }}/pods
             type: Directory
         - name: var-run
           hostPath:

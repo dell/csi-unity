@@ -1,78 +1,141 @@
-# Represents number of certificate secrets, which user is going to create for ssl authentication. (unity-cert-0..unity-cert-n)
-# Minimum value should be 1
+## K8S/DRIVER ATTRIBUTES
+########################
+
+# version: version of this values file
+# Note: Do not change this value
+version: "2.0.0"
+
+# LogLevel is used to set the logging level of the driver.
+# Allowed values: "error", "warn"/"warning", "info", "debug"
+# Default value: "info"
+logLevel: "info"
+
+# certSecretCount: Represents number of certificate secrets, which user is going to create for
+# ssl authentication. (unity-cert-0..unity-cert-n)
+# Allowed values: n, where n > 0
+# Default value: None
 certSecretCount: 1
 
-# "volumeNamePrefix" defines a string prepended to each volume created by the CSI driver.
-volumeNamePrefix: csivol
+# imagePullPolicy: Policy to determine if the image should be pulled prior to starting the container.
+# Allowed values:
+# Always: Always pull the image.
+# IfNotPresent: Only pull the image if it does not already exist on the node.
+# Never: Never pull the image.
+# Default value: IfNotPresent
+imagePullPolicy: Always
 
-# "snapNamePrefix" defines a string prepended to each snapshot registered by the CSI driver.
-snapNamePrefix: csi-snap
-
-# The default pull policy is IfNotPresent which causes the Kubelet to skip pulling an image
-# if it already exists. If you would like to always force a pull, use "Always"
-imagePullPolicy: IfNotPresent
-
-# controllerCount is controller replication count to maintain high availability.
-# controllerCount value should be >= 1
-controllerCount: 2
+# Specify kubelet config dir path.
+# Ensure that the config.yaml file is present at this path.
+# Default value: None
+kubeletConfigDir: /var/lib/kubelet
 
 #To set nodeSelectors and tolerations for controller.
+# controller: configure controller pod specific parameters
 controller:
-  #You may define a nodeSelector if desired for the controllers.
-  nodeSelector:
+  # controllerCount: defines the number of csi-powerscale controller pods to deploy to
+  # the Kubernetes release.
+  # Allowed values: n, where n > 0
+  # Default value: None
+  controllerCount: 2
+
+  # volumeNamePrefix: Prefix of PersistentVolume names created
+  # Allowed values: string
+  # Default value: None
+  volumeNamePrefix: csivol
+
+  snapshot:
+    # enabled: Enable/Disable volume snapshot feature
+    # Allowed values:
+    #   true: enable volume snapshot feature(install snapshotter sidecar)
+    #   false: disable volume snapshot feature(do not install snapshotter sidecar)
+    # Default value: None
+    enabled: true
+
+    # snapNamePrefix: Prefix to apply to the names of a created snapshots
+    # Allowed values: string
+    # Default value: None
+    snapNamePrefix: csi-snap
+
+  resizer:
+    # enabled: Enable/Disable volume expansion feature
+    # Allowed values:
+    #   true: enable volume expansion feature(install resizer sidecar)
+    #   false: disable volume snapshot feature(do not install resizer sidecar)
+    # Default value: None
+    enabled: true
+
+  # nodeSelector: Define node selection constraints for controller pods.
+  # For the pod to be eligible to run on a node, the node must have each
+  # of the indicated key-value pairs as labels.
+  # Leave as blank to consider all nodes
+  # Allowed values: map of key-value pairs
+  # Default value: None
+  # Examples:
   #   node-role.kubernetes.io/master: ""
+  nodeSelector:
 
-  #You may define tolerations if desired for the controllers.
+  # tolerations: Define tolerations for the controllers, if required.
+  # Default value: None
   tolerations:
-  # - key: "node-role.kubernetes.io/master"
-  #   operator: "Exists"
-  #   effect: "NoSchedule"
+  #  - key: "node-role.kubernetes.io/master"
+  #    operator: "Equal"
+  #    value: "true"
+  #    effect: "NoSchedule"
 
-# "node" allows to configure node specific parameters
+# node: configure node pod specific parameters
 node:
-  # Determines the DNS Policy of the Node service.
+  # dnsPolicy : Define the DNS Policy of the Node service.
   # ClusterFirstWithHostNet is the recommended and default DNS policy for the driver.
   # Prior to v1.6 of the driver, the default DNS policy was ClusterFirst.
   # In certain scenarios, users might need to change the default dnsPolicy.
+  # Default value: None
   dnsPolicy: "ClusterFirstWithHostNet"
 
-# Podmon is an optional feature under development and tech preview.
-# Enable this feature only after contact support for additional information
+# CSM module attributes
+# service to monitor failing jobs and notify
 podmon:
+  # enabled - flag to enable or disable podmon
+  # allowed values : boolean
+  # defaule value : None
+  # Examples : true , false
   enabled: false
+  # image - image name
+  # allowed values - string
+  # default value : None
+  # Example : "podman:latest", "pod:latest"
   image:
 #  controller:
 #    args:
-#      - "-csisock=unix:/var/run/csi/csi.sock"
-#      - "-labelvalue=csi-unity"
-#      - "-driverPath=csi-unity.dellemc.com"
-#      - "-mode=controller"
+#      - "--csisock=unix:/var/run/csi/csi.sock"
+#      - "--labelvalue=csi-unity"
+#      - "--driverPath=csi-unity.dellemc.com"
+#      - "--mode=controller"
+#      - "--driver-config-params=/unity-config/driver-config-params.yaml"
 #  node:
 #    args:
-#      - "-csisock=unix:/var/lib/kubelet/plugins/unity.emc.dell.com/csi_sock"
-#      - "-labelvalue=csi-unity"
-#      - "-driverPath=csi-unity.dellemc.com"
-#      - "-mode=node"
-#      - "-leaderelection=false"
+#      - "--csisock=unix:/var/lib/kubelet/plugins/unity.emc.dell.com/csi_sock"
+#      - "--labelvalue=csi-unity"
+#      - "--driverPath=csi-unity.dellemc.com"
+#      - "--mode=node"
+#      - "--leaderelection=false"
+#      - "--driver-config-params=/unity-config/driver-config-params.yaml"
 
-# Time interval to add node info to array. Default 15 minutes. Minimum value should be 1.
-# If your specifies 0, then time is set to default value.
-# syncNodeInfoInterval has been deprecated and will be removed from use in values.yaml in a future release.
-# This can be now configured from secret.json/secret.yaml.
-# The value from secret can be loaded dynamically by the driver without requiring a re-installation and has higher precedence.
+### The below parameters have been discontinued for configuration from secret.yaml and will have to be configured only in values.yaml
+
+# syncNodeInfoInterval - Time interval to add node info to array. Default 15 minutes. Minimum value should be 1.
+# Allowed values: integer
+# Default value: 15
+# Examples : 0 , 2
 syncNodeInfoInterval: 15
 
-# Flag to enable sharing of volumes across multiple pods within the same node in RWO access mode.
-# Setting allowRWOMultiPodAccess to "true" will allow multiple pods on the same node
-# to access the same RWO volume. This behavior conflicts with the CSI specification version 1.3
-# NodePublishVolume descrition that requires an error to be returned in this case.
-# However some other CSI drivers support this behavior and some customers desire this behavior.
-# Kubernetes could make a change at their discretion that would preclude our ability to support this option.
-# Customers use this option at their own risk.
-
-# allowRWOMultiPodAccess has been deprecated and will be removed from use in values.yaml in a future release.
-# This can be now configured from secret.json/secret.yaml.
-# The value from secret can be loaded dynamically by the driver without requiring a re-installation and has higher precedence.
+# allowRWOMultiPodAccess - Flag to enable sharing of volumes across multiple pods within the same node in RWO access mode.
+# Allowed values: boolean
+# Default value: 15
+# Examples : "true" , "false"
 allowRWOMultiPodAccess: "false"
 
-
+# maxUnityVolumesPerNode - Maximum number of volumes that controller can publish to the node.
+# Allowed values: integer
+# Default value: 0
+# Examples : 0 , 1
+maxUnityVolumesPerNode: 0

@@ -39,5 +39,4 @@ const (
 	// Enabling this option techincally violates the CSI 1.3 spec in the NodePublishVolume stating the required error returns.
 	//X_CSI_UNITY_ALLOW_MULTI_POD_ACCESS has been deprecated and will be removes in a future release
 	EnvAllowRWOMultiPodAccess = "X_CSI_UNITY_ALLOW_MULTI_POD_ACCESS"
-	
 )

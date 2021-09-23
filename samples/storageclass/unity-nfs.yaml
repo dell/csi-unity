@@ -1,0 +1,101 @@
+# This is a sample manifest for utilizing the topology feature and mount options.
+# PVCs created using this storage class will be scheduled on any available node
+
+# Change all instances of <ARRAY_ID> to the array serial ID of the unisphere instance used
+
+# Provide mount options through "mountOptions" attribute 
+# to create PVCs with mount options.
+
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: unity-<ARRAY_ID>-nfs
+# If using custom driver name, change the following to point to the custom name
+# Default value: csi-unity.dellemc.com
+# Examples: "csi-driver-unity", "csi-unity.dellemc.com"
+provisioner: csi-unity.dellemc.com
+# reclaimPolicy - Configure what happens to a Persistent Volume when the PVC
+# it is bound to is to be deleted
+# Allowed values:
+#   Delete: the underlying persistent volume will be deleted along with the persistent volume claim.
+#   Retain: the underlying persistent volume remain.
+# Optional: false
+# Default value: None
+reclaimPolicy: Delete
+# allowVolumeExpansion - Attribute to allow volume expansion
+# Allowed values:
+    #   "true"  - Volume can be resized
+    #   "false" - Volume cannot be resized
+# Default value: "true"
+# Optional: true
+allowVolumeExpansion: true
+# volumeBindingMode- controls when volume binding and dynamic provisioning should occur.
+# Allowed values:
+#   Immediate- indicates that volume binding and dynamic provisioning 
+#              occurs once the PersistentVolumeClaim is created
+#   WaitForFirstConsumer- will delay the binding and provisioning of a PersistentVolume
+#              until a Pod using the PersistentVolumeClaim is created
+# Default value: "Immediate"
+# Optional: true
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  # protocol - Defines"FC" or "FIBRE" for fibrechannel, "ISCSI" for iSCSI, or "" for autoselection.
+  # Allowed values:
+  #   "FC"    - Fiber Channel protocol
+  #   "FIBER" - Fiber Channel protocol
+  #   "ISCSI" - iSCSI protocol
+  #   ""      - Automatic selection of transport protocol
+  # Default value: ""
+  # Optional:  false
+  protocol: NFS
+  # arrayId - Serial Id of the array that will be used for provisioning.
+  # Allowed values: String
+  # Default value: None
+  # Examples: "APM000000001", "APM000000002"
+  arrayId: <ARRAY_ID>
+  #storagePool - Define Storage pool CLI Id of the storage array.
+  # Allowed values: String
+  # Default value: None
+  # Optional: false
+  # Examples: pool_0
+  storagePool: <STORAGE_POOL>
+  #thinProvisioned- Defines Boolean to choose value of thinProvisioned while creating a new volume
+  # Allowed values: 
+  #    true      - for thin provision
+  #    false     - for thick provision
+  # Default value: false
+  # Optional: true
+  thinProvisioned: true
+  #isDataReductionEnabled - Defines Boolean to choose value of is DataReductionEnabled while creating a new volume
+  # Allowed values: 
+  #    true      - to enable data reduction
+  #    false     - to disable data reduction
+  # Default value: false
+  # Optional: true
+  isDataReductionEnabled: true
+  #tieringPolicy - Define Tiering policy that is to be used for provisioning
+  # Allowed values: String
+  # Default value: None
+  # Optional: true
+  # Examples: "0"
+  tieringPolicy: <TIERING_POLICY>
+  # nasServer - Define NAS Server for the filesystem here
+  # Default value: None
+  # Optional: false
+  # Examples : nasserver_0
+  nasServer: <NAS_SERVER>
+  # hostIoSize - Insert Host IO Size that is to be set for the filesystem. 
+  # Default value: None
+  # Optional: false
+  # Examples : 8192
+  hostIoSize: <HOST_IO_SIZE> 
+allowedTopologies:
+  - matchLabelExpressions:
+      - key: csi-unity.dellemc.com/<array_id>-nfs
+        values:
+          - "true"
+# mountOptions - Defines mount input vlaues
+# Default value: None
+# Optional: false
+# Examples: "/dev/sdc", "/dev/unity"      
+mountOptions: ["<mountOption1>", "<mountOption2>", ..., "<mountOptionN>"]
