@@ -104,7 +104,11 @@ metadata:
   name: {{ .Release.Name }}-controller
   namespace: {{ .Release.Namespace }}
 spec:
-  replicas: {{ required "Must provide the number of controller instances to create." .Values.controllerCount }}
+  {{- if lt (.Values.controller.controllerCount | toString | atoi ) 1 -}}
+  {{- fail "value for .Values.controller.controllerCount should be atleast 1" }}
+  {{- else }}
+  replicas: {{ required "Must provide the number of controller instances to create." .Values.controller.controllerCount }}
+  {{- end }}
   selector:
     matchLabels:
       app: {{ .Release.Name }}-controller
@@ -135,7 +139,7 @@ spec:
       containers:
 {{ if .Values.podmon.enabled }}
         - name: podmon
-          imagePullPolicy: Always
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
           image: {{ required "Must provide the podmon container image." .Values.podmon.image }}
           args:
             {{- toYaml .Values.podmon.controller.args | nindent 12 }}
@@ -155,6 +159,8 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /var/run/csi
+            - name: unity-config
+              mountPath: /unity-config
 {{ end }}
         - name: attacher
           image: {{ required "Must provide the CSI attacher container image." .Values.images.attacher }}
@@ -172,7 +178,7 @@ spec:
           image: {{ required "Must provide the CSI provisioner container image." .Values.images.provisioner }}
           args:
             - "--csi-address=$(ADDRESS)"
-            - "--volume-name-prefix={{ required "Must provide a Volume Name Prefix." .Values.volumeNamePrefix }}"
+            - "--volume-name-prefix={{ required "Must provide a Volume Name Prefix." .Values.controller.volumeNamePrefix }}"
             - "--volume-name-uuid-length=10"
             - "--timeout=180s"
             - "--worker-threads=6"
@@ -188,11 +194,13 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /var/run/csi
+        {{- if hasKey .Values.controller "snapshot" }}
+        {{- if eq .Values.controller.snapshot.enabled true }}
         - name: snapshotter
           image: {{ required "Must provide the CSI snapshotter container image." .Values.images.snapshotter }}
           args:
             - "--csi-address=$(ADDRESS)"
-            - "--snapshot-name-prefix={{ required "Must privided a Snapshot Name Prefix" .Values.snapNamePrefix }}"
+            - "--snapshot-name-prefix={{ required "Must privided a Snapshot Name Prefix" .Values.controller.snapshot.snapNamePrefix }}"
             - "--snapshot-name-uuid-length=10"
             - "--timeout=360s"
             - "--v=5"
@@ -203,6 +211,10 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /var/run/csi
+        {{end}}
+        {{end}}
+        {{- if hasKey .Values.controller "resizer" }}
+        {{- if eq .Values.controller.resizer.enabled true }}
         - name: resizer
           image: {{ required "Must provide the CSI resizer container image." .Values.images.resizer }}
           args:
@@ -215,11 +227,14 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /var/run/csi
+        {{ end }}
+        {{ end }}
         - name: driver
           image: {{ required "Must provide the Unity driver container image." .Values.images.driver }}
           args:
             - "--driver-name=csi-unity.dellemc.com"
-            - "--driver-config=/unity-config/config"
+            - "--driver-config=/unity-config/driver-config-params.yaml"
+            - "--driver-secret=/unity-secret/config"
             - "--leader-election"
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           env:
@@ -239,6 +254,9 @@ spec:
               readOnly: true
             - name: unity-config
               mountPath: /unity-config
+            - name: unity-secret
+              mountPath: /unity-secret
+              
       volumes:
         - name: certs
           projected:
@@ -253,5 +271,8 @@ spec:
         - name: socket-dir
           emptyDir:
         - name: unity-config
+          configMap:
+              name: {{ .Release.Name }}-config-params
+        - name: unity-secret
           secret:
               secretName: {{ .Release.Name }}-creds

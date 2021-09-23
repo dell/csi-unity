@@ -21,7 +21,8 @@ type leaderElection interface {
 // main is ignored when this package is built as a go plug-in.
 func main() {
 	driverName := flag.String("driver-name", "", "driver name")
-	driverConfig := flag.String("driver-config", "", "driver config json file")
+	driverSecret := flag.String("driver-secret", "", "driver secret yaml file")
+	driverConfig := flag.String("driver-config", "", "driver config yaml file")
 	enableLeaderElection := flag.Bool("leader-election", false, "boolean to enable leader election")
 	leaderElectionNamespace := flag.String("leader-election-namespace", "", "namespace where leader election lease will be created")
 
@@ -33,11 +34,23 @@ func main() {
 	}
 	service.Name = *driverName
 
+	if *driverSecret == "" {
+		fmt.Fprintf(os.Stderr, "driver-secret argument is mandatory")
+		os.Exit(1)
+	}
+	service.DriverSecret = *driverSecret
+
 	if *driverConfig == "" {
 		fmt.Fprintf(os.Stderr, "driver-config argument is mandatory")
 		os.Exit(1)
 	}
 	service.DriverConfig = *driverConfig
+
+	// Always set X_CSI_DEBUG to false irrespective of what user has specified
+	_ = os.Setenv(gocsi.EnvVarDebug, "false")
+	// We always want to enable Request and Response logging (no reason for users to control this)
+	_ = os.Setenv(gocsi.EnvVarReqLogging, "true")
+	_ = os.Setenv(gocsi.EnvVarRepLogging, "true")
 
 	kubeconfig := flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
 	flag.Parse()

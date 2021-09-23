@@ -10,8 +10,8 @@
 
 # verify-csi-unity method
 function verify-csi-unity() {
-  verify_k8s_versions "1.19" "1.21"
-  verify_openshift_versions "4.6" "4.7"
+  verify_k8s_versions "1.20" "1.22"
+  verify_openshift_versions "4.6" "4.8"
   verify_namespace "${NS}"
   verify_required_secrets "${RELEASE}-creds"
   verify_required_secrets "${RELEASE}-certs-0"
@@ -19,6 +19,7 @@ function verify-csi-unity() {
   verify_unity_protocol_installation
   verify_snap_requirements  
   verify_helm_3
+  verify_helm_values_version "2.0.0"
 }
 
 

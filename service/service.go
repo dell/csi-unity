@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -13,12 +12,14 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"os"
 
 	"github.com/dell/dell-csi-extensions/podmon"
 	"google.golang.org/grpc"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/dell/csi-unity/common"
 	"github.com/dell/csi-unity/core"
 	"github.com/dell/csi-unity/k8sutils"
 	"github.com/dell/csi-unity/service/utils"
@@ -30,6 +31,7 @@ import (
 	"github.com/dell/gounity/util"
 	"github.com/fsnotify/fsnotify"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -50,6 +52,7 @@ const (
 
 var Name string
 var DriverConfig string
+var DriverSecret string
 
 //To maintain runid for Non debug mode. Note: CSI will not generate runid if CSI_DEBUG=false
 var runid int64
@@ -62,25 +65,18 @@ var Manifest = map[string]string{
 	"formed": core.CommitTime.Format(time.RFC1123),
 }
 
-//To parse the secret json file
+//To parse the secret yaml file
 type StorageArrayList struct {
-	StorageArrayList         []StorageArrayConfig `json:"storageArrayList" yaml:"storageArrayList"`
-	LogLevel                 string               `json:"logLevel" yaml:"logLevel"`
-	MaxUnityVolumesPerNode   int64                `json:"maxUnityVolumesPerNode,omitempty" yaml:"maxUnityVolumesPerNode,omitempty"`
-	AllowRWOMultiPodAccess   *bool                `json:"allowRWOMultiPodAccess,omitempty" yaml:"allowRWOMultiPodAccess,omitempty"`
-	SyncNodeInfoTimeInterval *int64               `json:"syncNodeInfoTimeInterval,omitempty" yaml:"syncNodeInfoTimeInterval,omitempty"`
+	StorageArrayList []StorageArrayConfig `yaml:"storageArrayList"`
 }
 
 type StorageArrayConfig struct {
-	ArrayId                   string `json:"arrayId" yaml:"arrayId"`
-	Username                  string `json:"username" yaml:"username"`
-	Password                  string `json:"password" yaml:"password"`
-	RestGateway               string `json:"restGateway" yaml:"restGateway"`                           // To be deprecated in future
-	Insecure                  *bool  `json:"insecure,omitempty" yaml:"insecure,omitempty"`             // To be deprecated in future
-	IsDefaultArrayParam       *bool  `json:"isDefaultArray,omitempty" yaml:"isDefaultArray,omitempty"` // To be deprecated in future
-	Endpoint                  string `json:"endpoint,omitempty" yaml:"endpoint,omitempty"`
-	IsDefault                 *bool  `json:"isDefault,omitempty" yaml:"isDefault,omitempty"`
-	SkipCertificateValidation *bool  `json:"skipCertificateValidation,omitempty" yaml:"skipCertificateValidation,omitempty"`
+	ArrayId                   string `yaml:"arrayId"`
+	Username                  string `yaml:"username"`
+	Password                  string `yaml:"password"`
+	Endpoint                  string `yaml:"endpoint"`
+	IsDefault                 *bool  `yaml:"isDefault,omitempty"`
+	SkipCertificateValidation *bool  `yaml:"skipCertificateValidation,omitempty"`
 	IsProbeSuccess            bool
 	IsHostAdded               bool
 	IsDefaultArray            bool
@@ -141,8 +137,8 @@ func New() Service {
 
 //To display the StorageArrayConfig content
 func (s StorageArrayConfig) String() string {
-	return fmt.Sprintf("ArrayID: %s, Username: %s, RestGateway: %s, Insecure: %v, IsDefaultArray:%v, IsProbeSuccess:%v, IsHostAdded:%v",
-		s.ArrayId, s.Username, s.RestGateway, s.Insecure, s.IsDefaultArray, s.IsProbeSuccess, s.IsHostAdded)
+	return fmt.Sprintf("ArrayID: %s, Username: %s, Endpoint: %s, SkipCertificateValidation: %v, IsDefaultArray:%v, IsProbeSuccess:%v, IsHostAdded:%v",
+		s.ArrayId, s.Username, s.Endpoint, s.SkipCertificateValidation, s.IsDefaultArray, s.IsProbeSuccess, s.IsHostAdded)
 }
 
 // BeforeServe allows the SP to participate in the startup
@@ -237,13 +233,13 @@ func (s *service) BeforeServe(
 	runid := fmt.Sprintf("config-%d", 0)
 	ctx, log = setRunIdContext(ctx, runid)
 	s.arrays = new(sync.Map)
-	err = s.syncDriverConfig(ctx)
+	err = s.syncDriverSecret(ctx)
 	if err != nil {
 		return err
 	}
 	syncNodeInfoChan = make(chan bool)
 	//Dynamically load the config
-	go s.loadDynamicConfig(ctx, DriverConfig)
+	go s.loadDynamicConfig(ctx, DriverSecret, DriverConfig)
 
 	//Add node information to hosts
 	if s.mode == "node" {
@@ -298,7 +294,7 @@ func (s *service) getStorageArrayList() []*StorageArrayConfig {
 func (s *service) getUnityClient(ctx context.Context, arrayID string) (*gounity.Client, error) {
 	_, _, rid := GetRunidLog(ctx)
 	if s.getStorageArrayLength() == 0 {
-		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Invalid driver csi-driver configuration provided. At least one array should present or invalid json format. "))
+		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Invalid driver csi-driver configuration provided. At least one array should present or invalid yaml format. "))
 	}
 
 	array := s.getStorageArray(arrayID)
@@ -346,17 +342,36 @@ func (s *service) getArrayIdFromVolumeContext(contextVolId string) (string, erro
 
 var watcher *fsnotify.Watcher
 
-func (s *service) loadDynamicConfig(ctx context.Context, configFile string) error {
+func (s *service) loadDynamicConfig(ctx context.Context, secretFile, configFile string) error {
 	i := 1
 	runid := fmt.Sprintf("config-%d", i)
 	ctx, log := setRunIdContext(ctx, runid)
 
 	log.Info("Dynamic config load goroutine invoked")
+
+	//Dynamic update of config
+	vc := viper.New()
+	vc.AutomaticEnv()
+	vc.SetConfigFile(configFile)
+	if err := vc.ReadInConfig(); err != nil {
+		log.Warnf("unable to read driver config params from file '%s'. Using defaults.", configFile)
+	}
+
+	s.syncDriverConfig(ctx, vc)
+
+	// Watch for changes to driver config params file
+	vc.WatchConfig()
+	vc.OnConfigChange(func(e fsnotify.Event) {
+		log.Infof("Driver config params file changed")
+		s.syncDriverConfig(ctx, vc)
+	})
+
+	//Dynamic update of secret
 	watcher, _ := fsnotify.NewWatcher()
 	defer watcher.Close()
 
-	parentFolder, _ := filepath.Abs(filepath.Dir(configFile))
-	log.Debug("Config folder:", parentFolder)
+	parentFolder, _ := filepath.Abs(filepath.Dir(secretFile))
+	log.Debug("Secret folder:", parentFolder)
 	done := make(chan bool)
 	go func() {
 		for {
@@ -366,11 +381,11 @@ func (s *service) loadDynamicConfig(ctx context.Context, configFile string) erro
 					return
 				}
 				if event.Op&fsnotify.Create == fsnotify.Create && event.Name == parentFolder+"/..data" {
-					log.Warnf("****************Driver config file modified. Loading the config file:%s****************", event.Name)
-					err := s.syncDriverConfig(ctx)
+					log.Warnf("****************Driver secret file modified. Loading the secret file:%s****************", event.Name)
+					err := s.syncDriverSecret(ctx)
 					if err != nil {
 						log.Debug("Driver configuration array length:", s.getStorageArrayLength())
-						log.Error("Invalid configuration in secret.json. Error:", err)
+						log.Error("Invalid configuration in secret.yaml. Error:", err)
 						//return
 					}
 					if s.mode == "node" {
@@ -384,7 +399,7 @@ func (s *service) loadDynamicConfig(ctx context.Context, configFile string) erro
 				if !ok {
 					return
 				}
-				log.Error("Driver config load error:", err)
+				log.Error("Driver secret load error:", err)
 			}
 		}
 	}()
@@ -414,65 +429,30 @@ func (s *service) getProtocolFromVolumeContext(contextVolId string) (string, err
 
 var syncMutex sync.Mutex
 
-//Reads the credentials from secrets and initialize all arrays.
-func (s *service) syncDriverConfig(ctx context.Context) error {
+// syncDriverSecret - Reads credentials from secrets and initialize all arrays.
+func (s *service) syncDriverSecret(ctx context.Context) error {
 	ctx, log, _ := GetRunidLog(ctx)
-	log.Info("*************Synchronizing driver config**************")
+	log.Info("*************Synchronizing driver secret**************")
 	syncMutex.Lock()
 	defer syncMutex.Unlock()
 	s.arrays.Range(func(key interface{}, value interface{}) bool {
 		s.arrays.Delete(key)
 		return true
 	})
-	configBytes, err := ioutil.ReadFile(DriverConfig)
+	secretBytes, err := ioutil.ReadFile(DriverSecret)
 	if err != nil {
-		return errors.New(fmt.Sprintf("File ('%s') error: %v", DriverConfig, err))
+		return errors.New(fmt.Sprintf("File ('%s') error: %v", DriverSecret, err))
 	}
 
-	if string(configBytes) != "" {
-		log.Debugf("Trying to parse DriverConfig %s as json", DriverConfig)
-		var secretConfig *StorageArrayList
-		jsonConfig := new(StorageArrayList)
-		err := json.Unmarshal(configBytes, &jsonConfig)
-		if err != nil {
-			log.Warnf("Unable to parse the credentials [%v]", err)
-			log.Debugf("Trying to parse DriverConfig %s as yaml", DriverConfig)
-			yamlConfig := new(StorageArrayList)
-			yamlErr := yaml.Unmarshal(configBytes, yamlConfig)
-			if yamlErr != nil {
-				log.Errorf("Couldnt parse DriverConfig %s as json as well as yaml", DriverConfig)
-				return errors.New(fmt.Sprintf("Unable to parse the DriverConfig as json as well as yaml [%v]", yamlErr))
-			}
-			secretConfig = yamlConfig
-		} else {
-			secretConfig = jsonConfig
-		}
+	if string(secretBytes) != "" {
 
-		if secretConfig.AllowRWOMultiPodAccess != nil {
-			s.opts.AllowRWOMultiPodAccess = *secretConfig.AllowRWOMultiPodAccess
-			if s.opts.AllowRWOMultiPodAccess {
-				log.Warn("AllowRWOMultiPodAccess has been set to true. PVCs will now be accessible by multiple pods on the same node.")
-			}
+		log.Debugf("Trying to parse DriverSecret %s as yaml", DriverSecret)
+		secretConfig := new(StorageArrayList)
+		yamlErr := yaml.Unmarshal(secretBytes, secretConfig)
+		if yamlErr != nil {
+			log.Errorf("Couldnt parse DriverSecret %s  as yaml", DriverSecret)
+			return errors.New(fmt.Sprintf("Unable to parse the DriverSecret as yaml [%v]", yamlErr))
 		}
-
-		if secretConfig.SyncNodeInfoTimeInterval != nil {
-			s.opts.SyncNodeInfoTimeInterval = *secretConfig.SyncNodeInfoTimeInterval
-		}
-
-		if secretConfig.MaxUnityVolumesPerNode > 0 {
-			s.opts.MaxVolumesPerNode = secretConfig.MaxUnityVolumesPerNode
-		}
-
-		if secretConfig.LogLevel == "" {
-			//setting default log level to Info
-			s.opts.LogLevel = "Info"
-		} else {
-			s.opts.LogLevel = secretConfig.LogLevel
-		}
-		utils.ChangeLogLevel(s.opts.LogLevel)
-		//Change log level on gounity
-		util.ChangeLogLevel(s.opts.LogLevel)
-		log.Warnf("Log level changed to: %s", s.opts.LogLevel)
 
 		if len(secretConfig.StorageArrayList) == 0 {
 			return errors.New("Arrays details are not provided in unity-creds secret")
@@ -484,79 +464,62 @@ func (s *service) syncDriverConfig(ctx context.Context) error {
 		})
 
 		var noOfDefaultArrays int
-		for i, config := range secretConfig.StorageArrayList {
-			if config.ArrayId == "" {
+		for i, secret := range secretConfig.StorageArrayList {
+			if secret.ArrayId == "" {
 				return errors.New(fmt.Sprintf("invalid value for ArrayID at index [%d]", i))
 			}
-			if config.Username == "" {
+			if secret.Username == "" {
 				return errors.New(fmt.Sprintf("invalid value for Username at index [%d]", i))
 			}
-			if config.Password == "" {
+			if secret.Password == "" {
 				return errors.New(fmt.Sprintf("invalid value for Password at index [%d]", i))
 			}
-
-			endpoint := config.Endpoint
-			if config.RestGateway == "" && config.Endpoint == "" {
-				return errors.New(fmt.Sprintf("invalid value for RestGateway or Endpoint at index [%d]", i))
-			} else if config.RestGateway != "" && config.Endpoint != "" {
-				return errors.New(fmt.Sprintf("RestGateway and Endpoint, both are specified. Use any one of the parameters to specify Rest Endpoit at index [%d]", i))
-			} else if config.RestGateway != "" {
-				endpoint = config.RestGateway
+			if secret.SkipCertificateValidation == nil {
+				return errors.New(fmt.Sprintf("invalid value for SkipCertificateValidation at index [%d]", i))
+			}
+			if secret.Endpoint == "" {
+				return errors.New(fmt.Sprintf("invalid value for Endpoint at index [%d]", i))
+			}
+			if secret.IsDefault == nil {
+				return errors.New(fmt.Sprintf("invalid value for IsDefault at index [%d]", i))
 			}
 
-			insecure := true
-			if config.Insecure == nil && config.SkipCertificateValidation == nil {
-				return errors.New(fmt.Sprintf("Specify either Insecure or SkipCertificateValidation at index [%d]", i))
-			} else if config.Insecure != nil && config.SkipCertificateValidation != nil {
-				return errors.New(fmt.Sprintf("Insecure and SkipCertificateValidation, both are specified. Kindly use any one of the parameters at index [%d]", i))
-			} else if config.SkipCertificateValidation != nil {
-				insecure = *config.SkipCertificateValidation
-			} else {
-				insecure = *config.Insecure
-			}
+			endpoint := secret.Endpoint
+			insecure := *secret.SkipCertificateValidation
+			secret.IsDefaultArray = *secret.IsDefault
+			secret.ArrayId = strings.ToLower(secret.ArrayId)
 
-			//Continue to use IsDefaultArray as this is references at multiple places
-			config.IsDefaultArray = false
-			if config.IsDefaultArrayParam != nil && config.IsDefault != nil {
-				return errors.New(fmt.Sprintf("IsDefaultArray and IsDefault, both are specified. Kindly use any one of the parameters at index [%d]", i))
-			} else if config.IsDefaultArrayParam != nil {
-				config.IsDefaultArray = *config.IsDefaultArrayParam
-			} else if config.IsDefault != nil {
-				config.IsDefaultArray = *config.IsDefault
-			}
-
-			config.ArrayId = strings.ToLower(config.ArrayId)
 			unityClient, err := gounity.NewClientWithArgs(ctx, endpoint, insecure)
 			if err != nil {
 				return errors.New(fmt.Sprintf("unable to initialize the Unity client [%v]", err))
 			}
-			config.UnityClient = unityClient
+			secret.UnityClient = unityClient
 
 			copy := StorageArrayConfig{}
-			copy = config
+			copy = secret
 
-			if _, ok := s.arrays.Load(config.ArrayId); ok {
-				return errors.New(fmt.Sprintf("Duplicate ArrayID [%s] found in storageArrayList parameter", config.ArrayId))
+			if _, ok := s.arrays.Load(secret.ArrayId); ok {
+				return errors.New(fmt.Sprintf("Duplicate ArrayID [%s] found in storageArrayList parameter", secret.ArrayId))
 			} else {
-				s.arrays.Store(config.ArrayId, &copy)
+				s.arrays.Store(secret.ArrayId, &copy)
 			}
 
 			fields := logrus.Fields{
-				"ArrayId":                            config.ArrayId,
-				"username":                           config.Username,
-				"password":                           "*******",
-				"RestGateway/Endpoint":               endpoint,
-				"Insecure/SkipCertificateValidation": insecure,
-				"IsDefaultArray/IsDefault":           config.IsDefaultArray,
+				"ArrayId":                   secret.ArrayId,
+				"username":                  secret.Username,
+				"password":                  "*******",
+				"Endpoint":                  endpoint,
+				"SkipCertificateValidation": insecure,
+				"IsDefault":                 *secret.IsDefault,
 			}
 			logrus.WithFields(fields).Infof("configured %s", Name)
 
-			if config.IsDefaultArray {
+			if secret.IsDefaultArray {
 				noOfDefaultArrays++
 			}
 
 			if noOfDefaultArrays > 1 {
-				return errors.New(fmt.Sprintf("'isDefaultArray' parameter located in multiple places ArrayId: %s. 'isDefaultArray' parameter should present only once in the storageArrayList.", config.ArrayId))
+				return errors.New(fmt.Sprintf("'IsDefault' parameter is true in multiple places ArrayId: %s. 'isDefaultArray' parameter should present only once in the storageArrayList.", secret.ArrayId))
 			}
 		}
 	} else {
@@ -564,6 +527,48 @@ func (s *service) syncDriverConfig(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// syncDriverSecret - Reads config map and update configuration parameters
+func (s *service) syncDriverConfig(ctx context.Context, v *viper.Viper) {
+	ctx, log, _ := GetRunidLog(ctx)
+	log.Info("*************Synchronizing driver config**************")
+
+	if v.IsSet(constants.ParamCSILogLevel) {
+		inputLogLevel := v.GetString(constants.ParamCSILogLevel)
+
+		if inputLogLevel == "" {
+			//setting default log level to Info if input is invalid
+			s.opts.LogLevel = "Info"
+		}
+
+		if s.opts.LogLevel != inputLogLevel {
+			s.opts.LogLevel = inputLogLevel
+			utils.ChangeLogLevel(s.opts.LogLevel)
+			//Change log level on gounity
+			util.ChangeLogLevel(s.opts.LogLevel)
+			//Change log level on gocsi
+			// set X_CSI_LOG_LEVEL so that gocsi doesn't overwrite the loglevel set by us
+			_ = os.Setenv(gocsi.EnvVarLogLevel, s.opts.LogLevel)
+			log.Warnf("Log level changed to: %s", s.opts.LogLevel)
+		}
+	}
+
+	if v.IsSet(constants.ParamAllowRWOMultiPodAccess) {
+		s.opts.AllowRWOMultiPodAccess = v.GetBool(constants.ParamAllowRWOMultiPodAccess)
+		if s.opts.AllowRWOMultiPodAccess {
+			log.Warn("AllowRWOMultiPodAccess has been set to true. PVCs will now be accessible by multiple pods on the same node.")
+		}
+	}
+
+	if v.IsSet(constants.ParamMaxUnityVolumesPerNode) {
+		s.opts.MaxVolumesPerNode = v.GetInt64(constants.ParamMaxUnityVolumesPerNode)
+	}
+
+	if v.IsSet(constants.ParamSyncNodeInfoTimeInterval) {
+		s.opts.SyncNodeInfoTimeInterval = v.GetInt64(constants.ParamSyncNodeInfoTimeInterval)
+
+	}
 }
 
 //Set arraysId in log messages and re-initialize the context
@@ -731,7 +736,7 @@ func singleArrayProbe(ctx context.Context, probeType string, array *StorageArray
 	ctx, log = setArrayIdContext(ctx, array.ArrayId)
 	if array.UnityClient.GetToken() == "" {
 		err := array.UnityClient.Authenticate(ctx, &gounity.ConfigConnect{
-			Endpoint: array.RestGateway,
+			Endpoint: array.Endpoint,
 			Username: array.Username,
 			Password: array.Password,
 		})
@@ -785,7 +790,7 @@ func (s *service) probe(ctx context.Context, probeType string, arrayId string) e
 func (s *service) validateAndGetResourceDetails(ctx context.Context, resourceContextId string, resourceType resourceType) (resourceId, protocol, arrayId string, unity *gounity.Client, err error) {
 	ctx, _, rid := GetRunidLog(ctx)
 	if s.getStorageArrayLength() == 0 {
-		return "", "", "", nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Invalid driver csi-driver configuration provided. At least one array should present or invalid json format. "))
+		return "", "", "", nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Invalid driver csi-driver configuration provided. At least one array should present or invalid yaml format. "))
 	}
 	resourceId = getVolumeIdFromVolumeContext(resourceContextId)
 	if resourceId == "" {

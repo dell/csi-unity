@@ -144,7 +144,6 @@ func publishNFS(ctx context.Context, req *csi.NodePublishVolumeRequest, exportPa
 	//Check if stage target mount exists
 	var stageExportPathURL string
 	stageMountExists := false
-	stageMountExistsWithConflict := false
 	for _, exportPathURL := range exportPaths {
 		mnts, err := gofsutil.GetDevMounts(ctx, exportPathURL)
 		if err != nil {
@@ -152,19 +151,12 @@ func publishNFS(ctx context.Context, req *csi.NodePublishVolumeRequest, exportPa
 		}
 		for _, m := range mnts {
 			if m.Path == stagingTargetPath {
-				if utils.ArrayContains(m.Opts, rwo) {
-					stageMountExists = true
-					stageExportPathURL = exportPathURL
-				} else {
-					stageMountExistsWithConflict = true
-				}
+				stageMountExists = true
+				stageExportPathURL = exportPathURL
 			}
 		}
 	}
 	if !stageMountExists {
-		if stageMountExistsWithConflict {
-			return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Filesystem mounted with conflicting access modes on staging target path: %s", stagingTargetPath))
-		}
 		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Filesystem not mounted on staging target path: %s", stagingTargetPath))
 	}
 

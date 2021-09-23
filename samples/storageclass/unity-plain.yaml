@@ -1,0 +1,44 @@
+# This is a sample manifest to create plain storageclass without any features like topology, mountOptions etc.
+
+# Change all instances of <ARRAY_ID> to the array serial ID of the unisphere instance used
+
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: unity-<ARRAY_ID>-iscsi
+provisioner: csi-unity.dellemc.com
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+# volumeBindingMode- controls when volume binding and dynamic provisioning should occur.
+# Allowed values:
+#   Immediate- indicates that volume binding and dynamic provisioning 
+#              occurs once the PersistentVolumeClaim is created
+volumeBindingMode: Immediate
+parameters:
+  protocol: iSCSI 
+    # arrayId - Serial Id of the array that will be used for provisioning.
+  # Allowed values: String
+  # Default value: None
+  # Optional: false
+  # Examples: "APM000000001", "APM000000002"
+  arrayId: <ARRAY_ID>
+  #storagePool - Define Storage pool CLI Id of the storage array.
+  # Allowed values: String
+  # Default value: None
+  # Optional: false
+  # Examples: pool_0 
+  storagePool: <STORAGE_POOL>
+  thinProvisioned: true
+  isDataReductionEnabled: true
+  #tieringPolicy - Define Tiering policy that is to be used for provisioning
+  # Allowed values: integer
+  # Default value: None
+  # Optional: false
+  # Examples: 0
+  tieringPolicy: <TIERING_POLICY> 
+  # hostIOLimitName- Insert Host IO Limit Name that is to be used for provisioning here. 
+  # Allowed values: String
+  # Default value: None
+  # Optional: false
+  # Examples: "Autotyre"
+  hostIOLimitName: <HOST_IO_LIMIT_NAME> 

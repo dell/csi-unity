@@ -1721,16 +1721,17 @@ func mockGetUnityClient(s *service, ctx context.Context, arrayId string) (*gouni
 
 func mockStorage(ctx context.Context) *StorageArrayConfig {
 	client, _ := gounity.NewClient(ctx)
+	insecure := true
 	return &StorageArrayConfig{
-		ArrayId:        "array1",
-		Username:       "username",
-		Password:       "pass",
-		RestGateway:    "http://some.host.com",
-		Insecure:       false,
-		IsDefaultArray: true,
-		IsProbeSuccess: false,
-		IsHostAdded:    false,
-		UnityClient:    client,
+		ArrayId:                   "array1",
+		Username:                  "username",
+		Password:                  "pass",
+		Endpoint:                  "http://some.host.com",
+		SkipCertificateValidation: &insecure,
+		IsDefaultArray:            true,
+		IsProbeSuccess:            false,
+		IsHostAdded:               false,
+		UnityClient:               client,
 	}
 }
 
