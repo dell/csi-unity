@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"regexp"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -167,12 +168,21 @@ func (s *service) BeforeServe(
 	if name, ok := csictx.LookupEnv(ctx, gocsi.EnvVarDebug); ok {
 		opts.Debug, _ = strconv.ParseBool(name)
 	}
+
 	if name, ok := csictx.LookupEnv(ctx, EnvNodeName); ok {
 		log.Infof("%s: %s", EnvNodeName, name)
 		opts.LongNodeName = name
-		shortHostName := strings.Split(name, ".")[0]
+		var shortHostName string
+		//check its ip or not
+		var ipFormat = regexp.MustCompile(`(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}`)
+		if (ipFormat.MatchString(name)) {
+			shortHostName = name
+		}else{
+			shortHostName = strings.Split(name, ".")[0]
+		}
 		opts.NodeName = shortHostName
 	}
+
 
 	if kubeConfigPath, ok := csictx.LookupEnv(ctx, EnvKubeConfigPath); ok {
 		opts.KubeConfigPath = kubeConfigPath
