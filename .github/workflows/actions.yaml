@@ -14,7 +14,7 @@ jobs:
       - name: Run the formatter, linter, and vetter
         uses: dell/common-github-actions/go-code-formatter-linter-vetter@main
         with:
-          directories: ./... 
+          directories: ./...
   go_security_scan:
     name: Go security
     runs-on: ubuntu-latest
