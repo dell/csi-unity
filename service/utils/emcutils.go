@@ -13,6 +13,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -96,16 +97,16 @@ func GetFCInitiators(ctx context.Context) ([]string, error) {
 		if !strings.HasPrefix(host.Name(), "host") {
 			continue
 		}
-		portPath := strings.Join([]string{fcHostsDir, host.Name(), "port_name"}, "/")
-		portName, err := ioutil.ReadFile(portPath)
+		portPath := fcHostsDir + "/" + host.Name() + "/" + "port_name"
+		portName, err := ioutil.ReadFile(filepath.Clean(portPath))
 		if err != nil {
 			log.Warnf("Error reading file: %s Error: %v", portPath, err)
 			continue
 		}
 		portNameStr := strings.TrimSpace(string(portName))
 
-		nodePath := strings.Join([]string{fcHostsDir, host.Name(), "node_name"}, "/")
-		nodeName, err := ioutil.ReadFile(nodePath)
+		nodePath := fcHostsDir + "/" + host.Name() + "/" + "node_name"
+		nodeName, err := ioutil.ReadFile(filepath.Clean(nodePath))
 		if err != nil {
 			log.Warnf("Error reading file: %s Error: %v", nodePath, err)
 			continue
