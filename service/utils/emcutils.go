@@ -96,7 +96,7 @@ func GetFCInitiators(ctx context.Context) ([]string, error) {
 		if !strings.HasPrefix(host.Name(), "host") {
 			continue
 		}
-		portPath := fcHostsDir + "/" + host.Name() + "/" + "port_name"
+		portPath := strings.Join([]string{fcHostsDir, host.Name(), "port_name"}, "/")
 		portName, err := ioutil.ReadFile(portPath)
 		if err != nil {
 			log.Warnf("Error reading file: %s Error: %v", portPath, err)
@@ -104,7 +104,7 @@ func GetFCInitiators(ctx context.Context) ([]string, error) {
 		}
 		portNameStr := strings.TrimSpace(string(portName))
 
-		nodePath := fcHostsDir + "/" + host.Name() + "/" + "node_name"
+		nodePath := strings.Join([]string{fcHostsDir, host.Name(), "node_name"}, "/")
 		nodeName, err := ioutil.ReadFile(nodePath)
 		if err != nil {
 			log.Warnf("Error reading file: %s Error: %v", nodePath, err)
