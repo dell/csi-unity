@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -647,7 +648,7 @@ func (s *service) NodeUnpublishVolume(
 	file := s.opts.EnvEphemeralStagingTargetPath + req.VolumeId + "/id"
 	if _, err := os.Stat(file); err == nil {
 		isEphemeralVolume = true
-		dat, err := ioutil.ReadFile(file)
+		dat, err := ioutil.ReadFile(filepath.Clean(file))
 		if err != nil {
 			return nil, errors.New("Unable to get volume id for ephemeral volume")
 		}
@@ -1274,7 +1275,7 @@ func (s *service) copyMultipathConfigFile(ctx context.Context, nodeRoot string) 
 	var dstFile *os.File
 	var err error
 	// Copy the multipath.conf file from /noderoot/etc/multipath.conf (EnvISCSIChroot)to /etc/multipath.conf if present
-	srcFile, err = os.Open(nodeRoot + "/etc/multipath.conf")
+	srcFile, err = os.Open(filepath.Clean(nodeRoot + "/etc/multipath.conf"))
 	if err == nil {
 		dstFile, err = os.Create("/etc/multipath.conf")
 		if err != nil {

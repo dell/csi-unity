@@ -439,7 +439,7 @@ func (s *service) syncDriverSecret(ctx context.Context) error {
 		s.arrays.Delete(key)
 		return true
 	})
-	secretBytes, err := ioutil.ReadFile(DriverSecret)
+	secretBytes, err := ioutil.ReadFile(filepath.Clean(DriverSecret))
 	if err != nil {
 		return errors.New(fmt.Sprintf("File ('%s') error: %v", DriverSecret, err))
 	}
