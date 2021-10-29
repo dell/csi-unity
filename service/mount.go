@@ -179,7 +179,7 @@ func publishNFS(ctx context.Context, req *csi.NodePublishVolumeRequest, exportPa
 				} else if m.Path == stagingTargetPath || m.Path == chroot+stagingTargetPath {
 					continue
 				} else {
-					if (accMode.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER || accMode.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER) && !allowRWOmultiPodAccess {
+					if (accMode.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER || accMode.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_SINGLE_WRITER) && !allowRWOmultiPodAccess {
 						return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Export path: %s is already mounted to different target path: %s", stageExportPathURL, m.Path))
 					} else {
 						//For multi-node access modes and when allowRWOmultiPodAccess is true for single-node access, target mount will be executed
