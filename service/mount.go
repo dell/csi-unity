@@ -747,7 +747,10 @@ func mkfile(ctx context.Context, path string) (bool, error) {
 				err).Error("Unable to create file")
 			return false, err
 		}
-		file.Close()
+		err = file.Close()
+		if err != nil {
+			log.Infof("Error closing file: %v", err)
+		}
 		log.WithField("path", path).Debug("created file")
 		return true, nil
 	}

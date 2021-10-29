@@ -531,13 +531,7 @@ func (s *service) ephemeralNodePublishVolume(
 		_, _ = s.ephemeralNodeUnpublish(ctx, nodeUnpublishRequest, req.VolumeId)
 		return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Creation of file failed with error: %v", err))
 	}
-
-	defer func() {
-		if err := f.Close(); err != nil { 
-			log.Warnf("Error closing file: %s\n", err)
-		}
-	}()
-	
+	defer f.Close()
 	_, err2 := f.WriteString(createVolResp.Volume.VolumeId)
 	if err2 != nil {
 		//Call Ephemeral Node Unpublish for recovery
@@ -627,10 +621,16 @@ func checkAndRemoveLunz(ctx context.Context) error {
 				_, err = file.WriteString(command)
 				if err != nil {
 					log.Warnf("error while writing...%v", err)
-					file.Close()
+					err = file.Close()
+					if err != nil {
+						log.Infof("Error closing file: %v", err)
+					}
 					continue
 				}
-				file.Close()
+				err = file.Close()
+				if err != nil {
+					log.Infof("Error closing file: %v", err)
+				}
 			}
 			log.Debugf("LUNZ removal successful..")
 		}
@@ -725,7 +725,11 @@ func (s *service) NodeUnpublishVolume(
 		return nil, err
 	}
 
-	removeWithRetry(ctx, target)
+	err = removeWithRetry(ctx, target)
+	if err != nil {
+		log.Infof("Error removing target: %v", err)
+	}
+
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
@@ -1289,9 +1293,15 @@ func (s *service) copyMultipathConfigFile(ctx context.Context, nodeRoot string) 
 		} else {
 			written, _ := io.Copy(dstFile, srcFile)
 			log.Debugf("copied %d bytes to /etc/multipath.conf", written)
-			dstFile.Close()
+			err = dstFile.Close()
+			if err != nil {
+				log.Infof("Error closing file: %v", err)
+			}
 		}
-		srcFile.Close()
+		err = srcFile.Close()
+		if err != nil {
+			log.Infof("Error closing file: %v", err)
+		}
 	}
 	return err
 }
@@ -1371,7 +1381,10 @@ func (s *service) disconnectVolume(ctx context.Context, volumeWWN, protocol stri
 		nodeUnstageCtx, cancel := context.WithTimeout(ctx, time.Second*120)
 
 		if protocol == FC {
-			s.fcConnector.DisconnectVolumeByDeviceName(nodeUnstageCtx, deviceName)
+			err = s.fcConnector.DisconnectVolumeByDeviceName(nodeUnstageCtx, deviceName)
+			if err != nil {
+				log.Infof("Error disconnecting volume by device name: %v", err)
+			}
 		} else if protocol == ISCSI {
 			s.iscsiConnector.DisconnectVolumeByDeviceName(nodeUnstageCtx, deviceName)
 		}
@@ -1383,7 +1396,10 @@ func (s *service) disconnectVolume(ctx context.Context, volumeWWN, protocol stri
 		if _, err := ioutil.ReadDir(sysBlock + deviceName); err != nil {
 			// If not, make sure the symlink is removed
 			log.Debugf("Removing device %s", symlinkPath)
-			os.Remove(symlinkPath)
+			err2 = os.Remove(symlinkPath)
+			if err2 != nil {
+				log.Infof("Error removing symlinkpath: %v", err2)
+			}
 		}
 	}
 
@@ -1551,7 +1567,10 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 	}
 
 	if len(iqns) > 0 {
-		s.copyMultipathConfigFile(ctx, s.opts.Chroot)
+		err = s.copyMultipathConfigFile(ctx, s.opts.Chroot)
+		if err != nil {
+			log.Infof("Error copying multipath config file: %v", err)
+		}
 		ipInterfaceAPI := gounity.NewIpInterface(unity)
 		ipInterfaces, err := ipInterfaceAPI.ListIscsiIPInterfaces(ctx)
 		if err != nil {
