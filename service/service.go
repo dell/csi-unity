@@ -108,6 +108,8 @@ type Opts struct {
 	KubeConfigPath                string
 	MaxVolumesPerNode             int64
 	LogLevel                      string
+	TenantId                      string
+
 }
 
 type service struct {
@@ -573,6 +575,10 @@ func (s *service) syncDriverConfig(ctx context.Context, v *viper.Viper) {
 
 	if v.IsSet(constants.ParamMaxUnityVolumesPerNode) {
 		s.opts.MaxVolumesPerNode = v.GetInt64(constants.ParamMaxUnityVolumesPerNode)
+	}
+
+	if v.IsSet(constants.ParamTenantId) {
+		s.opts.TenantId = v.GetString(constants.ParamTenantId)
 	}
 
 	if v.IsSet(constants.ParamSyncNodeInfoTimeInterval) {
