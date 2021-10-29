@@ -390,6 +390,11 @@ func (s *service) NodePublishVolume(
 	if accMode == nil {
 		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "volume access mode required"))
 	}
+	if accMode.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_SINGLE_WRITER {
+		s.opts.AllowRWOMultiPodAccess = false
+	} else if accMode.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_MULTI_WRITER {
+		s.opts.AllowRWOMultiPodAccess = true 
+	}
 
 	if protocol == NFS {
 		//Perform target mount for NFS

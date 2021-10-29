@@ -83,6 +83,10 @@ func valVolumeCaps(vcs []*csi.VolumeCapability, protocol string) (bool, string) 
 			break
 		case csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER:
 			break
+		case csi.VolumeCapability_AccessMode_SINGLE_NODE_SINGLE_WRITER:
+			break
+		case csi.VolumeCapability_AccessMode_SINGLE_NODE_MULTI_WRITER:
+			break
 		case csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY:
 			break
 		case csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY:
