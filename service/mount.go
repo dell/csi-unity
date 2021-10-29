@@ -722,7 +722,7 @@ func mkdir(ctx context.Context, path string) (bool, error) {
 	log := utils.GetRunidLogger(ctx)
 	st, err := os.Stat(path)
 	if os.IsNotExist(err) {
-		if err := os.MkdirAll(path, 0755); err != nil {
+		if err := os.MkdirAll(path, 0750); err != nil {
 			log.WithField("dir", path).WithError(err).Error("Unable to create dir")
 			return false, err
 		}

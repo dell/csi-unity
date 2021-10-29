@@ -531,7 +531,13 @@ func (s *service) ephemeralNodePublishVolume(
 		_, _ = s.ephemeralNodeUnpublish(ctx, nodeUnpublishRequest, req.VolumeId)
 		return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Creation of file failed with error: %v", err))
 	}
-	defer f.Close()
+
+	defer func() {
+		if err := f.Close(); err != nil { 
+			log.Warnf("Error closing file: %s\n", err)
+		}
+	}()
+	
 	_, err2 := f.WriteString(createVolResp.Volume.VolumeId)
 	if err2 != nil {
 		//Call Ephemeral Node Unpublish for recovery
