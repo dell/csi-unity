@@ -1368,6 +1368,7 @@ func (s *service) disconnectVolume(ctx context.Context, volumeWWN, protocol stri
 
 	for i := 0; i < 3; i++ {
 		var deviceName string
+		var err error
 		symlinkPath, devicePath, _ := gofsutil.WWNToDevicePathX(ctx, volumeWWN)
 		if devicePath == "" {
 			if i == 0 {
@@ -1386,7 +1387,10 @@ func (s *service) disconnectVolume(ctx context.Context, volumeWWN, protocol stri
 				log.Infof("Error disconnecting volume by device name: %v", err)
 			}
 		} else if protocol == ISCSI {
-			s.iscsiConnector.DisconnectVolumeByDeviceName(nodeUnstageCtx, deviceName)
+			err = s.iscsiConnector.DisconnectVolumeByDeviceName(nodeUnstageCtx, deviceName)
+			if err != nil {
+				log.Infof("Error disconnecting volume by device name: %v", err)
+			}
 		}
 
 		cancel()
@@ -1395,6 +1399,7 @@ func (s *service) disconnectVolume(ctx context.Context, volumeWWN, protocol stri
 		// Check that the /sys/block/DeviceName actually exists
 		if _, err := ioutil.ReadDir(sysBlock + deviceName); err != nil {
 			// If not, make sure the symlink is removed
+			var err2 error
 			log.Debugf("Removing device %s", symlinkPath)
 			err2 = os.Remove(symlinkPath)
 			if err2 != nil {
