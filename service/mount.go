@@ -656,7 +656,7 @@ func getDevMounts(ctx context.Context, sysDevice *Device) ([]gofsutil.Info, erro
 			//Find the multipath device mapper from the device obtained
 			mpDevName := strings.TrimPrefix(sysDevice.RealDev, "/dev/")
 			filename := fmt.Sprintf("/sys/devices/virtual/block/%s/dm/name", mpDevName)
-			if name, err := ioutil.ReadFile(filename); err != nil {
+			if name, err := ioutil.ReadFile(filepath.Clean(filename)); err != nil {
 				log.Warn("Could not read mp dev name file ", filename, err)
 			} else {
 				mpathDev := strings.TrimSpace(string(name))
@@ -684,7 +684,7 @@ func getMpathDevFromWwn(ctx context.Context, volumeWwn string) (string, error) {
 
 	mpDevName := strings.TrimPrefix(sysDevice.RealDev, "/dev/")
 	filename := fmt.Sprintf("/sys/devices/virtual/block/%s/dm/name", mpDevName)
-	if name, err := ioutil.ReadFile(filename); err != nil {
+	if name, err := ioutil.ReadFile(filepath.Clean(filename)); err != nil {
 		log.Error("Could not read mp dev name file ", filename, err)
 		return "", err
 	} else {
@@ -722,7 +722,7 @@ func mkdir(ctx context.Context, path string) (bool, error) {
 	log := utils.GetRunidLogger(ctx)
 	st, err := os.Stat(path)
 	if os.IsNotExist(err) {
-		if err := os.MkdirAll(path, 0755); err != nil {
+		if err := os.MkdirAll(path, 0750); err != nil {
 			log.WithField("dir", path).WithError(err).Error("Unable to create dir")
 			return false, err
 		}
@@ -741,13 +741,16 @@ func mkfile(ctx context.Context, path string) (bool, error) {
 	log := utils.GetRunidLogger(ctx)
 	st, err := os.Stat(path)
 	if os.IsNotExist(err) {
-		file, err := os.OpenFile(path, os.O_CREATE, 0600)
+		file, err := os.OpenFile(filepath.Clean(path), os.O_CREATE, 0600)
 		if err != nil {
 			log.WithField("path", path).WithError(
 				err).Error("Unable to create file")
 			return false, err
 		}
-		file.Close()
+		err = file.Close()
+		if err != nil {
+			log.Infof("Error closing file: %v", err)
+		}
 		log.WithField("path", path).Debug("created file")
 		return true, nil
 	}

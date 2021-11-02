@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -620,10 +621,16 @@ func checkAndRemoveLunz(ctx context.Context) error {
 				_, err = file.WriteString(command)
 				if err != nil {
 					log.Warnf("error while writing...%v", err)
-					file.Close()
+					err = file.Close()
+					if err != nil {
+						log.Infof("Error closing file: %v", err)
+					}
 					continue
 				}
-				file.Close()
+				err = file.Close()
+				if err != nil {
+					log.Infof("Error closing file: %v", err)
+				}
 			}
 			log.Debugf("LUNZ removal successful..")
 		}
@@ -647,7 +654,7 @@ func (s *service) NodeUnpublishVolume(
 	file := s.opts.EnvEphemeralStagingTargetPath + req.VolumeId + "/id"
 	if _, err := os.Stat(file); err == nil {
 		isEphemeralVolume = true
-		dat, err := ioutil.ReadFile(file)
+		dat, err := ioutil.ReadFile(filepath.Clean(file))
 		if err != nil {
 			return nil, errors.New("Unable to get volume id for ephemeral volume")
 		}
@@ -718,7 +725,11 @@ func (s *service) NodeUnpublishVolume(
 		return nil, err
 	}
 
-	removeWithRetry(ctx, target)
+	err = removeWithRetry(ctx, target)
+	if err != nil {
+		log.Infof("Error removing target: %v", err)
+	}
+
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
@@ -1274,7 +1285,7 @@ func (s *service) copyMultipathConfigFile(ctx context.Context, nodeRoot string) 
 	var dstFile *os.File
 	var err error
 	// Copy the multipath.conf file from /noderoot/etc/multipath.conf (EnvISCSIChroot)to /etc/multipath.conf if present
-	srcFile, err = os.Open(nodeRoot + "/etc/multipath.conf")
+	srcFile, err = os.Open(filepath.Clean(nodeRoot + "/etc/multipath.conf"))
 	if err == nil {
 		dstFile, err = os.Create("/etc/multipath.conf")
 		if err != nil {
@@ -1282,9 +1293,15 @@ func (s *service) copyMultipathConfigFile(ctx context.Context, nodeRoot string) 
 		} else {
 			written, _ := io.Copy(dstFile, srcFile)
 			log.Debugf("copied %d bytes to /etc/multipath.conf", written)
-			dstFile.Close()
+			err = dstFile.Close()
+			if err != nil {
+				log.Infof("Error closing file: %v", err)
+			}
 		}
-		srcFile.Close()
+		err = srcFile.Close()
+		if err != nil {
+			log.Infof("Error closing file: %v", err)
+		}
 	}
 	return err
 }
@@ -1351,6 +1368,7 @@ func (s *service) disconnectVolume(ctx context.Context, volumeWWN, protocol stri
 
 	for i := 0; i < 3; i++ {
 		var deviceName string
+		var err error
 		symlinkPath, devicePath, _ := gofsutil.WWNToDevicePathX(ctx, volumeWWN)
 		if devicePath == "" {
 			if i == 0 {
@@ -1364,9 +1382,15 @@ func (s *service) disconnectVolume(ctx context.Context, volumeWWN, protocol stri
 		nodeUnstageCtx, cancel := context.WithTimeout(ctx, time.Second*120)
 
 		if protocol == FC {
-			s.fcConnector.DisconnectVolumeByDeviceName(nodeUnstageCtx, deviceName)
+			err = s.fcConnector.DisconnectVolumeByDeviceName(nodeUnstageCtx, deviceName)
+			if err != nil {
+				log.Infof("Error disconnecting volume by device name: %v", err)
+			}
 		} else if protocol == ISCSI {
-			s.iscsiConnector.DisconnectVolumeByDeviceName(nodeUnstageCtx, deviceName)
+			err = s.iscsiConnector.DisconnectVolumeByDeviceName(nodeUnstageCtx, deviceName)
+			if err != nil {
+				log.Infof("Error disconnecting volume by device name: %v", err)
+			}
 		}
 
 		cancel()
@@ -1375,8 +1399,12 @@ func (s *service) disconnectVolume(ctx context.Context, volumeWWN, protocol stri
 		// Check that the /sys/block/DeviceName actually exists
 		if _, err := ioutil.ReadDir(sysBlock + deviceName); err != nil {
 			// If not, make sure the symlink is removed
+			var err2 error
 			log.Debugf("Removing device %s", symlinkPath)
-			os.Remove(symlinkPath)
+			err2 = os.Remove(symlinkPath)
+			if err2 != nil {
+				log.Infof("Error removing symlinkpath: %v", err2)
+			}
 		}
 	}
 
@@ -1542,7 +1570,10 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 	}
 
 	if len(iqns) > 0 {
-		s.copyMultipathConfigFile(ctx, s.opts.Chroot)
+		err = s.copyMultipathConfigFile(ctx, s.opts.Chroot)
+		if err != nil {
+			log.Infof("Error copying multipath config file: %v", err)
+		}
 		ipInterfaceAPI := gounity.NewIpInterface(unity)
 		ipInterfaces, err := ipInterfaceAPI.ListIscsiIPInterfaces(ctx)
 		if err != nil {

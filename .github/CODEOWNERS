@@ -1,0 +1,21 @@
+# CODEOWNERS
+#
+# Documentation for this file can be found at:
+# https://help.github.com/en/articles/about-code-owners
+
+# These are the default owners for the code and will
+# be requested for review when someone opens a pull request.
+# Order is alphabetical for easier maintenance.
+#
+# Bandapati Keerthi (bandak2)
+# Coulombel Florian (coulof)
+# Francis Nijay (francis-nijay)
+# Gallacher Sean (gallacher)
+# K Karthik (karthikk92)
+# Panigrahi Spandita (panigs7)
+# Prasad Raghavendra (prasar6)
+# Rajendra Indukuri (rajendraindukuri)
+# Rensy Thomas (rensyct)
+
+# for all files:
+* @bandak2 @coulof @francis-nijay @gallacher @karthikk92 @panigs7 @prasar6 @rajendraindukuri @rensyct
