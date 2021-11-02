@@ -1,13 +1,13 @@
 # CODEOWNERS
 #
-# documentation for this file can be found at:
+# Documentation for this file can be found at:
 # https://help.github.com/en/articles/about-code-owners
 
 # These are the default owners for the code and will
 # be requested for review when someone opens a pull request.
 # Order is alphabetical for easier maintenance.
 #
-# # Bandapati Keerthi (bandak2)
+# Bandapati Keerthi (bandak2)
 # Coulombel Florian (coulof)
 # Francis Nijay (francis-nijay)
 # Gallacher Sean (gallacher)
