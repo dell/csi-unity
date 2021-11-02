@@ -2,7 +2,7 @@ package unit_test
 
 import (
 	"context"
-	"encoding/json"
+	"gopkg.in/yaml.v2"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -23,11 +23,11 @@ var stop func()
 
 //To parse the secret json file
 type StorageArrayList struct {
-	StorageArrayList []StorageArrayConfig `json:"storageArrayList"`
+	StorageArrayList []StorageArrayConfig `yaml:"storageArrayList"`
 }
 
 type StorageArrayConfig struct {
-	ArrayId string `json:"arrayId"`
+	ArrayId string `yaml:"ArrayId"` 
 }
 
 func TestMain(m *testing.M) {
@@ -38,7 +38,7 @@ func TestMain(m *testing.M) {
 		panic("Driver Config missing")
 	}
 	arrayIdList := StorageArrayList{}
-	_ = json.Unmarshal([]byte(file), &arrayIdList)
+	_ = yaml.Unmarshal([]byte(file), &arrayIdList)
 	if len(arrayIdList.StorageArrayList) == 0 {
 		panic("Array Info not provided")
 	}

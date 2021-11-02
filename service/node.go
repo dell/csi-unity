@@ -1515,7 +1515,6 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 				}
 			}
 		}
-
 		if addNewInitiators {
 			//Modify host operation
 			for _, wwn := range wwns {
@@ -1533,7 +1532,6 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 				}
 			}
 		}
-
 		//Check Ip of the host with Host IP Port
 		findHostNamePort := false
 		for _, ipPort := range hostContent.IpPorts {
@@ -1555,7 +1553,7 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 				}
 			}
 		}
-
+		var ipFormat = regexp.MustCompile(`(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}`)
 		if findHostNamePort == false {
 			//Create Host Ip Port
 			_, err = hostApi.CreateHostIpPort(ctx, hostContent.ID, s.opts.LongNodeName)
@@ -1565,7 +1563,7 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 		}
 		for _, nodeIp := range nodeIps {
 			_, err = hostApi.CreateHostIpPort(ctx, hostContent.ID, nodeIp)
-			if err != nil {
+			if err != nil && !ipFormat.MatchString(s.opts.NodeName) {
 				return err
 			}
 		}
@@ -1634,9 +1632,10 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 	if err != nil {
 		return err
 	}
+	var ipFormat = regexp.MustCompile(`(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}`)
 	for _, nodeIp := range nodeIps {
 		_, err = hostApi.CreateHostIpPort(ctx, hostContent.ID, nodeIp)
-		if err != nil {
+		if err != nil && !ipFormat.MatchString(s.opts.NodeName){
 			return err
 		}
 	}
