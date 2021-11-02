@@ -5,17 +5,17 @@
 
 # These are the default owners for the code and will
 # be requested for review when someone opens a pull request.
-# order is alphabetical for easier maintenance.
+# Order is alphabetical for easier maintenance.
 #
+# # Bandapati Keerthi (bandak2)
 # Coulombel Florian (coulof)
 # Francis Nijay (francis-nijay)
 # Gallacher Sean (gallacher)
 # K Karthik (karthikk92)
+# Panigrahi Spandita (panigs7)
 # Prasad Raghavendra (prasar6)
 # Rajendra Indukuri (rajendraindukuri)
 # Rensy Thomas (rensyct)
-# Bandapati Keerthi (bandak2)
-# Panigrahi Spandita (panigs7)
 
 # for all files:
-* @coulof @francis-nijay @gallacher @karthikk92 @prasar6 @rajendraindukuri @rensyct @bandak2 @panigs7
+* @bandak2 @coulof @francis-nijay @gallacher @karthikk92 @panigs7 @prasar6 @rajendraindukuri @rensyct
