@@ -51,7 +51,6 @@ github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDk
 github.com/cncf/udpa/go v0.0.0-20191209042840-269d4d468f6f/go.mod h1:M8M6+tZqaGXZJjfX53e64911xZQV5JYwmTeXPW+k8Sc=
 github.com/cncf/udpa/go v0.0.0-20201120205902-5459f2c99403/go.mod h1:WmhPx2Nbnhtbo57+VJT5O0JRkEi1Wbu0z5j0R8u5Hbk=
 github.com/container-storage-interface/spec v1.1.0/go.mod h1:6URME8mwIBbpVyZV93Ce5St17xBiQJQY67NDsuohiy4=
-github.com/container-storage-interface/spec v1.3.0/go.mod h1:6URME8mwIBbpVyZV93Ce5St17xBiQJQY67NDsuohiy4=
 github.com/container-storage-interface/spec v1.5.0 h1:lvKxe3uLgqQeVQcrnL2CPQKISoKjTJxojEs9cBk+HXo=
 github.com/container-storage-interface/spec v1.5.0/go.mod h1:8K96oQNkJ7pFcC2R9Z1ynGGBB1I93kcS6PGg3SsOk8s=
 github.com/coreos/bbolt v1.3.2/go.mod h1:iRUV2dpdMOn7Bo10OQBFzIJO9kkE559Wcmn+qkEiiKk=
@@ -79,8 +78,8 @@ github.com/dell/dell-csi-extensions/podmon v1.0.0 h1:QoxioaFfjIP6cJ4s166A1JhgxIX
 github.com/dell/dell-csi-extensions/podmon v1.0.0/go.mod h1:Jjt+zHbLIZ3qJMug17WBYdz7wu90+hd65kgJwv8ZOec=
 github.com/dell/gobrick v1.2.0 h1:dlgWgonXG7qoa+SXlek/NkdFBnfxgqSv+8tsHIBIEDg=
 github.com/dell/gobrick v1.2.0/go.mod h1:pYN9r3XvIjct/QkEg5mEM+k2L3QBLVaHUZeAMzQgwRg=
-github.com/dell/gocsi v1.3.1 h1:YA99j6+kMKiQX/3ERHjKStkAnXWu5sqtk6RE/saMRQk=
-github.com/dell/gocsi v1.3.1/go.mod h1:doJru1XfPHSmROXxtAey6eQ8QseoFKaMtA8YaWCb0mU=
+github.com/dell/gocsi v1.4.1-0.20211014153731-e18975a3a38c h1:aZb2rtCMt5I8T0eNbJ259NmIOroGavUUsp694d/tcBY=
+github.com/dell/gocsi v1.4.1-0.20211014153731-e18975a3a38c/go.mod h1:nIsIXXB5JpAvOQ0//gtPGULC2+NUddpi5qwpBeMhiLs=
 github.com/dell/gofsutil v1.6.0 h1:u5PiMJIyecAWpSlPloov1/3LF5OWrcjJwoFF8dWkjcA=
 github.com/dell/gofsutil v1.6.0/go.mod h1:98Wpcg7emz4iGgY16fd4MKpnal2SX2hBiwP5ghHlvhg=
 github.com/dell/goiscsi v1.1.0/go.mod h1:MfuMjbKWsh/MOb0VDW20C+LFYRIOfWKGiAxWkeM5TKo=
