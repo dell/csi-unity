@@ -63,3 +63,6 @@ clean:
 .PHONY: integ-test
 integ-test: go-build
 	go test -v ./test/...
+
+check:
+	sh scripts/check.sh

@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
-	"regexp"
 	"sync"
 	"sync/atomic"
 	"time"
-	"os"
 
 	"github.com/dell/dell-csi-extensions/podmon"
 	"google.golang.org/grpc"
@@ -175,14 +175,13 @@ func (s *service) BeforeServe(
 		var shortHostName string
 		//check its ip or not
 		var ipFormat = regexp.MustCompile(`(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}`)
-		if (ipFormat.MatchString(name)) {
+		if ipFormat.MatchString(name) {
 			shortHostName = name
-		}else{
+		} else {
 			shortHostName = strings.Split(name, ".")[0]
 		}
 		opts.NodeName = shortHostName
 	}
-
 
 	if kubeConfigPath, ok := csictx.LookupEnv(ctx, EnvKubeConfigPath); ok {
 		opts.KubeConfigPath = kubeConfigPath

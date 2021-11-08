@@ -2,8 +2,8 @@ package unit_test
 
 import (
 	"context"
-	"gopkg.in/yaml.v2"
 	"fmt"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -27,7 +27,7 @@ type StorageArrayList struct {
 }
 
 type StorageArrayConfig struct {
-	ArrayId string `yaml:"ArrayId"` 
+	ArrayId string `yaml:"ArrayId"`
 }
 
 func TestMain(m *testing.M) {
