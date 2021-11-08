@@ -3,11 +3,12 @@ package k8sutils
 import (
 	"context"
 	"fmt"
+	"os"
+
 	"github.com/kubernetes-csi/csi-lib-utils/leaderelection"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"os"
 )
 
 type leaderElection interface {
@@ -43,7 +44,7 @@ func CreateKubeClientSet(kubeconfig string) (*kubernetes.Clientset, error) {
 	return clientset, nil
 }
 
-// LeaderElection
+// LeaderElection - Initialize leader selection
 func LeaderElection(clientset *kubernetes.Clientset, lockName string, namespace string, runFunc func(ctx context.Context)) {
 	le := leaderelection.NewLeaderElection(clientset, lockName, runFunc)
 	le.WithNamespace(namespace)

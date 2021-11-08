@@ -3,13 +3,14 @@ package utils
 import (
 	"context"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 var singletonLog *logrus.Logger
@@ -101,6 +102,7 @@ func (f *Formatter) Format(entry *logrus.Entry) ([]byte, error) {
 	return []byte(output), nil
 }
 
+// GetLogger - get logger
 func GetLogger() *logrus.Logger {
 	once.Do(func() {
 		singletonLog = logrus.New()
@@ -128,6 +130,7 @@ func GetLogger() *logrus.Logger {
 	return singletonLog
 }
 
+// ChangeLogLevel - change log level
 func ChangeLogLevel(logLevel string) {
 
 	switch strings.ToLower(logLevel) {
@@ -153,6 +156,7 @@ func ChangeLogLevel(logLevel string) {
 	}
 }
 
+// Constants which can be used across modules
 const (
 	UnityLogger = "unitylog"
 	LogFields   = "fields"
@@ -160,6 +164,7 @@ const (
 	ARRAYID     = "arrayid"
 )
 
+// GetRunidLogger - Get runid logger
 func GetRunidLogger(ctx context.Context) *logrus.Entry {
 	tempLog := ctx.Value(UnityLogger)
 	if ctx.Value(UnityLogger) != nil && reflect.TypeOf(tempLog) == reflect.TypeOf(&logrus.Entry{}) {
@@ -168,6 +173,7 @@ func GetRunidLogger(ctx context.Context) *logrus.Entry {
 	return nil
 }
 
+// GetRunidAndLogger - Get runid and logger
 func GetRunidAndLogger(ctx context.Context) (string, *logrus.Entry) {
 	rid := ""
 	fields, ok := ctx.Value(LogFields).(logrus.Fields)

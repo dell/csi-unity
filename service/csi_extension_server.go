@@ -8,31 +8,49 @@ package service
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/dell/dell-csi-extensions/podmon"
 	"github.com/dell/gounity"
 	"github.com/dell/gounity/types"
 	"go.uber.org/atomic"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
 )
 
 // References to calls to services outside of this function. The reference the real
 // implementations by default; they are here so that they can be mocked out.
-var GetHostId = getHostId
+
+// GetHostID - function reference for getHostID
+var GetHostID = getHostID
+
+// RequireProbe - function reference for requireProbe
 var RequireProbe = requireProbe
+
+// GetUnityClient - function reference for getProtocolFromVolumeContext
 var GetUnityClient = getUnityClient
-var GetArrayIdFromVolumeContext = getArrayIdFromVolumeContext
+
+// GetArrayIDFromVolumeContext - function reference for getArrayIDFromVolumeContext
+var GetArrayIDFromVolumeContext = getArrayIDFromVolumeContext
+
+// GetProtocolFromVolumeContext - function reference for getProtocolFromVolumeContext
 var GetProtocolFromVolumeContext = getProtocolFromVolumeContext
-var FindHostInitiatorById = findHostInitiatorById
+
+// FindHostInitiatorByID - function reference for findHostInitiatorByID
+var FindHostInitiatorByID = findHostInitiatorByID
+
+// GetMetricsCollection - function reference for getMetricsCollection
 var GetMetricsCollection = getMetricsCollection
+
+// CreateMetricsCollection - function reference for createMetricsCollection
 var CreateMetricsCollection = createMetricsCollection
 
 //MetricsCollectionInterval is used for interval to use in the creation of a Unity MetricsCollection
 var MetricsCollectionInterval = 5 // seconds
+// CollectionWait - Collection wait time
 var CollectionWait = (MetricsCollectionInterval + 1) * 1000
 
 var metricsCollectionCache sync.Map
@@ -49,6 +67,7 @@ var kickoffOnce sync.Once
 var refreshCount atomic.Int32
 var refreshEnabled bool
 
+// Constants that can be used across module
 const (
 	Iscsi           = "iscsi"
 	Fc              = "fc"
@@ -57,6 +76,7 @@ const (
 	maxRefresh      = 300 // seconds
 )
 
+// RefreshDuration - Refresh interval duration
 var RefreshDuration = refreshInterval * time.Second
 
 // MetricsTimeout is a timeout context used in Unity metrics creation/collection calls
@@ -101,7 +121,7 @@ func (s *service) ValidateVolumeHostConnectivity(ctx context.Context, req *podmo
 			list := s.getStorageArrayList()
 			for _, sys := range list {
 				if sys.IsDefaultArray {
-					defaultArray = sys.ArrayId
+					defaultArray = sys.ArrayID
 					break
 				}
 			}
@@ -120,7 +140,7 @@ func (s *service) ValidateVolumeHostConnectivity(ctx context.Context, req *podmo
 	for systemID := range systemIDs {
 		log.Infof("Probe of systemID=%s", systemID)
 		// Do a probe of the requested system
-		if err := RequireProbe(s, ctx, systemID); err != nil {
+		if err := RequireProbe(ctx, s, systemID); err != nil {
 			return nil, err
 		}
 
@@ -143,14 +163,14 @@ func (s *service) ValidateVolumeHostConnectivity(ctx context.Context, req *podmo
 	protocolToArrays := make(map[string]arrayToVolumes)
 	// Go through the list, creating a map of the volume protocols to another
 	// map of arrayIds to list of volumes
-	for _, requestVolumeId := range req.GetVolumeIds() {
-		protocol, getProtoErr := GetProtocolFromVolumeContext(s, requestVolumeId)
+	for _, requestVolumeID := range req.GetVolumeIds() {
+		protocol, getProtoErr := GetProtocolFromVolumeContext(s, requestVolumeID)
 		if getProtoErr != nil {
 			return rep, getProtoErr
 		}
 
-		arrayId, _ := GetArrayIdFromVolumeContext(s, requestVolumeId)
-		volumeId := getVolumeIdFromVolumeContext(requestVolumeId)
+		arrayID, _ := GetArrayIDFromVolumeContext(s, requestVolumeID)
+		volumeID := getVolumeIDFromVolumeContext(requestVolumeID)
 
 		// Look up the map of arrays to volumes for this protocol
 		a2v, hasProto := protocolToArrays[protocol]
@@ -160,18 +180,18 @@ func (s *service) ValidateVolumeHostConnectivity(ctx context.Context, req *podmo
 		}
 
 		// Look up list of volumes for this array (of a particular protocol)
-		volList, hasArray := a2v[arrayId]
+		volList, hasArray := a2v[arrayID]
 		if !hasArray {
 			volList = make([]string, 0)
 		}
-		volList = append(volList, volumeId)
-		a2v[arrayId] = volList
+		volList = append(volList, volumeID)
+		a2v[arrayID] = volList
 	}
 
 	// Go through the protocol to arrayId map and process the check against
 	// each array with its volume list.
 	for protocol, arrays := range protocolToArrays {
-		for arrayId, volumes := range arrays {
+		for arrayID, volumes := range arrays {
 			var hasIOs bool
 			var checkIOsErr error
 			var checkForIOs func(context.Context, *podmon.ValidateVolumeHostConnectivityResponse, string, []string) (bool, error)
@@ -188,7 +208,7 @@ func (s *service) ValidateVolumeHostConnectivity(ctx context.Context, req *podmo
 				return rep, fmt.Errorf("unexpected protocol '%s' found in request", protocol)
 			}
 
-			hasIOs, checkIOsErr = checkForIOs(ctx, rep, arrayId, volumes)
+			hasIOs, checkIOsErr = checkForIOs(ctx, rep, arrayID, volumes)
 			if checkIOsErr != nil {
 				return rep, checkIOsErr
 			}
@@ -212,7 +232,7 @@ func (s *service) getArrayIdsFromVolumes(ctx context.Context, systemIDs map[stri
 	var foundAtLeastOne bool
 	for _, volumeID := range requestVolumeIds {
 		// Extract arrayID from the volume ID (if any volumes in the request)
-		if systemID, err = GetArrayIdFromVolumeContext(s, volumeID); err != nil {
+		if systemID, err = GetArrayIDFromVolumeContext(s, volumeID); err != nil {
 			log.Warnf("Error getting arrayID for %s - %s", volumeID, err.Error())
 		}
 		if systemID != "" {
@@ -230,15 +250,15 @@ func (s *service) getArrayIdsFromVolumes(ctx context.Context, systemIDs map[stri
 
 // checkIfNodeIsConnected looks at the 'nodeId' host's initiators to determine if there is connectivity
 // to the 'arrayId' array. The 'rep' object will be filled with the results of the check.
-func (s *service) checkIfNodeIsConnected(ctx context.Context, arrayId string, nodeId string, rep *podmon.ValidateVolumeHostConnectivityResponse) error {
+func (s *service) checkIfNodeIsConnected(ctx context.Context, arrayID string, nodeID string, rep *podmon.ValidateVolumeHostConnectivityResponse) error {
 	ctx, log, _ := GetRunidLog(ctx)
-	log.Infof("Checking if array %s is connected to node %s", arrayId, nodeId)
+	log.Infof("Checking if array %s is connected to node %s", arrayID, nodeID)
 	var message string
 	rep.Connected = false
 
 	// Initialize the Unity client to the 'arrayId' array
-	ctx, _ = setArrayIdContext(ctx, arrayId)
-	unity, err := GetUnityClient(s, ctx, arrayId)
+	ctx, _ = setArrayIDContext(ctx, arrayID)
+	unity, err := GetUnityClient(ctx, s, arrayID)
 	if err != nil {
 		message = fmt.Sprintf("Unable to get unity client for topology validation: %v", err)
 		log.Info(message)
@@ -247,16 +267,16 @@ func (s *service) checkIfNodeIsConnected(ctx context.Context, arrayId string, no
 	}
 
 	// Look up the 'nodeId' host on the array
-	hostnames := strings.Split(nodeId, ",")
+	hostnames := strings.Split(nodeID, ",")
 	shortName := hostnames[0]
 	longName := shortName
 	if len(hostnames) > 1 {
 		longName = hostnames[1]
 	}
-	host, err := GetHostId(s, ctx, arrayId, shortName, longName)
+	host, err := GetHostID(ctx, s, arrayID, shortName, longName)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
-			message = fmt.Sprintf("Array %s does have any host with name '%s'", arrayId, nodeId)
+			message = fmt.Sprintf("Array %s does have any host with name '%s'", arrayID, nodeID)
 		} else {
 			message = fmt.Sprintf("Host lookup failed. Error: %v", err)
 		}
@@ -272,21 +292,21 @@ func (s *service) checkIfNodeIsConnected(ctx context.Context, arrayId string, no
 		log.Infof("Got FC Initiators, Checking health of initiators:%s", host.HostContent.FcInitiators)
 		for _, initiator := range host.HostContent.FcInitiators {
 			initiatorID := initiator.Id
-			hostInitiator, err := FindHostInitiatorById(unity, ctx, initiatorID)
+			hostInitiator, err := FindHostInitiatorByID(ctx, unity, initiatorID)
 			if err != nil {
 				log.Infof("Unable to get initiators: %s", err)
 			}
 			if hostInitiator != nil {
 				healthContent := hostInitiator.HostInitiatorContent.Health
 				if healthContent.DescriptionIDs[0] == componentOkMessage {
-					message = fmt.Sprintf("FC Health is good for array:%s, Health:%s", arrayId, healthContent.DescriptionIDs[0])
+					message = fmt.Sprintf("FC Health is good for array:%s, Health:%s", arrayID, healthContent.DescriptionIDs[0])
 					log.Infof(message)
 					rep.Messages = append(rep.Messages, message)
 					rep.Connected = true
 					fcConnectivity = true
 					break
 				} else {
-					log.Infof("FC Health is bad for array:%s, Health:%s", arrayId, healthContent.DescriptionIDs[0])
+					log.Infof("FC Health is bad for array:%s, Health:%s", arrayID, healthContent.DescriptionIDs[0])
 				}
 			}
 		}
@@ -297,20 +317,20 @@ func (s *service) checkIfNodeIsConnected(ctx context.Context, arrayId string, no
 		log.Infof("Got iSCSI Initiators, Checking health of initiators:%s", host.HostContent.IscsiInitiators)
 		for _, initiator := range host.HostContent.IscsiInitiators {
 			initiatorID := initiator.Id
-			hostInitiator, err := FindHostInitiatorById(unity, ctx, initiatorID)
+			hostInitiator, err := FindHostInitiatorByID(ctx, unity, initiatorID)
 			if err != nil {
 				log.Infof("Unable to get initiators: %s", err)
 			}
 			if hostInitiator != nil {
 				healthContent := hostInitiator.HostInitiatorContent.Health
 				if healthContent.DescriptionIDs[0] == componentOkMessage {
-					message = fmt.Sprintf("iSCSI Health is good for array:%s, Health:%s", arrayId, healthContent.DescriptionIDs[0])
+					message = fmt.Sprintf("iSCSI Health is good for array:%s, Health:%s", arrayID, healthContent.DescriptionIDs[0])
 					log.Infof(message)
 					rep.Messages = append(rep.Messages, message)
 					rep.Connected = true
 					break
 				} else {
-					log.Infof("iSCSI Health is bad for array:%s, Health:%s", arrayId, healthContent.DescriptionIDs[0])
+					log.Infof("iSCSI Health is bad for array:%s, Health:%s", arrayID, healthContent.DescriptionIDs[0])
 				}
 			}
 		}
@@ -320,17 +340,17 @@ func (s *service) checkIfNodeIsConnected(ctx context.Context, arrayId string, no
 }
 
 //doesAnyVolumeHaveIO will determine if any of the given volumes on array has IOs.
-func (s *service) doesAnyVolumeHaveIO(ctx context.Context, rep *podmon.ValidateVolumeHostConnectivityResponse, arrayId string, volumeIds []string) (bool, error) {
+func (s *service) doesAnyVolumeHaveIO(ctx context.Context, rep *podmon.ValidateVolumeHostConnectivityResponse, arrayID string, volumeIds []string) (bool, error) {
 	ctx, log, _ := GetRunidLog(ctx)
 
 	// Retrieve the latest currentIO metrics for all the array's volumes
-	metrics, getErr := s.getMetrics(ctx, arrayId, currentIOCount)
+	metrics, getErr := s.getMetrics(ctx, arrayID, currentIOCount)
 	if getErr != nil {
 		return false, getErr
 	}
 
 	foundVolumeWithIO := false
-	for _, volumeId := range volumeIds {
+	for _, volumeID := range volumeIds {
 		// As an example, the results should look like this if printed out as a string:
 		// sp.*.storage.lun.*.currentIOCount [spa = map[sv_108:0 sv_18:0 sv_19:0 sv_22:0 sv_23:0 sv_24:0 sv_25:0 sv_26:0]]
 		//
@@ -340,12 +360,12 @@ func (s *service) doesAnyVolumeHaveIO(ctx context.Context, rep *podmon.ValidateV
 		// | sp.*.storage.lun.*.currentIOCount | spa                      | sv_108:0                   |
 		for _, entry := range metrics.Entries {
 			// CurrentIO metrics are per SP, search through all the SPs
-			for spId, value := range entry.Content.Values {
+			for spID, value := range entry.Content.Values {
 				hasOrNot := "no "
 				volumesMetricMap := value.(map[string]interface{})
 				// Look up the metric for this volume
-				if countStr, exists := volumesMetricMap[volumeId]; exists {
-					log.Infof("Array: %s metric: %s SP: %s %s = %v", arrayId, entry.Content.Path, spId, volumeId, countStr)
+				if countStr, exists := volumesMetricMap[volumeID]; exists {
+					log.Infof("Array: %s metric: %s SP: %s %s = %v", arrayID, entry.Content.Path, spID, volumeID, countStr)
 					count, convErr := strconv.Atoi(countStr.(string))
 					if convErr != nil {
 						return false, convErr
@@ -355,7 +375,7 @@ func (s *service) doesAnyVolumeHaveIO(ctx context.Context, rep *podmon.ValidateV
 						foundVolumeWithIO = true
 					}
 				}
-				rep.Messages = append(rep.Messages, fmt.Sprintf("%s on array %s has %sIOs", volumeId, arrayId, hasOrNot))
+				rep.Messages = append(rep.Messages, fmt.Sprintf("%s on array %s has %sIOs", volumeID, arrayID, hasOrNot))
 			}
 		}
 	}
@@ -364,7 +384,7 @@ func (s *service) doesAnyVolumeHaveIO(ctx context.Context, rep *podmon.ValidateV
 }
 
 //doesAnyFileSystemHaveIO returns true if any of the file systems in 'fsIds' shows active IOs
-func (s *service) doesAnyFileSystemHaveIO(ctx context.Context, rep *podmon.ValidateVolumeHostConnectivityResponse, arrayId string, fsIds []string) (bool, error) {
+func (s *service) doesAnyFileSystemHaveIO(ctx context.Context, rep *podmon.ValidateVolumeHostConnectivityResponse, arrayID string, fsIds []string) (bool, error) {
 	ctx, log, _ := GetRunidLog(ctx)
 
 	// Get two samples over the interval period and get a difference between the values
@@ -376,7 +396,7 @@ func (s *service) doesAnyFileSystemHaveIO(ctx context.Context, rep *podmon.Valid
 	)
 
 	// Retrieve the latest files system read/write metrics
-	first, getErr = s.getMetrics(ctx, arrayId, fileSystemRWs)
+	first, getErr = s.getMetrics(ctx, arrayID, fileSystemRWs)
 	if getErr != nil {
 		return false, getErr
 	}
@@ -384,20 +404,20 @@ func (s *service) doesAnyFileSystemHaveIO(ctx context.Context, rep *podmon.Valid
 	time.Sleep(time.Duration(CollectionWait) * time.Millisecond)
 
 	// Retrieve the metrics for a second time
-	second, getErr = s.getMetrics(ctx, arrayId, fileSystemRWs)
+	second, getErr = s.getMetrics(ctx, arrayID, fileSystemRWs)
 	if getErr != nil {
 		return false, getErr
 	}
 
 	foundVolumeWithIO := false
-	for _, fsId := range fsIds {
-		firstSample, getValueErr = s.getMetricValues(ctx, first, arrayId, fsId)
+	for _, fsID := range fsIds {
+		firstSample, getValueErr = s.getMetricValues(ctx, first, arrayID, fsID)
 		if getValueErr != nil {
 			return false, getValueErr
 		}
 		log.Debugf("firstSample = %v", firstSample)
 
-		secondSample, getValueErr = s.getMetricValues(ctx, second, arrayId, fsId)
+		secondSample, getValueErr = s.getMetricValues(ctx, second, arrayID, fsID)
 		if getValueErr != nil {
 			return false, getValueErr
 		}
@@ -417,13 +437,13 @@ func (s *service) doesAnyFileSystemHaveIO(ctx context.Context, rep *podmon.Valid
 				foundVolumeWithIO = true
 			}
 		}
-		rep.Messages = append(rep.Messages, fmt.Sprintf("%s on array %s has %sIOs", fsId, arrayId, hasOrNot))
+		rep.Messages = append(rep.Messages, fmt.Sprintf("%s on array %s has %sIOs", fsID, arrayID, hasOrNot))
 	}
 	return foundVolumeWithIO, nil
 }
 
 //getMetrics retrieves the specified metrics from the array
-func (s *service) getMetrics(ctx context.Context, arrayId string, metrics []string) (*types.MetricQueryResult, error) {
+func (s *service) getMetrics(ctx context.Context, arrayID string, metrics []string) (*types.MetricQueryResult, error) {
 	ctx, log, _ := GetRunidLog(ctx)
 
 	// Synchronize to allow only a single collection per array + metrics
@@ -437,14 +457,14 @@ func (s *service) getMetrics(ctx context.Context, arrayId string, metrics []stri
 	}()
 
 	// We cache the metrics collection ID for a give array + metric names
-	cacheKey := fmt.Sprintf("%s:%s", arrayId, strings.Join(metrics, ","))
-	collectionId, found := metricsCollectionCache.Load(cacheKey)
+	cacheKey := fmt.Sprintf("%s:%s", arrayID, strings.Join(metrics, ","))
+	collectionID, found := metricsCollectionCache.Load(cacheKey)
 	if found {
 		// Create a separate time to be used for metrics collection calls
 		getMetricCtx, getMetricCancel := context.WithTimeout(context.Background(), MetricsTimeout)
 		defer getMetricCancel()
 		// Validate that the query works.
-		result, getErr := GetMetricsCollection(s, getMetricCtx, arrayId, collectionId.(int))
+		result, getErr := GetMetricsCollection(getMetricCtx, s, arrayID, collectionID.(int))
 		if getErr == nil {
 			// No error on query, but validate that it has the requested metric path
 			hasAllPaths := true
@@ -462,11 +482,11 @@ func (s *service) getMetrics(ctx context.Context, arrayId string, metrics []stri
 				}
 			}
 			if hasAllPaths {
-				log.Infof("Queried %v metrics collection %v for %s", metrics, collectionId, arrayId)
+				log.Infof("Queried %v metrics collection %v for %s", metrics, collectionID, arrayID)
 				// All good, return the results
 				return result, nil
 			}
-			log.Warnf("Stale cache: collection with ID %v doesn't apply to %v.", collectionId, metrics)
+			log.Warnf("Stale cache: collection with ID %v doesn't apply to %v.", collectionID, metrics)
 		}
 	}
 
@@ -479,15 +499,15 @@ func (s *service) getMetrics(ctx context.Context, arrayId string, metrics []stri
 	// If we are here, we have the write lock. Check the cache in case
 	// another thread already created the collection while this thread
 	// was waiting on the write lock.
-	latestCollectionId, foundAgain := metricsCollectionCache.Load(cacheKey)
-	if foundAgain && latestCollectionId != collectionId {
+	latestCollectionID, foundAgain := metricsCollectionCache.Load(cacheKey)
+	if foundAgain && latestCollectionID != collectionID {
 		// There was a hit and it was different from what we had above.
 		// Return the metrics data based on this latest collection ID.
-		log.Infof("Retrieving results from latest collection %v", latestCollectionId)
+		log.Infof("Retrieving results from latest collection %v", latestCollectionID)
 		// Create a separate time to be used for metrics collection calls
 		getMetricCtx, getMetricCancel := context.WithTimeout(context.Background(), MetricsTimeout)
 		defer getMetricCancel()
-		return GetMetricsCollection(s, getMetricCtx, arrayId, latestCollectionId.(int))
+		return GetMetricsCollection(getMetricCtx, s, arrayID, latestCollectionID.(int))
 	} else if foundAgain { // but collectionIds match, so a stale entry
 		// Clean up a stale cache instance
 		metricsCollectionCache.Delete(cacheKey)
@@ -496,18 +516,18 @@ func (s *service) getMetrics(ctx context.Context, arrayId string, metrics []stri
 	// If we are here, then we are going to be creating a metrics collection.
 	// This should be done by a single thread. Subsequent calls to getMetrics
 	// should return metrics based on the cached collection ID.
-	log.Infof("Attempting to create a %v metrics collection for %s", metrics, arrayId)
+	log.Infof("Attempting to create a %v metrics collection for %s", metrics, arrayID)
 
 	// Create a separate time to be used for metrics creation calls
 	createMetricCtx, createMetricCancel := context.WithTimeout(context.Background(), MetricsTimeout)
 	defer createMetricCancel()
 	// Create the metrics collection because it doesn't exist
-	collection, createErr := CreateMetricsCollection(s, createMetricCtx, arrayId, metrics, MetricsCollectionInterval)
+	collection, createErr := CreateMetricsCollection(createMetricCtx, s, arrayID, metrics, MetricsCollectionInterval)
 	if createErr != nil {
 		return nil, createErr
 	}
 
-	log.Infof("Metrics collection %d created for %s", collection.Content.Id, arrayId)
+	log.Infof("Metrics collection %d created for %s", collection.Content.Id, arrayID)
 
 	// Wait a bit before trying the first query
 	time.Sleep(time.Duration(CollectionWait) * time.Millisecond)
@@ -516,7 +536,7 @@ func (s *service) getMetrics(ctx context.Context, arrayId string, metrics []stri
 	getMetricCtx, getMetricCancel := context.WithTimeout(context.Background(), MetricsTimeout)
 	defer getMetricCancel()
 	// Cache the collection Id for subsequent use (above, when there is a cache hit)
-	results, getErr := GetMetricsCollection(s, getMetricCtx, arrayId, collection.Content.Id)
+	results, getErr := GetMetricsCollection(getMetricCtx, s, arrayID, collection.Content.Id)
 	if getErr != nil {
 		return nil, getErr
 	}
@@ -525,14 +545,14 @@ func (s *service) getMetrics(ctx context.Context, arrayId string, metrics []stri
 	// Reset this counter so that we can continue to "keep-alive" collections for some time.
 	refreshCount.Store(0)
 
-	log.Infof("Successfully queried metrics collection %d for %s", collection.Content.Id, arrayId)
+	log.Infof("Successfully queried metrics collection %d for %s", collection.Content.Id, arrayID)
 
 	return results, nil
 }
 
 //getMetricValues will return a mapping of the metric name to value for a object of the given 'id' on the array.
 //Assumes that the value is an integer.
-func (s *service) getMetricValues(ctx context.Context, metrics *types.MetricQueryResult, arrayId, id string) (map[string]int, error) {
+func (s *service) getMetricValues(ctx context.Context, metrics *types.MetricQueryResult, arrayID, id string) (map[string]int, error) {
 	ctx, log, _ := GetRunidLog(ctx)
 
 	// As an example, the results should look like this if printed out as a string:
@@ -545,16 +565,16 @@ func (s *service) getMetricValues(ctx context.Context, metrics *types.MetricQuer
 	resultMap := make(map[string]int)
 	for _, entry := range metrics.Entries {
 		// CurrentIO metrics are per SP, search through all the SPs
-		for spId, value := range entry.Content.Values {
+		for spID, value := range entry.Content.Values {
 			metricMap := value.(map[string]interface{})
 			// Look up the metric for this volume
 			if countStr, exists := metricMap[id]; exists {
-				log.Infof("Array: %s metric: %s SP: %s %s = %v", arrayId, entry.Content.Path, spId, id, countStr)
+				log.Infof("Array: %s metric: %s SP: %s %s = %v", arrayID, entry.Content.Path, spID, id, countStr)
 				count, convErr := strconv.Atoi(countStr.(string))
 				if convErr != nil {
 					return nil, convErr
 				}
-				resultMap[spId+":"+entry.Content.Path] = count
+				resultMap[spID+":"+entry.Content.Path] = count
 			}
 		}
 	}
@@ -584,7 +604,7 @@ func (s *service) refreshMetricsCollections() {
 					metricCtx, cancel := context.WithTimeout(ctx, MetricsTimeout)
 					comp := strings.Split(cacheKey.(string), ":")
 					log.Infof("Refreshing metric for %v collectionId %v", cacheKey, collectionId)
-					_, _ = GetMetricsCollection(s, metricCtx, comp[0], collectionId.(int))
+					_, _ = GetMetricsCollection(metricCtx, s, comp[0], collectionId.(int))
 					cancel()
 					return true
 				})
@@ -596,35 +616,35 @@ func (s *service) refreshMetricsCollections() {
 
 // Below are service calls that are outside of this extension implementation.
 
-func getArrayIdFromVolumeContext(s *service, contextVolId string) (string, error) {
-	return s.getArrayIdFromVolumeContext(contextVolId)
+func getArrayIDFromVolumeContext(s *service, contextVolID string) (string, error) {
+	return s.getArrayIDFromVolumeContext(contextVolID)
 }
 
-func getProtocolFromVolumeContext(s *service, contextVolId string) (string, error) {
-	return s.getProtocolFromVolumeContext(contextVolId)
+func getProtocolFromVolumeContext(s *service, contextVolID string) (string, error) {
+	return s.getProtocolFromVolumeContext(contextVolID)
 }
 
-func requireProbe(s *service, ctx context.Context, arrayId string) error {
-	return s.requireProbe(ctx, arrayId)
+func requireProbe(ctx context.Context, s *service, arrayID string) error {
+	return s.requireProbe(ctx, arrayID)
 }
 
-func getHostId(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
-	return s.getHostId(ctx, arrayId, shortHostname, longHostname)
+func getHostID(ctx context.Context, s *service, arrayID, shortHostname, longHostname string) (*types.Host, error) {
+	return s.getHostID(ctx, arrayID, shortHostname, longHostname)
 }
 
-func getUnityClient(s *service, ctx context.Context, arrayId string) (*gounity.Client, error) {
-	return s.getUnityClient(ctx, arrayId)
+func getUnityClient(ctx context.Context, s *service, arrayID string) (*gounity.Client, error) {
+	return s.getUnityClient(ctx, arrayID)
 }
 
-func findHostInitiatorById(unity *gounity.Client, ctx context.Context, wwnOrIqn string) (*types.HostInitiator, error) {
+func findHostInitiatorByID(ctx context.Context, unity *gounity.Client, wwnOrIqn string) (*types.HostInitiator, error) {
 	hostAPI := gounity.NewHost(unity)
 	return hostAPI.FindHostInitiatorById(ctx, wwnOrIqn)
 }
 
-func getMetricsCollection(s *service, ctx context.Context, arrayId string, id int) (*types.MetricQueryResult, error) {
-	return s.getMetricsCollection(ctx, arrayId, id)
+func getMetricsCollection(ctx context.Context, s *service, arrayID string, id int) (*types.MetricQueryResult, error) {
+	return s.getMetricsCollection(ctx, arrayID, id)
 }
 
-func createMetricsCollection(s *service, ctx context.Context, arrayId string, metricPaths []string, interval int) (*types.MetricQueryCreateResponse, error) {
-	return s.createMetricsCollection(ctx, arrayId, metricPaths, interval)
+func createMetricsCollection(ctx context.Context, s *service, arrayID string, metricPaths []string, interval int) (*types.MetricQueryCreateResponse, error) {
+	return s.createMetricsCollection(ctx, arrayID, metricPaths, interval)
 }

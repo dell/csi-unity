@@ -1,8 +1,9 @@
+package service
+
 /*
 Copyright (c) 2019 Dell EMC Corporation
 All Rights Reserved
 */
-package service
 
 import (
 	"fmt"
@@ -32,20 +33,21 @@ const (
 	keyDataReductionEnabled = "isDataReductionEnabled"
 	keyTieringPolicy        = "tieringPolicy"
 	keyHostIOLimitName      = "hostIOLimitName"
-	keyArrayId              = "arrayId"
+	keyArrayID              = "arrayId"
 	keyProtocol             = "protocol"
 	keyNasServer            = "nasServer"
 	keyHostIoSize           = "hostIoSize"
 )
 
+// Constants used across module
 const (
 	FC                       = "FC"
 	ISCSI                    = "iSCSI"
 	NFS                      = "NFS"
 	ProtocolUnknown          = "Unknown"
 	ProtocolNFS              = int(0)
-	MAX_ENTRIES_SNAPSHOT     = 100
-	MAX_ENTRIES_VOLUME       = 100
+	MaxEntriesSnapshot       = 100
+	MaxEntriesVolume         = 100
 	NFSShareLocalPath        = "/"
 	NFSShareNamePrefix       = "csishare-"
 	AdditionalFilesystemSize = 1.5 * 1024 * 1024 * 1024
@@ -84,11 +86,11 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 	ctx, log, rid := GetRunidLog(ctx)
 	log.Debugf("Executing CreateVolume with args: %+v", *req)
 	params := req.GetParameters()
-	arrayID := strings.ToLower(strings.TrimSpace(params[keyArrayId]))
+	arrayID := strings.ToLower(strings.TrimSpace(params[keyArrayID]))
 	if arrayID == "" {
 		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "ArrayId cannot be empty"))
 	}
-	ctx, log = setArrayIdContext(ctx, arrayID)
+	ctx, log = setArrayIDContext(ctx, arrayID)
 
 	if err := s.requireProbe(ctx, arrayID); err != nil {
 		return nil, err
@@ -184,10 +186,10 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 				log.Info("Filesystem exists in the requested state with same size, NAS server and storage pool")
 				filesystem.FileContent.SizeTotal -= AdditionalFilesystemSize
 				return utils.GetVolumeResponseFromFilesystem(filesystem, arrayID, protocol, preferredAccessibility), nil
-			} else {
-				log.Info("'Filesystem name' already exists and size/NAS server/storage pool is different")
-				return nil, status.Error(codes.AlreadyExists, utils.GetMessageWithRunID(rid, "'Filesystem name' already exists and size/NAS server/storage pool is different."))
 			}
+			log.Info("'Filesystem name' already exists and size/NAS server/storage pool is different")
+			return nil, status.Error(codes.AlreadyExists, utils.GetMessageWithRunID(rid, "'Filesystem name' already exists and size/NAS server/storage pool is different."))
+
 		}
 
 		log.Debug("Filesystem does not exist, proceeding to create new filesystem")
@@ -225,14 +227,14 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 		volumeAPI := gounity.NewVolume(unity)
 
 		var hostIOLimit *types.IoLimitPolicy
-		var hostIOLimitId string
+		var hostIOLimitID string
 		if hostIOLimitName != "" {
 			hostIOLimit, err = volumeAPI.FindHostIOLimitByName(ctx, hostIOLimitName)
 			if err != nil {
 				return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "HostIOLimitName %s not found. Error: %v", hostIOLimitName, err))
 			}
 
-			hostIOLimitId = hostIOLimit.IoLimitPolicyContent.Id
+			hostIOLimitID = hostIOLimit.IoLimitPolicyContent.Id
 		}
 
 		//Idempotency check
@@ -242,14 +244,13 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 			if int64(content.SizeTotal) == size {
 				log.Info("Volume exists in the requested state with same size")
 				return utils.GetVolumeResponseFromVolume(vol, arrayID, protocol, preferredAccessibility), nil
-			} else {
-				log.Info("'Volume name' already exists and size is different")
-				return nil, status.Error(codes.AlreadyExists, utils.GetMessageWithRunID(rid, "'Volume name' already exists and size is different."))
 			}
+			log.Info("'Volume name' already exists and size is different")
+			return nil, status.Error(codes.AlreadyExists, utils.GetMessageWithRunID(rid, "'Volume name' already exists and size is different."))
 		}
 
 		log.Debug("Volume does not exist, proceeding to create new volume")
-		resp, err := volumeAPI.CreateLun(ctx, volName, storagePool, desc, uint64(size), int(tieringPolicy), hostIOLimitId, thin, dataReduction)
+		resp, err := volumeAPI.CreateLun(ctx, volName, storagePool, desc, uint64(size), int(tieringPolicy), hostIOLimitID, thin, dataReduction)
 		if err != nil {
 			return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Create Volume %s failed with error: %v", volName, err))
 		}
@@ -272,12 +273,12 @@ func (s *service) DeleteVolume(
 	ctx, log, rid := GetRunidLog(ctx)
 	log.Debugf("Executing DeleteVolume with args: %+v", *req)
 	var snapErr error
-	volID, protocol, arrayId, unity, err := s.validateAndGetResourceDetails(ctx, req.GetVolumeId(), volumeType)
+	volID, protocol, arrayID, unity, err := s.validateAndGetResourceDetails(ctx, req.GetVolumeId(), volumeType)
 	if err != nil {
 		return nil, err
 	}
-	ctx, log = setArrayIdContext(ctx, arrayId)
-	if err := s.requireProbe(ctx, arrayId); err != nil {
+	ctx, log = setArrayIDContext(ctx, arrayID)
+	if err := s.requireProbe(ctx, arrayID); err != nil {
 		return nil, err
 	}
 	deleteVolumeResp := &csi.DeleteVolumeResponse{}
@@ -324,7 +325,7 @@ func (s *service) ControllerPublishVolume(
 	if err != nil {
 		return nil, err
 	}
-	ctx, log = setArrayIdContext(ctx, arrayID)
+	ctx, log = setArrayIDContext(ctx, arrayID)
 	if err := s.requireProbe(ctx, arrayID); err != nil {
 		return nil, err
 	}
@@ -335,7 +336,7 @@ func (s *service) ControllerPublishVolume(
 	}
 
 	hostNames := strings.Split(nodeID, ",")
-	host, err := s.getHostId(ctx, arrayID, hostNames[0], hostNames[1])
+	host, err := s.getHostID(ctx, arrayID, hostNames[0], hostNames[1])
 	if err != nil {
 		return nil, err
 	}
@@ -371,7 +372,7 @@ func (s *service) ControllerUnpublishVolume(
 	if err != nil {
 		return nil, err
 	}
-	ctx, log = setArrayIdContext(ctx, arrayID)
+	ctx, log = setArrayIDContext(ctx, arrayID)
 	if err := s.requireProbe(ctx, arrayID); err != nil {
 		return nil, err
 	}
@@ -382,7 +383,7 @@ func (s *service) ControllerUnpublishVolume(
 	}
 
 	hostNames := strings.Split(nodeID, ",")
-	host, err := s.getHostId(ctx, arrayID, hostNames[0], hostNames[1])
+	host, err := s.getHostID(ctx, arrayID, hostNames[0], hostNames[1])
 	if err != nil {
 		return nil, err
 	}
@@ -443,12 +444,12 @@ func (s *service) ValidateVolumeCapabilities(ctx context.Context, req *csi.Valid
 	ctx, log, rid := GetRunidLog(ctx)
 	log.Debugf("Executing ValidateVolumeCapabilities with args: %+v", *req)
 
-	volID, _, arrayId, unity, err := s.validateAndGetResourceDetails(ctx, req.GetVolumeId(), volumeType)
+	volID, _, arrayID, unity, err := s.validateAndGetResourceDetails(ctx, req.GetVolumeId(), volumeType)
 	if err != nil {
 		return nil, err
 	}
-	ctx, log = setArrayIdContext(ctx, arrayId)
-	if err := s.requireProbe(ctx, arrayId); err != nil {
+	ctx, log = setArrayIDContext(ctx, arrayID)
+	if err := s.requireProbe(ctx, arrayID); err != nil {
 		return nil, err
 	}
 
@@ -474,10 +475,9 @@ func (s *service) ValidateVolumeCapabilities(ctx context.Context, req *csi.Valid
 		confirmed.VolumeCapabilities = vcs
 		resp.Confirmed = confirmed
 		return resp, nil
-	} else {
-		resp.Message = reason
-		return resp, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Unsupported capability"))
 	}
+	resp.Message = reason
+	return resp, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Unsupported capability"))
 }
 
 func (s *service) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
@@ -505,47 +505,47 @@ func (s *service) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotReq
 	}
 
 	//Source volume is for volume clone or snapshot clone
-	volId, protocol, arrayId, _, err := s.validateAndGetResourceDetails(ctx, req.SourceVolumeId, volumeType)
+	volID, protocol, arrayID, _, err := s.validateAndGetResourceDetails(ctx, req.SourceVolumeId, volumeType)
 	if err != nil {
 		return nil, err
 	}
 
-	ctx, log = setArrayIdContext(ctx, arrayId)
-	if err := s.requireProbe(ctx, arrayId); err != nil {
+	ctx, log = setArrayIDContext(ctx, arrayID)
+	if err := s.requireProbe(ctx, arrayID); err != nil {
 		return nil, err
 	}
 
 	//Idempotency check
-	snap, err := s.createIdempotentSnapshot(ctx, req.Name, volId, req.Parameters["description"], req.Parameters["retentionDuration"], protocol, arrayId, false)
+	snap, err := s.createIdempotentSnapshot(ctx, req.Name, volID, req.Parameters["description"], req.Parameters["retentionDuration"], protocol, arrayID, false)
 	if err != nil {
 		return nil, err
 	}
-	return utils.GetSnapshotResponseFromSnapshot(snap, protocol, arrayId), nil
+	return utils.GetSnapshotResponseFromSnapshot(snap, protocol, arrayID), nil
 }
 
 func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
 	ctx, log, rid := GetRunidLog(ctx)
 	log.Debugf("Executing DeleteSnapshot with args: %+v", *req)
 
-	snapId, _, arrayId, unity, err := s.validateAndGetResourceDetails(ctx, req.SnapshotId, snapshotType)
+	snapID, _, arrayID, unity, err := s.validateAndGetResourceDetails(ctx, req.SnapshotId, snapshotType)
 	if err != nil {
 		return nil, err
 	}
-	ctx, log = setArrayIdContext(ctx, arrayId)
-	if err := s.requireProbe(ctx, arrayId); err != nil {
+	ctx, log = setArrayIDContext(ctx, arrayID)
+	if err := s.requireProbe(ctx, arrayID); err != nil {
 		return nil, err
 	}
 
-	snapApi := gounity.NewSnapshot(unity)
+	snapAPI := gounity.NewSnapshot(unity)
 	//Idempotency check
-	snap, err := snapApi.FindSnapshotById(ctx, snapId)
+	snap, err := snapAPI.FindSnapshotById(ctx, snapID)
 	//snapshot exists, continue deleting the snapshot
 	if err != nil {
 		log.Info("Snapshot doesn't exists")
 	}
 
 	if snap != nil {
-		err := snapApi.DeleteSnapshot(ctx, snapId)
+		err := snapAPI.DeleteSnapshot(ctx, snapID)
 		if err != nil {
 			return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Delete Snapshot error: %v", err))
 		}
@@ -565,21 +565,21 @@ func (s *service) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsReque
 		err        error
 		maxEntries = int(req.MaxEntries)
 	)
-	snapId, protocol, arrayId, unity, err := s.validateAndGetResourceDetails(ctx, req.SnapshotId, snapshotType)
+	snapID, protocol, arrayID, unity, err := s.validateAndGetResourceDetails(ctx, req.SnapshotId, snapshotType)
 	if err != nil {
 		return nil, err
 	}
 
-	ctx, log = setArrayIdContext(ctx, arrayId)
-	if err := s.requireProbe(ctx, arrayId); err != nil {
+	ctx, log = setArrayIDContext(ctx, arrayID)
+	if err := s.requireProbe(ctx, arrayID); err != nil {
 		return nil, err
 	}
 
-	snapApi := gounity.NewSnapshot(unity)
+	snapAPI := gounity.NewSnapshot(unity)
 
 	//Limiting the number of snapshots to 100 to avoid timeout issues
-	if maxEntries > MAX_ENTRIES_SNAPSHOT || maxEntries == 0 {
-		maxEntries = MAX_ENTRIES_SNAPSHOT
+	if maxEntries > MaxEntriesSnapshot || maxEntries == 0 {
+		maxEntries = MaxEntriesSnapshot
 	}
 
 	if req.StartingToken != "" {
@@ -590,13 +590,13 @@ func (s *service) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsReque
 		startToken = int(i)
 	}
 
-	snaps, nextToken, err := snapApi.ListSnapshots(ctx, startToken, maxEntries, "", snapId)
+	snaps, nextToken, err := snapAPI.ListSnapshots(ctx, startToken, maxEntries, "", snapID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Unable to get the snapshots: %v", err))
 	}
 
 	// Process the source snapshots and make CSI Snapshot
-	entries, err := s.getCSISnapshots(snaps, req.SourceVolumeId, protocol, arrayId)
+	entries, err := s.getCSISnapshots(snaps, req.SourceVolumeId, protocol, arrayID)
 	if err != nil {
 		return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, err.Error()))
 	}
@@ -607,13 +607,13 @@ func (s *service) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsReque
 	}, nil
 }
 
-func (s *service) controllerProbe(ctx context.Context, arrayId string) error {
-	return s.probe(ctx, "Controller", arrayId)
+func (s *service) controllerProbe(ctx context.Context, arrayID string) error {
+	return s.probe(ctx, "Controller", arrayID)
 }
 
 // ControllerGetCapabilities implements the default GRPC callout.
 // Default supports all capabilities
-func (cs *service) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
+func (s *service) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
 	ctx, log, _ := GetRunidLog(ctx)
 	log.Debugf("Executing ControllerGetCapabilities with args: %+v", *req)
 	return &csi.ControllerGetCapabilitiesResponse{
@@ -693,13 +693,13 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "volumeId is mandatory parameter"))
 	}
 
-	volId, protocol, arrayId, unity, err := s.validateAndGetResourceDetails(ctx, req.VolumeId, volumeType)
+	volID, protocol, arrayID, unity, err := s.validateAndGetResourceDetails(ctx, req.VolumeId, volumeType)
 	if err != nil {
 		return nil, err
 	}
 
-	ctx, log = setArrayIdContext(ctx, arrayId)
-	if err := s.requireProbe(ctx, arrayId); err != nil {
+	ctx, log = setArrayIDContext(ctx, arrayID)
+	if err := s.requireProbe(ctx, arrayID); err != nil {
 		return nil, err
 	}
 
@@ -723,14 +723,14 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 	if protocol == NFS {
 		//Adding Additional size used for metadata
 		capacity += AdditionalFilesystemSize
-		filesystemApi := gounity.NewFilesystem(unity)
+		filesystemAPI := gounity.NewFilesystem(unity)
 
-		filesystem, err := filesystemApi.FindFilesystemById(ctx, volId)
+		filesystem, err := filesystemAPI.FindFilesystemById(ctx, volID)
 		if err != nil {
-			snapshotApi := gounity.NewSnapshot(unity)
-			_, err = snapshotApi.FindSnapshotById(ctx, volId)
+			snapshotAPI := gounity.NewSnapshot(unity)
+			_, err = snapshotAPI.FindSnapshotById(ctx, volID)
 			if err != nil {
-				return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find filesystem %s failed with error: %v", volId, err))
+				return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find filesystem %s failed with error: %v", volID, err))
 			}
 			return nil, status.Error(codes.Unimplemented, utils.GetMessageWithRunID(rid, "Expand Volume not supported for cloned filesystems(snapshot on array)"))
 		}
@@ -745,54 +745,53 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 			return expandVolumeResp, nil
 		}
 
-		err = filesystemApi.ExpandFilesystem(ctx, volId, uint64(capacity))
+		err = filesystemAPI.ExpandFilesystem(ctx, volID, uint64(capacity))
 		if err != nil {
 			return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Expand filesystem failed with error: %v", err))
 		}
 
-		filesystem, err = filesystemApi.FindFilesystemById(ctx, volId)
+		filesystem, err = filesystemAPI.FindFilesystemById(ctx, volID)
 		if err != nil {
 			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find filesystem failed with error: %v", err))
 		}
 		expandVolumeResp.CapacityBytes = int64(filesystem.FileContent.SizeTotal) - AdditionalFilesystemSize
 		expandVolumeResp.NodeExpansionRequired = false
 		return expandVolumeResp, err
-	} else {
-		volumeApi := gounity.NewVolume(unity)
-		//Idempotency check
-		volume, err := volumeApi.FindVolumeById(ctx, volId)
-		if err != nil {
-			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find volume failed with error: %v", err))
-		}
-
-		nodeExpansionRequired := false
-		content := volume.VolumeContent
-		if len(content.HostAccessResponse) >= 1 { //If the volume has 1 or more host access  then set nodeExpansionRequired as true
-			nodeExpansionRequired = true
-		}
-
-		if volume.VolumeContent.SizeTotal >= uint64(capacity) {
-			log.Infof("New Volume size (%d) is same as existing Volume size. Ignoring expand volume operation.", volume.VolumeContent.SizeTotal)
-			expandVolumeResp := &csi.ControllerExpandVolumeResponse{
-				CapacityBytes: 0,
-			}
-			expandVolumeResp.NodeExpansionRequired = nodeExpansionRequired
-			return expandVolumeResp, nil
-		}
-
-		err = volumeApi.ExpandVolume(ctx, volId, uint64(capacity))
-		if err != nil {
-			return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Expand volume failed with error: %v", err))
-		}
-
-		volume, err = volumeApi.FindVolumeById(ctx, volId)
-		if err != nil {
-			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find volume failed with error: %v", err))
-		}
-		expandVolumeResp.CapacityBytes = int64(volume.VolumeContent.SizeTotal)
-		expandVolumeResp.NodeExpansionRequired = nodeExpansionRequired
-		return expandVolumeResp, err
 	}
+	volumeAPI := gounity.NewVolume(unity)
+	//Idempotency check
+	volume, err := volumeAPI.FindVolumeById(ctx, volID)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find volume failed with error: %v", err))
+	}
+
+	nodeExpansionRequired := false
+	content := volume.VolumeContent
+	if len(content.HostAccessResponse) >= 1 { //If the volume has 1 or more host access  then set nodeExpansionRequired as true
+		nodeExpansionRequired = true
+	}
+
+	if volume.VolumeContent.SizeTotal >= uint64(capacity) {
+		log.Infof("New Volume size (%d) is same as existing Volume size. Ignoring expand volume operation.", volume.VolumeContent.SizeTotal)
+		expandVolumeResp := &csi.ControllerExpandVolumeResponse{
+			CapacityBytes: 0,
+		}
+		expandVolumeResp.NodeExpansionRequired = nodeExpansionRequired
+		return expandVolumeResp, nil
+	}
+
+	err = volumeAPI.ExpandVolume(ctx, volID, uint64(capacity))
+	if err != nil {
+		return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Expand volume failed with error: %v", err))
+	}
+
+	volume, err = volumeAPI.FindVolumeById(ctx, volID)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find volume failed with error: %v", err))
+	}
+	expandVolumeResp.CapacityBytes = int64(volume.VolumeContent.SizeTotal)
+	expandVolumeResp.NodeExpansionRequired = nodeExpansionRequired
+	return expandVolumeResp, err
 }
 
 func (s *service) getCSIVolumes(volumes []types.Volume) ([]*csi.ListVolumesResponse_Entry, error) {
@@ -820,7 +819,7 @@ func (s *service) getCSIVolumes(volumes []types.Volume) ([]*csi.ListVolumesRespo
 	return entries, nil
 }
 
-func (s *service) getCSISnapshots(snaps []types.Snapshot, volId, protocol, arrayId string) ([]*csi.ListSnapshotsResponse_Entry, error) {
+func (s *service) getCSISnapshots(snaps []types.Snapshot, volID, protocol, arrayID string) ([]*csi.ListSnapshotsResponse_Entry, error) {
 	entries := make([]*csi.ListSnapshotsResponse_Entry, len(snaps))
 	for i, snap := range snaps {
 		isReady := false
@@ -832,7 +831,7 @@ func (s *service) getCSISnapshots(snaps []types.Snapshot, volId, protocol, array
 			timestamp, _ = ptypes.TimestampProto(snap.SnapshotContent.CreationTime)
 		}
 
-		snapId := fmt.Sprintf("%s-%s-%s-%s", snap.SnapshotContent.Name, protocol, arrayId, snap.SnapshotContent.ResourceId)
+		snapID := fmt.Sprintf("%s-%s-%s-%s", snap.SnapshotContent.Name, protocol, arrayID, snap.SnapshotContent.ResourceId)
 
 		size := snap.SnapshotContent.Size
 		if protocol == NFS {
@@ -841,8 +840,8 @@ func (s *service) getCSISnapshots(snaps []types.Snapshot, volId, protocol, array
 		//Create CSI Snapshot
 		vi := &csi.Snapshot{
 			SizeBytes:      size,
-			SnapshotId:     snapId,
-			SourceVolumeId: volId,
+			SnapshotId:     snapID,
+			SourceVolumeId: volID,
 			CreationTime:   timestamp,
 			ReadyToUse:     isReady,
 		}
@@ -911,8 +910,8 @@ func (s *service) createIdempotentSnapshot(ctx context.Context, snapshotName, so
 		fileAPI := gounity.NewFilesystem(unity)
 		filesystemResp, err = fileAPI.FindFilesystemById(ctx, sourceVolID)
 		if err != nil {
-			snapshotApi := gounity.NewSnapshot(unity)
-			snapResp, err = snapshotApi.FindSnapshotById(ctx, sourceVolID)
+			snapshotAPI := gounity.NewSnapshot(unity)
+			snapResp, err = snapshotAPI.FindSnapshotById(ctx, sourceVolID)
 			if err != nil {
 				return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find source filesystem: %s failed with error: %v", sourceVolID, err))
 			}
@@ -973,9 +972,9 @@ func (s *service) createIdempotentSnapshot(ctx context.Context, snapshotName, so
 	return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Find Snapshot error after create. %v", err))
 }
 
-func (s *service) getHostId(ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+func (s *service) getHostID(ctx context.Context, arrayID, shortHostname, longHostname string) (*types.Host, error) {
 	ctx, _, rid := GetRunidLog(ctx)
-	unity, err := s.getUnityClient(ctx, arrayId)
+	unity, err := s.getUnityClient(ctx, arrayID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Unable to get Unity client."))
 	}
@@ -988,8 +987,8 @@ func (s *service) getHostId(ctx context.Context, arrayId, shortHostname, longHos
 		}
 	}
 	if host != nil {
-		for _, hostIpPort := range host.HostContent.IpPorts {
-			if hostIpPort.Address == longHostname {
+		for _, hostIPPort := range host.HostContent.IpPorts {
+			if hostIPPort.Address == longHostname {
 				return host, nil
 			}
 		}
@@ -999,8 +998,8 @@ func (s *service) getHostId(ctx context.Context, arrayId, shortHostname, longHos
 	if err != nil {
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find Host Failed %v", err))
 	}
-	for _, hostIpPort := range host.HostContent.IpPorts {
-		if hostIpPort.Address == longHostname {
+	for _, hostIPPort := range host.HostContent.IpPorts {
+		if hostIPPort.Address == longHostname {
 			return host, nil
 		}
 	}
@@ -1082,21 +1081,20 @@ func (s *service) createVolumeClone(ctx context.Context, crParams *CRParams, sou
 			csiVolResp := utils.GetVolumeResponseFromSnapshot(snapResp, arrayID, protocol, preferredAccessibility)
 			csiVolResp.Volume.ContentSource = contentSource
 			return csiVolResp, nil
-		} else {
-			fsSize := int64(filesystem.FileContent.SizeTotal - AdditionalFilesystemSize)
-			if size != fsSize {
-				return nil, status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Requested size %d should be same as source volume size %d",
-					size, fsSize))
-			}
-
-			snap, err := s.createIdempotentSnapshot(ctx, volName, sourceVolID, desc, "", protocol, arrayID, true)
-			if err != nil {
-				return nil, err
-			}
-			csiVolResp := utils.GetVolumeResponseFromSnapshot(snap, arrayID, protocol, preferredAccessibility)
-			csiVolResp.Volume.ContentSource = contentSource
-			return csiVolResp, nil
 		}
+		fsSize := int64(filesystem.FileContent.SizeTotal - AdditionalFilesystemSize)
+		if size != fsSize {
+			return nil, status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Requested size %d should be same as source volume size %d",
+				size, fsSize))
+		}
+
+		snap, err := s.createIdempotentSnapshot(ctx, volName, sourceVolID, desc, "", protocol, arrayID, true)
+		if err != nil {
+			return nil, err
+		}
+		csiVolResp := utils.GetVolumeResponseFromSnapshot(snap, arrayID, protocol, preferredAccessibility)
+		csiVolResp.Volume.ContentSource = contentSource
+		return csiVolResp, nil
 	}
 
 	//If protocol is FC or iSCSI
@@ -1720,9 +1718,9 @@ func (s *service) unexportFilesystem(ctx context.Context, volID, hostID, nodeID,
 }
 
 //createMetricsCollection creates a RealTimeMetrics collection with the specified metric paths on an array
-func (s *service) createMetricsCollection(ctx context.Context, arrayId string, metricPaths []string, interval int) (*types.MetricQueryCreateResponse, error) {
+func (s *service) createMetricsCollection(ctx context.Context, arrayID string, metricPaths []string, interval int) (*types.MetricQueryCreateResponse, error) {
 	ctx, _, rid := GetRunidLog(ctx)
-	unity, err := s.getUnityClient(ctx, arrayId)
+	unity, err := s.getUnityClient(ctx, arrayID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Unable to get Unity client."))
 	}
@@ -1737,9 +1735,9 @@ func (s *service) createMetricsCollection(ctx context.Context, arrayId string, m
 }
 
 //getMetricsCollection retrieves MetricsCollection data on an array given the collection 'id'
-func (s *service) getMetricsCollection(ctx context.Context, arrayId string, id int) (*types.MetricQueryResult, error) {
+func (s *service) getMetricsCollection(ctx context.Context, arrayID string, id int) (*types.MetricQueryResult, error) {
 	ctx, _, rid := GetRunidLog(ctx)
-	unity, err := s.getUnityClient(ctx, arrayId)
+	unity, err := s.getUnityClient(ctx, arrayID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Unable to get Unity client."))
 	}

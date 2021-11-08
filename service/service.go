@@ -20,7 +20,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/dell/csi-unity/common"
+	constants "github.com/dell/csi-unity/common"
 	"github.com/dell/csi-unity/core"
 	"github.com/dell/csi-unity/k8sutils"
 	"github.com/dell/csi-unity/service/utils"
@@ -45,14 +45,20 @@ const (
 	// VendorVersion is the version of this Unity CSI.
 	VendorVersion = "0.0.0"
 
-	//Tcp dial default timeout in Milliseconds
-	TcpDialTimeout = 1000
+	// TCPDialTimeout - Tcp dial default timeout in Milliseconds
+	TCPDialTimeout = 1000
 
+	// IScsiPort - iSCSI port used
 	IScsiPort = "3260"
 )
 
+// Name - name of the service
 var Name string
+
+// DriverConfig - Driver config
 var DriverConfig string
+
+// DriverSecret - Driver secret
 var DriverSecret string
 
 //To maintain runid for Non debug mode. Note: CSI will not generate runid if CSI_DEBUG=false
@@ -66,13 +72,14 @@ var Manifest = map[string]string{
 	"formed": core.CommitTime.Format(time.RFC1123),
 }
 
-//To parse the secret yaml file
+// StorageArrayList - To parse the secret yaml file
 type StorageArrayList struct {
 	StorageArrayList []StorageArrayConfig `yaml:"storageArrayList"`
 }
 
+// StorageArrayConfig - Storage array configuration
 type StorageArrayConfig struct {
-	ArrayId                   string `yaml:"arrayId"`
+	ArrayID                   string `yaml:"arrayId"`
 	Username                  string `yaml:"username"`
 	Password                  string `yaml:"password"`
 	Endpoint                  string `yaml:"endpoint"`
@@ -139,7 +146,7 @@ func New() Service {
 //To display the StorageArrayConfig content
 func (s StorageArrayConfig) String() string {
 	return fmt.Sprintf("ArrayID: %s, Username: %s, Endpoint: %s, SkipCertificateValidation: %v, IsDefaultArray:%v, IsProbeSuccess:%v, IsHostAdded:%v",
-		s.ArrayId, s.Username, s.Endpoint, s.SkipCertificateValidation, s.IsDefaultArray, s.IsProbeSuccess, s.IsHostAdded)
+		s.ArrayID, s.Username, s.Endpoint, s.SkipCertificateValidation, s.IsDefaultArray, s.IsProbeSuccess, s.IsHostAdded)
 }
 
 // BeforeServe allows the SP to participate in the startup
@@ -149,7 +156,7 @@ func (s StorageArrayConfig) String() string {
 // server from starting by returning a non-nil error.
 func (s *service) BeforeServe(
 	ctx context.Context, sp *gocsi.StoragePlugin, lis net.Listener) error {
-	ctx, log := setRunIdContext(ctx, "start")
+	ctx, log := setRunIDContext(ctx, "start")
 	var err error
 	defer func() {
 		fields := map[string]interface{}{
@@ -240,7 +247,7 @@ func (s *service) BeforeServe(
 	s.opts = opts
 	//Update the storage array list
 	runid := fmt.Sprintf("config-%d", 0)
-	ctx, log = setRunIdContext(ctx, runid)
+	ctx, log = setRunIDContext(ctx, runid)
 	s.arrays = new(sync.Map)
 	err = s.syncDriverSecret(ctx)
 	if err != nil {
@@ -266,7 +273,7 @@ func (s *service) BeforeServe(
 
 // RegisterAdditionalServers registers any additional grpc services that use the CSI socket.
 func (s *service) RegisterAdditionalServers(server *grpc.Server) {
-	_, log := setRunIdContext(context.Background(), "RegisterAdditionalServers")
+	_, log := setRunIDContext(context.Background(), "RegisterAdditionalServers")
 	log.Info("Registering additional GRPC servers")
 	podmon.RegisterPodmonServer(server, s)
 }
@@ -309,17 +316,16 @@ func (s *service) getUnityClient(ctx context.Context, arrayID string) (*gounity.
 	array := s.getStorageArray(arrayID)
 	if array != nil && array.UnityClient != nil {
 		return array.UnityClient, nil
-	} else {
-		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("Unity client not found for array %s", arrayID))
 	}
+	return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("Unity client not found for array %s", arrayID))
 }
 
 //return volumeid from csi volume context
-func getVolumeIdFromVolumeContext(contextVolId string) string {
-	if contextVolId == "" {
+func getVolumeIDFromVolumeContext(contextVolID string) string {
+	if contextVolID == "" {
 		return ""
 	}
-	tokens := strings.Split(contextVolId, "-")
+	tokens := strings.Split(contextVolID, "-")
 	if len(tokens) == 1 {
 		// Only one token found, which means volume created using csi-unity v1.0 and v1.1
 		return tokens[0]
@@ -330,16 +336,16 @@ func getVolumeIdFromVolumeContext(contextVolId string) string {
 }
 
 //@Below method is unused. So remove.
-func (s *service) getArrayIdFromVolumeContext(contextVolId string) (string, error) {
-	if contextVolId == "" {
+func (s *service) getArrayIDFromVolumeContext(contextVolID string) (string, error) {
+	if contextVolID == "" {
 		return "", errors.New("volume context id should not be empty ")
 	}
-	tokens := strings.Split(contextVolId, "-")
+	tokens := strings.Split(contextVolID, "-")
 	if len(tokens) == 1 {
 		// Only one token found, which means volume created using csi-unity v1.0 and v1.1. So return default array
 		for _, array := range s.getStorageArrayList() {
 			if array.IsDefaultArray {
-				return array.ArrayId, nil
+				return array.ArrayID, nil
 			}
 		}
 		return "", errors.New("no default array found in the csi-unity driver configuration")
@@ -354,7 +360,7 @@ var watcher *fsnotify.Watcher
 func (s *service) loadDynamicConfig(ctx context.Context, secretFile, configFile string) error {
 	i := 1
 	runid := fmt.Sprintf("config-%d", i)
-	ctx, log := setRunIdContext(ctx, runid)
+	ctx, log := setRunIDContext(ctx, runid)
 
 	log.Info("Dynamic config load goroutine invoked")
 
@@ -403,7 +409,7 @@ func (s *service) loadDynamicConfig(ctx context.Context, secretFile, configFile 
 					i++
 				}
 				runid = fmt.Sprintf("config-%d", i)
-				ctx, log = setRunIdContext(ctx, runid)
+				ctx, log = setRunIDContext(ctx, runid)
 			case err, ok := <-watcher.Errors:
 				if !ok {
 					return
@@ -422,11 +428,11 @@ func (s *service) loadDynamicConfig(ctx context.Context, secretFile, configFile 
 }
 
 //return protocol from csi volume context
-func (s *service) getProtocolFromVolumeContext(contextVolId string) (string, error) {
-	if contextVolId == "" {
+func (s *service) getProtocolFromVolumeContext(contextVolID string) (string, error) {
+	if contextVolID == "" {
 		return "", errors.New("volume context id should not be empty ")
 	}
-	tokens := strings.Split(contextVolId, "-")
+	tokens := strings.Split(contextVolID, "-")
 	if len(tokens) == 1 {
 		// Only one token found, which means volume created using csi-unity v1.0 and v1.1. So return Unknown protocol
 		return ProtocolUnknown, nil
@@ -450,7 +456,7 @@ func (s *service) syncDriverSecret(ctx context.Context) error {
 	})
 	secretBytes, err := ioutil.ReadFile(filepath.Clean(DriverSecret))
 	if err != nil {
-		return errors.New(fmt.Sprintf("File ('%s') error: %v", DriverSecret, err))
+		return fmt.Errorf("File ('%s') error: %v", DriverSecret, err)
 	}
 
 	if string(secretBytes) != "" {
@@ -460,7 +466,7 @@ func (s *service) syncDriverSecret(ctx context.Context) error {
 		yamlErr := yaml.Unmarshal(secretBytes, secretConfig)
 		if yamlErr != nil {
 			log.Errorf("Couldnt parse DriverSecret %s  as yaml", DriverSecret)
-			return errors.New(fmt.Sprintf("Unable to parse the DriverSecret as yaml [%v]", yamlErr))
+			return fmt.Errorf("Unable to parse the DriverSecret as yaml [%v]", yamlErr)
 		}
 
 		if len(secretConfig.StorageArrayList) == 0 {
@@ -474,47 +480,48 @@ func (s *service) syncDriverSecret(ctx context.Context) error {
 
 		var noOfDefaultArrays int
 		for i, secret := range secretConfig.StorageArrayList {
-			if secret.ArrayId == "" {
-				return errors.New(fmt.Sprintf("invalid value for ArrayID at index [%d]", i))
+			if secret.ArrayID == "" {
+				return fmt.Errorf("invalid value for ArrayID at index [%d]", i)
 			}
 			if secret.Username == "" {
-				return errors.New(fmt.Sprintf("invalid value for Username at index [%d]", i))
+				return fmt.Errorf("invalid value for Username at index [%d]", i)
 			}
 			if secret.Password == "" {
-				return errors.New(fmt.Sprintf("invalid value for Password at index [%d]", i))
+				return fmt.Errorf("invalid value for Password at index [%d]", i)
 			}
 			if secret.SkipCertificateValidation == nil {
-				return errors.New(fmt.Sprintf("invalid value for SkipCertificateValidation at index [%d]", i))
+				return fmt.Errorf("invalid value for SkipCertificateValidation at index [%d]", i)
 			}
 			if secret.Endpoint == "" {
-				return errors.New(fmt.Sprintf("invalid value for Endpoint at index [%d]", i))
+				return fmt.Errorf("invalid value for Endpoint at index [%d]", i)
 			}
 			if secret.IsDefault == nil {
-				return errors.New(fmt.Sprintf("invalid value for IsDefault at index [%d]", i))
+				return fmt.Errorf("invalid value for IsDefault at index [%d]", i)
 			}
 
 			endpoint := secret.Endpoint
 			insecure := *secret.SkipCertificateValidation
 			secret.IsDefaultArray = *secret.IsDefault
-			secret.ArrayId = strings.ToLower(secret.ArrayId)
+			secret.ArrayID = strings.ToLower(secret.ArrayID)
 
 			unityClient, err := gounity.NewClientWithArgs(ctx, endpoint, insecure)
 			if err != nil {
-				return errors.New(fmt.Sprintf("unable to initialize the Unity client [%v]", err))
+				return fmt.Errorf("unable to initialize the Unity client [%v]", err)
 			}
 			secret.UnityClient = unityClient
 
 			copy := StorageArrayConfig{}
 			copy = secret
 
-			if _, ok := s.arrays.Load(secret.ArrayId); ok {
-				return errors.New(fmt.Sprintf("Duplicate ArrayID [%s] found in storageArrayList parameter", secret.ArrayId))
-			} else {
-				s.arrays.Store(secret.ArrayId, &copy)
+			_, ok := s.arrays.Load(secret.ArrayID)
+
+			if ok {
+				return fmt.Errorf("Duplicate ArrayID [%s] found in storageArrayList parameter", secret.ArrayID)
 			}
+			s.arrays.Store(secret.ArrayID, &copy)
 
 			fields := logrus.Fields{
-				"ArrayId":                   secret.ArrayId,
+				"ArrayId":                   secret.ArrayID,
 				"username":                  secret.Username,
 				"password":                  "*******",
 				"Endpoint":                  endpoint,
@@ -528,7 +535,7 @@ func (s *service) syncDriverSecret(ctx context.Context) error {
 			}
 
 			if noOfDefaultArrays > 1 {
-				return errors.New(fmt.Sprintf("'IsDefault' parameter is true in multiple places ArrayId: %s. 'isDefaultArray' parameter should present only once in the storageArrayList.", secret.ArrayId))
+				return fmt.Errorf("'isDefault' parameter is true in multiple places ArrayId: %s. 'isDefaultArray' parameter should present only once in the storageArrayList", secret.ArrayID)
 			}
 		}
 	} else {
@@ -581,19 +588,19 @@ func (s *service) syncDriverConfig(ctx context.Context, v *viper.Viper) {
 }
 
 //Set arraysId in log messages and re-initialize the context
-func setArrayIdContext(ctx context.Context, arrayId string) (context.Context, *logrus.Entry) {
-	return setLogFieldsInContext(ctx, arrayId, utils.ARRAYID)
+func setArrayIDContext(ctx context.Context, arrayID string) (context.Context, *logrus.Entry) {
+	return setLogFieldsInContext(ctx, arrayID, utils.ARRAYID)
 }
 
 //Set arraysId in log messages and re-initialize the context
-func setRunIdContext(ctx context.Context, runId string) (context.Context, *logrus.Entry) {
-	return setLogFieldsInContext(ctx, runId, utils.RUNID)
+func setRunIDContext(ctx context.Context, runID string) (context.Context, *logrus.Entry) {
+	return setLogFieldsInContext(ctx, runID, utils.RUNID)
 }
 
 var logMutex sync.Mutex
 
 //Common method to get log and context
-func setLogFieldsInContext(ctx context.Context, logId string, logType string) (context.Context, *logrus.Entry) {
+func setLogFieldsInContext(ctx context.Context, logID string, logType string) (context.Context, *logrus.Entry) {
 	logMutex.Lock()
 	defer logMutex.Unlock()
 
@@ -605,7 +612,7 @@ func setLogFieldsInContext(ctx context.Context, logId string, logType string) (c
 	if fields == nil {
 		fields = logrus.Fields{}
 	}
-	fields[logType] = logId
+	fields[logType] = logID
 	ulog, ok := ctx.Value(utils.UnityLogger).(*logrus.Entry)
 	if !ok {
 		ulog = utils.GetLogger().WithFields(fields)
@@ -620,19 +627,20 @@ var syncNodeLogCount int32
 var syncConfigLogCount int32
 
 //Increment run id log
-func incrementLogId(ctx context.Context, runidPrefix string) (context.Context, *logrus.Entry) {
+func incrementLogID(ctx context.Context, runidPrefix string) (context.Context, *logrus.Entry) {
 	if runidPrefix == "node" {
 		runid := fmt.Sprintf("%s-%d", runidPrefix, syncNodeLogCount)
 		atomic.AddInt32(&syncNodeLogCount, 1)
-		return setRunIdContext(ctx, runid)
+		return setRunIDContext(ctx, runid)
 	} else if runidPrefix == "config" {
 		runid := fmt.Sprintf("%s-%d", runidPrefix, syncConfigLogCount)
 		atomic.AddInt32(&syncConfigLogCount, 1)
-		return setRunIdContext(ctx, runid)
+		return setRunIDContext(ctx, runid)
 	}
 	return nil, nil
 }
 
+// GetRunidLog - Get run id of log
 func GetRunidLog(ctx context.Context) (context.Context, *logrus.Entry, string) {
 	var rid string
 	fields := logrus.Fields{}
@@ -728,13 +736,13 @@ func (lg *customLogger) Error(ctx context.Context, format string, args ...interf
 	log.WithFields(getLogFields(ctx)).Errorf(format, args...)
 }
 
-func (s *service) requireProbe(ctx context.Context, arrayId string) error {
+func (s *service) requireProbe(ctx context.Context, arrayID string) error {
 	rid, log := utils.GetRunidAndLogger(ctx)
 	if !s.opts.AutoProbe {
 		return status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Controller Service has not been probed"))
 	}
 	log.Debug("Probing controller service automatically")
-	if err := s.controllerProbe(ctx, arrayId); err != nil {
+	if err := s.controllerProbe(ctx, arrayID); err != nil {
 		return status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "failed to probe/init plugin: %s", err.Error()))
 	}
 	return nil
@@ -742,7 +750,7 @@ func (s *service) requireProbe(ctx context.Context, arrayId string) error {
 
 func singleArrayProbe(ctx context.Context, probeType string, array *StorageArrayConfig) error {
 	rid, log := utils.GetRunidAndLogger(ctx)
-	ctx, log = setArrayIdContext(ctx, array.ArrayId)
+	ctx, log = setArrayIDContext(ctx, array.ArrayID)
 	if array.UnityClient.GetToken() == "" {
 		err := array.UnityClient.Authenticate(ctx, &gounity.ConfigConnect{
 			Endpoint: array.Endpoint,
@@ -750,7 +758,7 @@ func singleArrayProbe(ctx context.Context, probeType string, array *StorageArray
 			Password: array.Password,
 		})
 		if err != nil {
-			log.Errorf("Unity authentication failed for array %s error: %v", array.ArrayId, err)
+			log.Errorf("Unity authentication failed for array %s error: %v", array.ArrayID, err)
 			if e, ok := status.FromError(err); ok {
 				if e.Code() == codes.Unauthenticated {
 					array.IsProbeSuccess = false
@@ -759,20 +767,19 @@ func singleArrayProbe(ctx context.Context, probeType string, array *StorageArray
 			}
 			array.IsProbeSuccess = false
 			return status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Unable to login to Unity. Verify hostname/IP Address of unity. Error: %s", err.Error()))
-		} else {
-			array.IsProbeSuccess = true
-			log.Debugf("%s Probe Success", probeType)
-			return nil
 		}
+		array.IsProbeSuccess = true
+		log.Debugf("%s Probe Success", probeType)
+		return nil
 	}
 	return nil
 }
 
-func (s *service) probe(ctx context.Context, probeType string, arrayId string) error {
+func (s *service) probe(ctx context.Context, probeType string, arrayID string) error {
 	rid, log := utils.GetRunidAndLogger(ctx)
 	log.Debugf("Inside %s Probe", probeType)
-	if arrayId != "" {
-		if array := s.getStorageArray(arrayId); array != nil {
+	if arrayID != "" {
+		if array := s.getStorageArray(arrayID); array != nil {
 			return singleArrayProbe(ctx, probeType, array)
 		}
 	} else {
@@ -796,26 +803,26 @@ func (s *service) probe(ctx context.Context, probeType string, arrayId string) e
 	return nil
 }
 
-func (s *service) validateAndGetResourceDetails(ctx context.Context, resourceContextId string, resourceType resourceType) (resourceId, protocol, arrayId string, unity *gounity.Client, err error) {
+func (s *service) validateAndGetResourceDetails(ctx context.Context, resourceContextID string, resourceType resourceType) (resourceID, protocol, arrayID string, unity *gounity.Client, err error) {
 	ctx, _, rid := GetRunidLog(ctx)
 	if s.getStorageArrayLength() == 0 {
 		return "", "", "", nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Invalid driver csi-driver configuration provided. At least one array should present or invalid yaml format. "))
 	}
-	resourceId = getVolumeIdFromVolumeContext(resourceContextId)
-	if resourceId == "" {
+	resourceID = getVolumeIDFromVolumeContext(resourceContextID)
+	if resourceID == "" {
 		return "", "", "", nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "%sId can't be empty.", resourceType))
 	}
-	arrayId, err = s.getArrayIdFromVolumeContext(resourceContextId)
+	arrayID, err = s.getArrayIDFromVolumeContext(resourceContextID)
 	if err != nil {
-		return "", "", "", nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "[%s] [%s] error:[%v]", resourceType, resourceId, err))
+		return "", "", "", nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "[%s] [%s] error:[%v]", resourceType, resourceID, err))
 	}
 
-	protocol, err = s.getProtocolFromVolumeContext(resourceContextId)
+	protocol, err = s.getProtocolFromVolumeContext(resourceContextID)
 	if err != nil {
-		return "", "", "", nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "[%s] [%s] error:[%v]", resourceType, resourceId, err))
+		return "", "", "", nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "[%s] [%s] error:[%v]", resourceType, resourceID, err))
 	}
 
-	unity, err = s.getUnityClient(ctx, arrayId)
+	unity, err = s.getUnityClient(ctx, arrayID)
 	if err != nil {
 		return "", "", "", nil, err
 	}

@@ -25,9 +25,9 @@ type Device struct {
 	RealDev  string
 }
 
-func stagePublishNFS(ctx context.Context, req *csi.NodeStageVolumeRequest, exportPaths []string, arrayId string, nfsv3, nfsv4 bool) error {
+func stagePublishNFS(ctx context.Context, req *csi.NodeStageVolumeRequest, exportPaths []string, arrayID string, nfsv3, nfsv4 bool) error {
 	ctx, log, rid := GetRunidLog(ctx)
-	ctx, log = setArrayIdContext(ctx, arrayId)
+	ctx, log = setArrayIDContext(ctx, arrayID)
 
 	stagingTargetPath := req.GetStagingTargetPath()
 
@@ -35,7 +35,7 @@ func stagePublishNFS(ctx context.Context, req *csi.NodeStageVolumeRequest, expor
 	mntVol := volCap.GetMount()
 	mntFlags := mntVol.GetMountFlags()
 	// make sure target is created
-	err := createDirIfNotExist(ctx, stagingTargetPath, arrayId)
+	err := createDirIfNotExist(ctx, stagingTargetPath, arrayID)
 	if err != nil {
 		return err
 	}
@@ -60,13 +60,11 @@ func stagePublishNFS(ctx context.Context, req *csi.NodeStageVolumeRequest, expor
 						if utils.ArrayContains(m.Opts, rwo) {
 							log.Debugf("Staging target path: %s is already mounted to export path: %s", stagingTargetPath, exportPathURL)
 							return nil
-						} else {
-							return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Staging target path: %s is already mounted to export path: %s with conflicting access modes", stagingTargetPath, exportPathURL))
 						}
-					} else {
-						//It is possible that a different export path URL is used to mount stage target path
-						continue
+						return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Staging target path: %s is already mounted to export path: %s with conflicting access modes", stagingTargetPath, exportPathURL))
 					}
+					//It is possible that a different export path URL is used to mount stage target path
+					continue
 				}
 			}
 		}
@@ -117,9 +115,9 @@ func stagePublishNFS(ctx context.Context, req *csi.NodeStageVolumeRequest, expor
 	return nil
 }
 
-func publishNFS(ctx context.Context, req *csi.NodePublishVolumeRequest, exportPaths []string, arrayId, chroot string, nfsv3, nfsv4, allowRWOmultiPodAccess bool) error {
+func publishNFS(ctx context.Context, req *csi.NodePublishVolumeRequest, exportPaths []string, arrayID, chroot string, nfsv3, nfsv4, allowRWOmultiPodAccess bool) error {
 	ctx, log, rid := GetRunidLog(ctx)
-	ctx, log = setArrayIdContext(ctx, arrayId)
+	ctx, log = setArrayIDContext(ctx, arrayID)
 
 	targetPath := req.GetTargetPath()
 	stagingTargetPath := req.GetStagingTargetPath()
@@ -127,7 +125,7 @@ func publishNFS(ctx context.Context, req *csi.NodePublishVolumeRequest, exportPa
 	accMode := volCap.GetAccessMode()
 
 	// make sure target is created
-	err := createDirIfNotExist(ctx, targetPath, arrayId)
+	err := createDirIfNotExist(ctx, targetPath, arrayID)
 	if err != nil {
 		return err
 	}
@@ -173,18 +171,16 @@ func publishNFS(ctx context.Context, req *csi.NodePublishVolumeRequest, exportPa
 					if utils.ArrayContains(m.Opts, rwo) {
 						log.Debugf("Target path: %s is already mounted to export path: %s", targetPath, stageExportPathURL)
 						return nil
-					} else {
-						return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Target path: %s is already mounted to export path: %s with conflicting access modes", targetPath, stageExportPathURL))
 					}
+					return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Target path: %s is already mounted to export path: %s with conflicting access modes", targetPath, stageExportPathURL))
 				} else if m.Path == stagingTargetPath || m.Path == chroot+stagingTargetPath {
 					continue
 				} else {
 					if accMode.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER && !allowRWOmultiPodAccess {
 						return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Export path: %s is already mounted to different target path: %s", stageExportPathURL, m.Path))
-					} else {
-						//For multi-node access modes and when allowRWOmultiPodAccess is true for single-node access, target mount will be executed
-						continue
 					}
+					//For multi-node access modes and when allowRWOmultiPodAccess is true for single-node access, target mount will be executed
+					continue
 				}
 			}
 		}
@@ -598,9 +594,9 @@ func unstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest, devic
 }
 
 // unpublishNFS removes the mount from staging target path or target path
-func unpublishNFS(ctx context.Context, targetPath, arrayId string, exportPaths []string) error {
+func unpublishNFS(ctx context.Context, targetPath, arrayID string, exportPaths []string) error {
 	ctx, log, rid := GetRunidLog(ctx)
-	ctx, log = setArrayIdContext(ctx, arrayId)
+	ctx, log = setArrayIDContext(ctx, arrayID)
 
 	//Get existing mounts
 	mnts, err := gofsutil.GetMounts(ctx)
@@ -684,18 +680,18 @@ func getMpathDevFromWwn(ctx context.Context, volumeWwn string) (string, error) {
 
 	mpDevName := strings.TrimPrefix(sysDevice.RealDev, "/dev/")
 	filename := fmt.Sprintf("/sys/devices/virtual/block/%s/dm/name", mpDevName)
-	if name, err := ioutil.ReadFile(filepath.Clean(filename)); err != nil {
+	name, err := ioutil.ReadFile(filepath.Clean(filename))
+	if err != nil {
 		log.Error("Could not read mp dev name file ", filename, err)
 		return "", err
-	} else {
-		mpathDev := strings.TrimPrefix(strings.TrimSpace(string(name)), "3")
-		return mpathDev, nil
 	}
+	mpathDev := strings.TrimPrefix(strings.TrimSpace(string(name)), "3")
+	return mpathDev, nil
 }
 
-func createDirIfNotExist(ctx context.Context, path, arrayId string) error {
+func createDirIfNotExist(ctx context.Context, path, arrayID string) error {
 	ctx, _, rid := GetRunidLog(ctx)
-	ctx, _ = setArrayIdContext(ctx, arrayId)
+	ctx, _ = setArrayIDContext(ctx, arrayID)
 	tgtStat, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {

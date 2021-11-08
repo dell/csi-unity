@@ -6,12 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dell/csi-unity/service/utils"
-	"github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/dell/csi-unity/service/utils"
+	"github.com/sirupsen/logrus"
 )
 
 type testConfig struct {
@@ -99,7 +100,7 @@ func readTestProperties(filename string) (map[string]string, error) {
 	return configPropertiesMap, nil
 }
 
-func prettyPrintJson(obj interface{}) string {
+func prettyPrintJSON(obj interface{}) string {
 	data, _ := json.Marshal(obj)
 	return string(data)
 }

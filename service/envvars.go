@@ -19,7 +19,7 @@ const (
 	//as a global mount via CSI-Unity v1.0 or v1.1
 	EnvPvtMountDir = "X_CSI_PRIVATE_MOUNT_DIR"
 
-	//EnvEphemeralStagingPath
+	//EnvEphemeralStagingPath - Ephemeral staging path
 	EnvEphemeralStagingPath = "X_CSI_EPHEMERAL_STAGING_PATH"
 
 	// EnvISCSIChroot is the path to which the driver will chroot before
@@ -30,7 +30,7 @@ const (
 	// EnvKubeConfigPath indicates kubernetes configuration that has to be used by CSI Driver
 	EnvKubeConfigPath = "KUBECONFIG"
 
-	//Time interval to add node info to array. Default 60 minutes.
+	//SyncNodeInfoTimeInterval - Time interval to add node info to array. Default 60 minutes.
 	//X_CSI_UNITY_SYNC_NODEINFO_INTERVAL has been deprecated and will be removes in a future release
 	SyncNodeInfoTimeInterval = "X_CSI_UNITY_SYNC_NODEINFO_INTERVAL"
 
