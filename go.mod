@@ -20,6 +20,7 @@ require (
 	go.uber.org/atomic v1.7.0
 	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4
 	google.golang.org/grpc v1.38.0
+	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 	k8s.io/apimachinery v0.18.6
 	k8s.io/client-go v0.18.6
