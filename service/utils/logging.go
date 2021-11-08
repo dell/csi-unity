@@ -156,12 +156,14 @@ func ChangeLogLevel(logLevel string) {
 	}
 }
 
+type unityLog string
+
 // Constants which can be used across modules
 const (
-	UnityLogger = "unitylog"
-	LogFields   = "fields"
-	RUNID       = "runid"
-	ARRAYID     = "arrayid"
+	UnityLogger unityLog = "unitylog"
+	LogFields            = "fields"
+	RUNID                = "runid"
+	ARRAYID              = "arrayid"
 )
 
 // GetRunidLogger - Get runid logger
