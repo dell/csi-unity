@@ -13,7 +13,7 @@ import (
 
 func TestGetDriverConfig(t *testing.T) {
 	DriverConfig = testConf.unityConfig
-	err := testConf.service.syncDriverConfig(context.Background())
+	err := testConf.service.syncDriverConfig(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("TestBeforeServe failed with error %v", err)
 	}

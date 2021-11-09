@@ -52,7 +52,7 @@ func TestMain(m *testing.M) {
 
 	for _, v := range testConf.service.getStorageArrayList() {
 		if v.IsDefaultArray {
-			testConf.defaultArray = v.ArrayId
+			testConf.defaultArray = v.ArrayID
 			break
 		}
 	}
