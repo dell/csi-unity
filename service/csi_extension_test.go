@@ -1724,7 +1724,7 @@ func mockStorage(ctx context.Context) *StorageArrayConfig {
 	client, _ := gounity.NewClient(ctx)
 	insecure := true
 	return &StorageArrayConfig{
-		ArrayId:                   "array1",
+		ArrayID:                   "array1",
 		Username:                  "username",
 		Password:                  "pass",
 		Endpoint:                  "http://some.host.com",
