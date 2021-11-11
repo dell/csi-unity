@@ -1635,7 +1635,7 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 	var ipFormat = regexp.MustCompile(`(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}`)
 	for _, nodeIp := range nodeIps {
 		_, err = hostApi.CreateHostIpPort(ctx, hostContent.ID, nodeIp)
-		if err != nil && !ipFormat.MatchString(s.opts.NodeName){
+		if err != nil && !ipFormat.MatchString(s.opts.NodeName) {
 			return err
 		}
 	}
