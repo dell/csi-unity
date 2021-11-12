@@ -635,13 +635,6 @@ func (s *service) ControllerGetCapabilities(ctx context.Context, req *csi.Contro
 			&csi.ControllerServiceCapability{
 				Type: &csi.ControllerServiceCapability_Rpc{
 					Rpc: &csi.ControllerServiceCapability_RPC{
-						Type: csi.ControllerServiceCapability_RPC_LIST_VOLUMES,
-					},
-				},
-			},
-			&csi.ControllerServiceCapability{
-				Type: &csi.ControllerServiceCapability_Rpc{
-					Rpc: &csi.ControllerServiceCapability_RPC{
 						Type: csi.ControllerServiceCapability_RPC_GET_CAPACITY,
 					},
 				},
@@ -678,6 +671,27 @@ func (s *service) ControllerGetCapabilities(ctx context.Context, req *csi.Contro
 				Type: &csi.ControllerServiceCapability_Rpc{
 					Rpc: &csi.ControllerServiceCapability_RPC{
 						Type: csi.ControllerServiceCapability_RPC_PUBLISH_READONLY,
+					},
+				},
+			},
+			&csi.ControllerServiceCapability{
+				Type: &csi.ControllerServiceCapability_Rpc{
+					Rpc: &csi.ControllerServiceCapability_RPC{
+						Type: csi.ControllerServiceCapability_RPC_GET_VOLUME,
+					},
+				},
+			},
+			&csi.ControllerServiceCapability{
+				Type: &csi.ControllerServiceCapability_Rpc{
+					Rpc: &csi.ControllerServiceCapability_RPC{
+						Type: csi.ControllerServiceCapability_RPC_LIST_VOLUMES_PUBLISHED_NODES,
+					},
+				},
+			},
+			&csi.ControllerServiceCapability{
+				Type: &csi.ControllerServiceCapability_Rpc{
+					Rpc: &csi.ControllerServiceCapability_RPC{
+						Type: csi.ControllerServiceCapability_RPC_VOLUME_CONDITION,
 					},
 				},
 			},
@@ -1751,7 +1765,67 @@ func (s *service) getMetricsCollection(ctx context.Context, arrayID string, id i
 	return collection, nil
 }
 
-func (s *service) ControllerGetVolume(context.Context,
-	*csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+func (s *service) ControllerGetVolume(ctx context.Context,
+	req *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
+
+	ctx, log, rid := GetRunidLog(ctx)
+	log.Debugf("Executing ControllerGetVolume with args: %+v", *req)
+
+	volID, protocol, arrayID, unity, err := s.validateAndGetResourceDetails(ctx, req.GetVolumeId(), volumeType)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, log = setArrayIDContext(ctx, arrayID)
+	if err := s.requireProbe(ctx, arrayID); err != nil {
+		return nil, err
+	}
+	var hosts []string
+	abnormal := false
+	message := ""
+
+	if protocol != NFS {
+		volumeAPI := gounity.NewVolume(unity)
+		vol, err := volumeAPI.FindVolumeById(ctx, volID)
+		if err != nil {
+			if err == gounity.VolumeNotFoundError {
+				abnormal = true
+				message = "volume not found"
+			}
+			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find volume failed with error: %v", err))
+		}
+
+		content := vol.VolumeContent
+		if len(content.HostAccessResponse) > 0 {
+			for _, hostaccess := range content.HostAccessResponse {
+				hostcontent := hostaccess.HostContent
+				hosts = append(hosts, hostcontent.ID)
+			}
+		}
+
+		// check if volume is in ready state
+		if content.Health.Value != 5 {
+			abnormal = true
+			message = "Volume is not in ok state"
+		}
+
+		abnormal = false
+		message = "Volume is in ok state"
+	} else {
+		abnormal = false
+		message = "FileSystem is in ok state"
+	}
+	resp := &csi.ControllerGetVolumeResponse{
+		Volume: &csi.Volume{
+			VolumeId: req.GetVolumeId(),
+		},
+		Status: &csi.ControllerGetVolumeResponse_VolumeStatus{
+			PublishedNodeIds: hosts,
+			VolumeCondition: &csi.VolumeCondition{
+				Abnormal: abnormal,
+				Message:  message,
+			},
+		},
+	}
+	return resp, nil
 }

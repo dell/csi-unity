@@ -26,6 +26,7 @@ import (
 	"github.com/dell/gounity/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/kubernetes/pkg/volume/util/fs"
 )
 
 // Variables that can be used across module
@@ -876,6 +877,20 @@ func (s *service) NodeGetCapabilities(
 					},
 				},
 			},
+			{
+				Type: &csi.NodeServiceCapability_Rpc{
+					Rpc: &csi.NodeServiceCapability_RPC{
+						Type: csi.NodeServiceCapability_RPC_GET_VOLUME_STATS,
+					},
+				},
+			},
+			{
+				Type: &csi.NodeServiceCapability_Rpc{
+					Rpc: &csi.NodeServiceCapability_RPC{
+						Type: csi.NodeServiceCapability_RPC_VOLUME_CONDITION,
+					},
+				},
+			},
 		},
 	}, nil
 }
@@ -884,7 +899,116 @@ func (s *service) NodeGetVolumeStats(
 	ctx context.Context,
 	req *csi.NodeGetVolumeStatsRequest) (
 	*csi.NodeGetVolumeStatsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "NodeGetVolumeStats not supported")
+
+	ctx, log, rid := GetRunidLog(ctx)
+	log.Debugf("Executing NodeGetVolumeStats with args: %+v", *req)
+
+	if req.VolumeId == "" {
+		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "volumeId is mandatory parameter"))
+	}
+
+	volumeID, protocol, arrayID, unity, err := s.validateAndGetResourceDetails(ctx, req.VolumeId, volumeType)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, log = setArrayIDContext(ctx, arrayID)
+	if err := s.requireProbe(ctx, arrayID); err != nil {
+		log.Debug("AutoProbe has not been called. Executing manual probe")
+		err = s.nodeProbe(ctx, arrayID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	volumePath := req.GetVolumePath()
+	if volumePath == "" {
+		return nil, status.Error(codes.InvalidArgument,
+			utils.GetMessageWithRunID(rid, "Volume path required"))
+	}
+
+	if protocol == NFS {
+		fileAPI := gounity.NewFilesystem(unity)
+		_, err := fileAPI.FindFilesystemById(ctx, volumeID)
+		if err != nil {
+			if err == gounity.FilesystemNotFoundError {
+				resp := &csi.NodeGetVolumeStatsResponse{
+					VolumeCondition: &csi.VolumeCondition{
+						Abnormal: true,
+						Message:  "filesystem not found",
+					},
+				}
+				return resp, nil
+			}
+			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "FileSystem not found. [%v]", err))
+		}
+	} else {
+		volumeAPI := gounity.NewVolume(unity)
+		_, err := volumeAPI.FindVolumeById(ctx, volumeID)
+		if err != nil {
+			if err == gounity.VolumeNotFoundError {
+				resp := &csi.NodeGetVolumeStatsResponse{
+					VolumeCondition: &csi.VolumeCondition{
+						Abnormal: true,
+						Message:  "volume not found",
+					},
+				}
+				return resp, nil
+			}
+			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Volume not found. [%v]", err))
+		}
+	}
+
+	targetMount, err := getTargetMount(ctx, volumePath)
+	if err != nil || targetMount.Device == "" {
+		resp := &csi.NodeGetVolumeStatsResponse{
+			VolumeCondition: &csi.VolumeCondition{
+				Abnormal: true,
+				Message:  "volume path not mounted",
+			},
+		}
+		return resp, nil
+	}
+
+	// check if volume path is accessible
+	_, err = ioutil.ReadDir(volumePath)
+	if err != nil {
+		resp := &csi.NodeGetVolumeStatsResponse{
+			VolumeCondition: &csi.VolumeCondition{
+				Abnormal: true,
+				Message:  "volume path not accessible",
+			},
+		}
+		return resp, nil
+	}
+
+	// get volume metrics for mounted volume path
+	availableBytes, totalBytes, usedBytes, totalInodes, freeInodes, usedInodes, err := fs.Info(volumePath)
+	if err != nil {
+		return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "failed to get metrics for volume with error: %v", err))
+	}
+
+	resp := &csi.NodeGetVolumeStatsResponse{
+		Usage: []*csi.VolumeUsage{
+			{
+				Available: availableBytes,
+				Total:     totalBytes,
+				Used:      usedBytes,
+				Unit:      csi.VolumeUsage_BYTES,
+			},
+			{
+				Available: freeInodes,
+				Total:     totalInodes,
+				Used:      usedInodes,
+				Unit:      csi.VolumeUsage_INODES,
+			},
+		},
+		VolumeCondition: &csi.VolumeCondition{
+			Abnormal: false,
+			Message:  "",
+		},
+	}
+	return resp, nil
 }
 
 func (s *service) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
