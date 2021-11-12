@@ -1767,43 +1767,54 @@ func (s *service) getMetricsCollection(ctx context.Context, arrayID string, id i
 
 func (s *service) ControllerGetVolume(ctx context.Context,
 	req *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
-	
-	ctx, log, rid := GetRunidLog(ctx)
-	log.Debugf("Executing GetVolume with args: %+v", *req)
 
-	volID, protocol, arrayId, unity, err := s.validateAndGetResourceDetails(ctx, req.GetVolumeId(), volumeType)
+	ctx, log, rid := GetRunidLog(ctx)
+	log.Debugf("Executing ControllerGetVolume with args: %+v", *req)
+
+	volID, protocol, arrayID, unity, err := s.validateAndGetResourceDetails(ctx, req.GetVolumeId(), volumeType)
 	if err != nil {
 		return nil, err
 	}
-	ctx, log = setArrayIdContext(ctx, arrayId)
-	if err := s.requireProbe(ctx, arrayId); err != nil {
+
+	ctx, log = setArrayIDContext(ctx, arrayID)
+	if err := s.requireProbe(ctx, arrayID); err != nil {
 		return nil, err
 	}
+	var hosts []string
+	abnormal := false
+	message := ""
 
 	if protocol != NFS {
-
 		volumeAPI := gounity.NewVolume(unity)
-		_, err := volumeAPI.FindVolumeById(ctx, volID)
+		vol, err := volumeAPI.FindVolumeById(ctx, volID)
 		if err != nil {
-			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find volume Failed %v", err))
+			if err == gounity.VolumeNotFoundError {
+				abnormal = true
+				message = "volume not found"
+			}
+			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find volume failed with error: %v", err))
 		}
-	} else {
-		fileAPI := gounity.NewFilesystem(unity)
-		isSnapshot := false
-		_, err := fileAPI.FindFilesystemById(ctx, volID)
-	
-		if err != nil {
-			snapshotAPI := gounity.NewSnapshot(unity)
-			_, err = snapshotAPI.FindSnapshotById(ctx, volID)
-			if err != nil {
-				return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find filesystem: %s failed with error: %v", volID, err))
+
+		content := vol.VolumeContent
+		if len(content.HostAccessResponse) > 0 {
+			for _, hostaccess := range content.HostAccessResponse {
+				hostcontent := hostaccess.HostContent
+				hosts = append(hosts, hostcontent.ID)
 			}
 		}
+
+		// check if volume is in ready state
+		if content.Health.Value != 5 {
+			abnormal = true
+			message = "Volume is not in ok state"
+		}
+
+		abnormal = false
+		message = "Volume is in ok state"
+	} else {
+		abnormal = false
+		message = "FileSystem is in ok state"
 	}
-
-	var hosts []string
-	hosts = append(hosts, "")
-
 	resp := &csi.ControllerGetVolumeResponse{
 		Volume: &csi.Volume{
 			VolumeId: req.GetVolumeId(),
@@ -1811,8 +1822,8 @@ func (s *service) ControllerGetVolume(ctx context.Context,
 		Status: &csi.ControllerGetVolumeResponse_VolumeStatus{
 			PublishedNodeIds: hosts,
 			VolumeCondition: &csi.VolumeCondition{
-				Abnormal: false,
-				Message:  "Get Volume successful",
+				Abnormal: abnormal,
+				Message:  message,
 			},
 		},
 	}
