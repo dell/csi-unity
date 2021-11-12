@@ -341,7 +341,9 @@ function verify_authorization_proxy_server() {
     return
   fi
 
+
   enabled=$(grep -v "#" $VALUES | grep -A1 "authorization:" | grep enabled | sed 's/\r$//' | xargs | awk '{print $2}')
+
   if [ "${enabled}" != "true"  ]; then
     return
   fi
@@ -349,6 +351,7 @@ function verify_authorization_proxy_server() {
   log step "Verifying csm-authorization connectivity"
   
   proxyHost=$(grep -v "#" $VALUES | grep proxyHost | sed 's/\r$//' | xargs | awk '{print $2}')
+
   insecure=$(grep -v "#" $VALUES | grep -A10 "authorization:" | grep skipCertificateValidation | sed 's/\r$//' | xargs | awk '{print $2}')
  
   error=0
@@ -376,6 +379,7 @@ function verify_authorization_proxy_server() {
         code=$(echo "${resp}" | awk 'NR==1{print $2}')
       else
         resp=$(ssh ${NODEUSER}@"${node}" wget --server-response --spider --quiet https://"${proxyHost}" 2>&1)
+
         log info "${resp}"
         code=$(echo "${resp}" | awk 'NR==1{print $2}')
       fi
