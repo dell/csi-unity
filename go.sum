@@ -85,8 +85,8 @@ github.com/dell/gofsutil v1.6.0/go.mod h1:98Wpcg7emz4iGgY16fd4MKpnal2SX2hBiwP5gh
 github.com/dell/goiscsi v1.1.0/go.mod h1:MfuMjbKWsh/MOb0VDW20C+LFYRIOfWKGiAxWkeM5TKo=
 github.com/dell/goiscsi v1.2.0 h1:ocQs4pz2Fw2vr73RVAQBKwpN468SK4TZHPLhU7/FB9A=
 github.com/dell/goiscsi v1.2.0/go.mod h1:MfuMjbKWsh/MOb0VDW20C+LFYRIOfWKGiAxWkeM5TKo=
-github.com/dell/gounity v1.7.0 h1:aojJTOXnj6V5axpS0e1ptq1ZzP4zRpJIPAO1ZGdYujk=
-github.com/dell/gounity v1.7.0/go.mod h1:ZFe4e0oPHaN4nF6QLGqxBSGpKETuaGH4WGYGLkSthMU=
+github.com/dell/gounity v1.7.1-0.20211112123542-63b465d6d635 h1:T0iTgmWYsnsytOqfOlupTm77ThO5ONsPs/sF9eJCbic=
+github.com/dell/gounity v1.7.1-0.20211112123542-63b465d6d635/go.mod h1:ZFe4e0oPHaN4nF6QLGqxBSGpKETuaGH4WGYGLkSthMU=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
 github.com/dgryski/go-sip13 v0.0.0-20181026042036-e10d5fee7954/go.mod h1:vAd38F8PWV+bWy6jNmig1y/TA+kYO4g3RSRF0IAv0no=
 github.com/docker/spdystream v0.0.0-20160310174837-449fdfce4d96/go.mod h1:Qh8CwZgvJUkLughtfhJv5dyTYa91l1fOUCrgjqmcifM=
