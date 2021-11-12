@@ -1628,13 +1628,10 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 	tenant_id := s.opts.TenantId
 
 	//Create Host
-<<<<<<< HEAD
-	hostAPI := gounity.NewHost(unity)
-	host, err := hostAPI.CreateHost(ctx, s.opts.LongNodeName)
-=======
+
 	hostApi := gounity.NewHost(unity)
 	host, err := hostApi.CreateHost(ctx, s.opts.LongNodeName, tenant_id)
->>>>>>> a37451c (added tenant changes)
+
 	if err != nil {
 		return err
 	}
