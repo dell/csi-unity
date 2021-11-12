@@ -139,3 +139,9 @@ allowRWOMultiPodAccess: "false"
 # Default value: 0
 # Examples : 0 , 1
 maxUnityVolumesPerNode: 0
+
+# tenantId - Tenant id that need to added while adding host entry to the array.
+# Allowed values: string
+# Default value: ""
+# Examples : "tenant-2" , "tenant-3"
+tenantId: ""
