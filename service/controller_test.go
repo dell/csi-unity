@@ -2,14 +2,17 @@ package service
 
 import (
 	"context"
+	"testing"
+
 	"github.com/dell/csi-unity/service/utils"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestControllerProbe(t *testing.T) {
 	DriverConfig = testConf.unityConfig
-	err := testConf.service.syncDriverConfig(context.Background())
+
+	//Dynamic update of config
+	err := testConf.service.BeforeServe(context.Background(), nil, nil)
 	if err != nil {
 		t.Fatalf("TestBeforeServe failed with error %v", err)
 	}

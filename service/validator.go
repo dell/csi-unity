@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// validateVolumeCreateParam - validate volume create params
 func validateVolumeCreateParam(req *csi.CreateVolumeRequest) error {
 	if req.GetName() == "" {
 		return status.Error(codes.InvalidArgument, "Volume Name cannot be empty")
@@ -314,6 +315,7 @@ func ValidateControllerPublishRequest(ctx context.Context, req *csi.ControllerPu
 	return
 }
 
+// ValidateAndGetProtocol - validate and get protocol
 func ValidateAndGetProtocol(ctx context.Context, protocol, scProtocol string) (string, error) {
 	ctx, log, rid := GetRunidLog(ctx)
 	if protocol == ProtocolUnknown || protocol == "" {

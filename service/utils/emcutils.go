@@ -1,8 +1,9 @@
+package utils
+
 /*
 Copyright (c) 2019 Dell EMC Corporation
 All Rights Reserved
 */
-package utils
 
 import (
 	"bytes"
@@ -27,26 +28,27 @@ import (
 )
 
 //GetVolumeResponseFromVolume Utility method to convert Unity Rest type Volume to CSI standard Volume Response
-func GetVolumeResponseFromVolume(volume *types.Volume, arrayId, protocol string, preferredAccessibility []*csi.Topology) *csi.CreateVolumeResponse {
+func GetVolumeResponseFromVolume(volume *types.Volume, arrayID, protocol string, preferredAccessibility []*csi.Topology) *csi.CreateVolumeResponse {
 	content := volume.VolumeContent
-	return getVolumeResponse(content.Name, protocol, arrayId, content.ResourceId, content.SizeTotal, preferredAccessibility)
+	return getVolumeResponse(content.Name, protocol, arrayID, content.ResourceId, content.SizeTotal, preferredAccessibility)
 }
 
 //GetVolumeResponseFromFilesystem Utility method to convert Unity rest Filesystem response to CSI standard Volume Response
-func GetVolumeResponseFromFilesystem(filesystem *types.Filesystem, arrayId, protocol string, preferredAccessibility []*csi.Topology) *csi.CreateVolumeResponse {
+func GetVolumeResponseFromFilesystem(filesystem *types.Filesystem, arrayID, protocol string, preferredAccessibility []*csi.Topology) *csi.CreateVolumeResponse {
 	content := filesystem.FileContent
-	return getVolumeResponse(content.Name, protocol, arrayId, content.Id, content.SizeTotal, preferredAccessibility)
+	return getVolumeResponse(content.Name, protocol, arrayID, content.Id, content.SizeTotal, preferredAccessibility)
 }
 
-func GetVolumeResponseFromSnapshot(snapshot *types.Snapshot, arrayId, protocol string, preferredAccessibility []*csi.Topology) *csi.CreateVolumeResponse {
-	volId := fmt.Sprintf("%s-%s-%s-%s", snapshot.SnapshotContent.Name, protocol, arrayId, snapshot.SnapshotContent.ResourceId)
+// GetVolumeResponseFromSnapshot - Get volumd from snapshot
+func GetVolumeResponseFromSnapshot(snapshot *types.Snapshot, arrayID, protocol string, preferredAccessibility []*csi.Topology) *csi.CreateVolumeResponse {
+	volID := fmt.Sprintf("%s-%s-%s-%s", snapshot.SnapshotContent.Name, protocol, arrayID, snapshot.SnapshotContent.ResourceId)
 	VolumeContext := make(map[string]string)
 	VolumeContext["protocol"] = protocol
-	VolumeContext["arrayId"] = arrayId
+	VolumeContext["arrayId"] = arrayID
 	VolumeContext["volumeId"] = snapshot.SnapshotContent.ResourceId
 
 	volumeReq := &csi.Volume{
-		VolumeId:           volId,
+		VolumeId:           volID,
 		CapacityBytes:      int64(snapshot.SnapshotContent.Size),
 		VolumeContext:      VolumeContext,
 		AccessibleTopology: preferredAccessibility,
@@ -57,15 +59,15 @@ func GetVolumeResponseFromSnapshot(snapshot *types.Snapshot, arrayId, protocol s
 	return volumeResp
 }
 
-func getVolumeResponse(name, protocol, arrayId, resourceId string, size uint64, preferredAccessibility []*csi.Topology) *csi.CreateVolumeResponse {
-	volId := fmt.Sprintf("%s-%s-%s-%s", name, protocol, arrayId, resourceId)
+func getVolumeResponse(name, protocol, arrayID, resourceID string, size uint64, preferredAccessibility []*csi.Topology) *csi.CreateVolumeResponse {
+	volID := fmt.Sprintf("%s-%s-%s-%s", name, protocol, arrayID, resourceID)
 	VolumeContext := make(map[string]string)
 	VolumeContext["protocol"] = protocol
-	VolumeContext["arrayId"] = arrayId
-	VolumeContext["volumeId"] = resourceId
+	VolumeContext["arrayId"] = arrayID
+	VolumeContext["volumeId"] = resourceID
 
 	volumeReq := &csi.Volume{
-		VolumeId:           volId,
+		VolumeId:           volID,
 		CapacityBytes:      int64(size),
 		VolumeContext:      VolumeContext,
 		AccessibleTopology: preferredAccessibility,
@@ -76,11 +78,13 @@ func getVolumeResponse(name, protocol, arrayId, resourceId string, size uint64, 
 	return volumeResp
 }
 
+// GetMessageWithRunID - Get message with runid
 func GetMessageWithRunID(runid string, format string, args ...interface{}) string {
 	str := fmt.Sprintf(format, args...)
 	return fmt.Sprintf(" runid=%s %s", runid, str)
 }
 
+// GetFCInitiators - Get FC initiators
 func GetFCInitiators(ctx context.Context) ([]string, error) {
 	log := GetRunidLogger(ctx)
 	portWWNs := make([]string, 0)
@@ -132,7 +136,7 @@ func GetFCInitiators(ctx context.Context) ([]string, error) {
 	return portWWNs, nil
 }
 
-//Utility method to extract Host IP
+//GetHostIP - Utility method to extract Host IP
 func GetHostIP() ([]string, error) {
 	cmd := exec.Command("hostname", "-I")
 	cmdOutput := &bytes.Buffer{}
@@ -155,23 +159,23 @@ func GetHostIP() ([]string, error) {
 		return nil, err
 	}
 
-	var lookup_ips []string
+	var lookupIps []string
 	for _, ip := range ips {
 		lookupResp, err := net.LookupAddr(ip)
 		if err == nil && strings.Contains(lookupResp[0], hostname) {
-			lookup_ips = append(lookup_ips, ip)
+			lookupIps = append(lookupIps, ip)
 		}
 	}
-	if len(lookup_ips) == 0 {
-		lookup_ips = append(lookup_ips, ips[0])
+	if len(lookupIps) == 0 {
+		lookupIps = append(lookupIps, ips[0])
 	}
-	return lookup_ips, nil
+	return lookupIps, nil
 }
 
-//Utility method to convert Unity Rest type Snapshot to CSI standard Snapshot Response
-func GetSnapshotResponseFromSnapshot(snap *types.Snapshot, protocol, arrayId string) *csi.CreateSnapshotResponse {
+// GetSnapshotResponseFromSnapshot - Utility method to convert Unity Rest type Snapshot to CSI standard Snapshot Response
+func GetSnapshotResponseFromSnapshot(snap *types.Snapshot, protocol, arrayID string) *csi.CreateSnapshotResponse {
 	content := snap.SnapshotContent
-	snapId := fmt.Sprintf("%s-%s-%s-%s", content.Name, protocol, arrayId, content.ResourceId)
+	snapID := fmt.Sprintf("%s-%s-%s-%s", content.Name, protocol, arrayID, content.ResourceId)
 	var timestamp *timestamp.Timestamp
 	if !snap.SnapshotContent.CreationTime.IsZero() {
 		timestamp, _ = ptypes.TimestampProto(snap.SnapshotContent.CreationTime)
@@ -180,7 +184,7 @@ func GetSnapshotResponseFromSnapshot(snap *types.Snapshot, protocol, arrayId str
 	snapReq := &csi.Snapshot{
 		SizeBytes:      snap.SnapshotContent.Size,
 		ReadyToUse:     true,
-		SnapshotId:     snapId,
+		SnapshotId:     snapID,
 		SourceVolumeId: content.StorageResource.Id,
 		CreationTime:   timestamp,
 	}
@@ -231,22 +235,22 @@ func IpsCompare(ctx context.Context, ip string, hostIps []string) (bool, []strin
 	var result = false
 	var additionalIps []string
 
-	for _, hostIp := range hostIps {
-		if ip == hostIp {
-			log.Debug(fmt.Sprintf("Host Ip port %s matched Node IP", hostIp))
+	for _, hostIP := range hostIps {
+		if ip == hostIP {
+			log.Debug(fmt.Sprintf("Host Ip port %s matched Node IP", hostIP))
 			result = true
 		} else {
 			//If HostIpPort is contains fqdn
-			lookupIps, err := net.LookupIP(hostIp)
+			lookupIps, err := net.LookupIP(hostIP)
 			if err != nil {
 				//Lookup failed and hostIp is considered not to match Ip
 				log.Info("Ip Lookup failed: ", err)
-				additionalIps = append(additionalIps, hostIp)
+				additionalIps = append(additionalIps, hostIP)
 			} else if ipListContains(lookupIps, ip) {
-				log.Debug(fmt.Sprintf("Host Ip port %v matches Node IP after lookup on %s", lookupIps, hostIp))
+				log.Debug(fmt.Sprintf("Host Ip port %v matches Node IP after lookup on %s", lookupIps, hostIP))
 				result = true
 			} else {
-				additionalIps = append(additionalIps, hostIp)
+				additionalIps = append(additionalIps, hostIP)
 			}
 		}
 	}
@@ -295,13 +299,13 @@ func GetWwnFromVolumeContentWwn(wwn string) string {
 	return deviceWWN
 }
 
-//GetWwnFromVolumeContentWwn - Method to process wwn content to extract device wwn of a volume
+//GetFcPortWwnFromVolumeContentWwn - Method to process wwn content to extract device wwn of a volume
 func GetFcPortWwnFromVolumeContentWwn(wwn string) string {
 	wwn = GetWwnFromVolumeContentWwn(wwn)
 	return wwn[16:32]
 }
 
-// parse size for ephemeral volumes
+// ParseSize - parse size for ephemeral volumes
 func ParseSize(size string) (int64, error) {
 	size = strings.Trim(size, " ")
 	patternMap := make(map[string]string)

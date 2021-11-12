@@ -9,6 +9,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
+	"strconv"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/dell/csi-unity/service/utils"
 	"github.com/dell/dell-csi-extensions/podmon"
 	"github.com/dell/gounity"
@@ -16,12 +23,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"reflect"
-	"strconv"
-	"strings"
-	"sync"
-	"testing"
-	"time"
 )
 
 type testCaseSpec struct {
@@ -84,7 +85,7 @@ func TestValidateVolumeHostConnectivityBasic(t *testing.T) {
 		},
 	}
 
-	runTestCases(t, ctx, testCases)
+	runTestCases(ctx, t, testCases)
 }
 
 func TestValidateVolumeHostConnectivityHost(t *testing.T) {
@@ -99,7 +100,7 @@ func TestValidateVolumeHostConnectivityHost(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = mockGetHostId
+				GetHostID = mockGetHostID
 				mockGetHostErr = fmt.Errorf("induced GetHost failure")
 			},
 			cleanup: func() {
@@ -120,7 +121,7 @@ func TestValidateVolumeHostConnectivityHost(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = mockGetHostId
+				GetHostID = mockGetHostID
 				mockGetHostErr = status.Errorf(codes.NotFound, "Host was not found")
 			},
 			cleanup: func() {
@@ -141,7 +142,7 @@ func TestValidateVolumeHostConnectivityHost(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = mockGetHostId
+				GetHostID = mockGetHostID
 				mockGetUnityErr = fmt.Errorf("induced GetUnity failure")
 			},
 			cleanup: func() {
@@ -162,7 +163,7 @@ func TestValidateVolumeHostConnectivityHost(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					mockHost := mockAHost("name", 1, 0)
 					return mockHost, nil
 				}
@@ -179,7 +180,7 @@ func TestValidateVolumeHostConnectivityHost(t *testing.T) {
 		},
 	}
 
-	runTestCases(t, ctx, testCases)
+	runTestCases(ctx, t, testCases)
 }
 
 func TestValidateVolumeHostConnectivityVolumeIds(t *testing.T) {
@@ -194,7 +195,7 @@ func TestValidateVolumeHostConnectivityVolumeIds(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					mockHost := mockAHost("name", 1, 0)
 					return mockHost, nil
 				}
@@ -220,7 +221,7 @@ func TestValidateVolumeHostConnectivityVolumeIds(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					mockHost := mockAHost("name", 1, 0)
 					return mockHost, nil
 				}
@@ -246,7 +247,7 @@ func TestValidateVolumeHostConnectivityVolumeIds(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					mockHost := mockAHost("name", 1, 0)
 					return mockHost, nil
 				}
@@ -280,12 +281,12 @@ func TestValidateVolumeHostConnectivityVolumeIds(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					mockHost := mockAHost("name", 1, 0)
 					return mockHost, nil
 				}
 				mockGetArrayFromVolumeFail = "vol1-invalid"
-				mockGetArrayIdErr = errors.New("invalid volume context id or no default array found in the csi-unity driver configuration")
+				mockGetArrayIDErr = errors.New("invalid volume context id or no default array found in the csi-unity driver configuration")
 			},
 			cleanup: func() {
 				testConf.service.arrays.Delete("array1")
@@ -305,7 +306,7 @@ func TestValidateVolumeHostConnectivityVolumeIds(t *testing.T) {
 		},
 	}
 
-	runTestCases(t, ctx, testCases)
+	runTestCases(ctx, t, testCases)
 }
 
 func TestValidateVolumeHostConnectivityISCSI(t *testing.T) {
@@ -320,7 +321,7 @@ func TestValidateVolumeHostConnectivityISCSI(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					mockHost := mockAHost("name", 1, 0)
 					return mockHost, nil
 				}
@@ -342,7 +343,7 @@ func TestValidateVolumeHostConnectivityISCSI(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					mockHost := mockAHost("name", 1, 0)
 					return mockHost, nil
 				}
@@ -366,7 +367,7 @@ func TestValidateVolumeHostConnectivityISCSI(t *testing.T) {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
 				mockHost := mockAHost("name", 1, 0)
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					return mockHost, nil
 				}
 				mockBadInitiator = mockHost.HostContent.IscsiInitiators[0].Id
@@ -389,7 +390,7 @@ func TestValidateVolumeHostConnectivityISCSI(t *testing.T) {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
 				mockHost := mockAHost("name", 2, 0)
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					return mockHost, nil
 				}
 				mockBadInitiator = mockHost.HostContent.IscsiInitiators[0].Id
@@ -407,16 +408,16 @@ func TestValidateVolumeHostConnectivityISCSI(t *testing.T) {
 			},
 		},
 
-		"Default Array, iSCSI FindHostInitiatorById fails": {
+		"Default Array, iSCSI FindHostInitiatorByID fails": {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
 				mockHost := mockAHost("name", 1, 0)
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					return mockHost, nil
 				}
 				mockFindInitatorFail = mockHost.HostContent.IscsiInitiators[0].Id
-				mockFindHostInitiatorErr = fmt.Errorf("induced FindHostInitiatorById error")
+				mockFindHostInitiatorErr = fmt.Errorf("induced FindHostInitiatorByID error")
 			},
 			cleanup: func() {
 				testConf.service.arrays.Delete("array1")
@@ -432,7 +433,7 @@ func TestValidateVolumeHostConnectivityISCSI(t *testing.T) {
 		},
 	}
 
-	runTestCases(t, ctx, testCases)
+	runTestCases(ctx, t, testCases)
 }
 
 func TestValidateVolumeHostConnectivityFC(t *testing.T) {
@@ -448,7 +449,7 @@ func TestValidateVolumeHostConnectivityFC(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					mockHost := mockAHost("name", 0, 1)
 					return mockHost, nil
 				}
@@ -471,7 +472,7 @@ func TestValidateVolumeHostConnectivityFC(t *testing.T) {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
 				mockHost := mockAHost("name", 0, 1)
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					return mockHost, nil
 				}
 				mockBadInitiator = mockHost.HostContent.FcInitiators[0].Id
@@ -494,7 +495,7 @@ func TestValidateVolumeHostConnectivityFC(t *testing.T) {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
 				mockHost := mockAHost("name", 0, 2)
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					return mockHost, nil
 				}
 				mockBadInitiator = mockHost.HostContent.FcInitiators[0].Id
@@ -512,16 +513,16 @@ func TestValidateVolumeHostConnectivityFC(t *testing.T) {
 			},
 		},
 
-		"Default Array, FC FindHostInitiatorById fails": {
+		"Default Array, FC FindHostInitiatorByID fails": {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
 				mockHost := mockAHost("name", 0, 1)
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					return mockHost, nil
 				}
 				mockFindInitatorFail = mockHost.HostContent.FcInitiators[0].Id
-				mockFindHostInitiatorErr = fmt.Errorf("induced FindHostInitiatorById error")
+				mockFindHostInitiatorErr = fmt.Errorf("induced FindHostInitiatorByID error")
 			},
 			cleanup: func() {
 				testConf.service.arrays.Delete("array1")
@@ -537,7 +538,7 @@ func TestValidateVolumeHostConnectivityFC(t *testing.T) {
 		},
 	}
 
-	runTestCases(t, ctx, testCases)
+	runTestCases(ctx, t, testCases)
 }
 
 func TestVolumeIOCheck(t *testing.T) {
@@ -552,7 +553,7 @@ func TestVolumeIOCheck(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					mockHost := mockAHost("name", 1, 0)
 					return mockHost, nil
 				}
@@ -584,7 +585,7 @@ func TestVolumeIOCheck(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					mockHost := mockAHost("name", 1, 0)
 					return mockHost, nil
 				}
@@ -616,7 +617,7 @@ func TestVolumeIOCheck(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					mockHost := mockAHost("name", 1, 0)
 					return mockHost, nil
 				}
@@ -655,7 +656,7 @@ func TestVolumeIOCheck(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					mockHost := mockAHost("name", 1, 0)
 					return mockHost, nil
 				}
@@ -697,17 +698,17 @@ func TestVolumeIOCheck(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					mockHost := mockAHost("name", 1, 0)
 					return mockHost, nil
 				}
 				metricsCollectionCache.Store("array1:sp.*.storage.lun.*.currentIOCount", 1)
 				times := 0
-				GetMetricsCollection = func(s *service, ctx context.Context, arrayId string, id int) (*types.MetricQueryResult, error) {
+				GetMetricsCollection = func(ctx context.Context, s *service, arrayId string, id int) (*types.MetricQueryResult, error) {
 					times++
 					// Return a different metric once
 					if times > 1 {
-						return mockGetMetricsCollection(s, ctx, arrayId, id)
+						return mockGetMetricsCollection(ctx, s, arrayId, id)
 					}
 					result := types.MetricResult{
 						QueryId:   id,
@@ -763,7 +764,7 @@ func TestVolumeIOCheck(t *testing.T) {
 		},
 	}
 
-	runTestCases(t, ctx, testCases)
+	runTestCases(ctx, t, testCases)
 }
 
 func TestFileSystemIOCheck(t *testing.T) {
@@ -778,7 +779,7 @@ func TestFileSystemIOCheck(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					mockHost := mockAHost("name", 1, 0)
 					return mockHost, nil
 				}
@@ -810,7 +811,7 @@ func TestFileSystemIOCheck(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					mockHost := mockAHost("name", 1, 0)
 					return mockHost, nil
 				}
@@ -842,12 +843,12 @@ func TestFileSystemIOCheck(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					mockHost := mockAHost("name", 1, 0)
 					return mockHost, nil
 				}
 				metricsCollectionCache.Store("array1:sp.*.storage.filesystem.*.clientReads,sp.*.storage.filesystem.*.clientWrites", 1)
-				GetMetricsCollection = func(s *service, ctx context.Context, arrayId string, id int) (*types.MetricQueryResult, error) {
+				GetMetricsCollection = func(ctx context.Context, s *service, arrayId string, id int) (*types.MetricQueryResult, error) {
 					read := map[string]interface{}{
 						"spa": map[string]interface{}{
 							"fs_1": "0.0", // Bad data: value is float, expecting integer
@@ -891,7 +892,7 @@ func TestFileSystemIOCheck(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					mockHost := mockAHost("name", 1, 0)
 					return mockHost, nil
 				}
@@ -919,13 +920,13 @@ func TestFileSystemIOCheck(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					mockHost := mockAHost("name", 1, 0)
 					return mockHost, nil
 				}
 				// Return mock data that does not include any of
 				// the volumes that we're checking against
-				GetMetricsCollection = func(s *service, ctx context.Context, arrayId string, id int) (*types.MetricQueryResult, error) {
+				GetMetricsCollection = func(ctx context.Context, s *service, arrayId string, id int) (*types.MetricQueryResult, error) {
 					read := map[string]interface{}{
 						"spa": map[string]interface{}{
 							"fs_10": "0",
@@ -971,13 +972,13 @@ func TestFileSystemIOCheck(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					mockHost := mockAHost("name", 1, 0)
 					return mockHost, nil
 				}
 				metricsCollectionCache.Store("array1:sp.*.storage.filesystem.*.clientReads,sp.*.storage.filesystem.*.clientWrites", 1)
 				times := 0
-				GetMetricsCollection = func(s *service, ctx context.Context, arrayId string, id int) (*types.MetricQueryResult, error) {
+				GetMetricsCollection = func(ctx context.Context, s *service, arrayId string, id int) (*types.MetricQueryResult, error) {
 					times++
 					// Return a different metric once
 					if times > 1 {
@@ -1053,13 +1054,13 @@ func TestFileSystemIOCheck(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					mockHost := mockAHost("name", 1, 0)
 					return mockHost, nil
 				}
 				metricsCollectionCache.Store("array1:sp.*.storage.filesystem.*.clientReads,sp.*.storage.filesystem.*.clientWrites", 1)
 				times := 0
-				GetMetricsCollection = func(s *service, ctx context.Context, arrayId string, id int) (*types.MetricQueryResult, error) {
+				GetMetricsCollection = func(ctx context.Context, s *service, arrayId string, id int) (*types.MetricQueryResult, error) {
 					times++
 					// Return a different metric once
 					if times == 1 {
@@ -1109,13 +1110,13 @@ func TestFileSystemIOCheck(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					mockHost := mockAHost("name", 1, 0)
 					return mockHost, nil
 				}
 				metricsCollectionCache.Store("array1:sp.*.storage.filesystem.*.clientReads,sp.*.storage.filesystem.*.clientWrites", 1)
 				times := 0
-				GetMetricsCollection = func(s *service, ctx context.Context, arrayId string, id int) (*types.MetricQueryResult, error) {
+				GetMetricsCollection = func(ctx context.Context, s *service, arrayId string, id int) (*types.MetricQueryResult, error) {
 					times++
 					// Return a different metric once
 					if times == 1 {
@@ -1171,13 +1172,13 @@ func TestFileSystemIOCheck(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					mockHost := mockAHost("name", 1, 0)
 					return mockHost, nil
 				}
 				metricsCollectionCache.Store("array1:sp.*.storage.filesystem.*.clientReads,sp.*.storage.filesystem.*.clientWrites", 1)
 				times := 0
-				GetMetricsCollection = func(s *service, ctx context.Context, arrayId string, id int) (*types.MetricQueryResult, error) {
+				GetMetricsCollection = func(ctx context.Context, s *service, arrayId string, id int) (*types.MetricQueryResult, error) {
 					times++
 					// Return a different metric once
 					if times == 1 {
@@ -1234,12 +1235,12 @@ func TestFileSystemIOCheck(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					mockHost := mockAHost("name", 1, 0)
 					return mockHost, nil
 				}
 				times := 0
-				GetMetricsCollection = func(s *service, ctx context.Context, arrayId string, id int) (*types.MetricQueryResult, error) {
+				GetMetricsCollection = func(ctx context.Context, s *service, arrayId string, id int) (*types.MetricQueryResult, error) {
 					times++
 					var read, write map[string]interface{}
 					if times == 1 {
@@ -1312,13 +1313,13 @@ func TestFileSystemIOCheck(t *testing.T) {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
 				testConf.service.arrays.Store("array1", mockStorage(ctx))
-				GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					mockHost := mockAHost("name", 1, 0)
 					return mockHost, nil
 				}
 				times := 0
 				// This simulates getting metrics results where the filesystems are associated with different SPs
-				GetMetricsCollection = func(s *service, ctx context.Context, arrayId string, id int) (*types.MetricQueryResult, error) {
+				GetMetricsCollection = func(ctx context.Context, s *service, arrayId string, id int) (*types.MetricQueryResult, error) {
 					times++
 					var read, write map[string]interface{}
 					if times == 1 {
@@ -1390,7 +1391,7 @@ func TestFileSystemIOCheck(t *testing.T) {
 		},
 	}
 
-	runTestCases(t, ctx, testCases)
+	runTestCases(ctx, t, testCases)
 }
 
 func TestParallelIOCheck(t *testing.T) {
@@ -1404,12 +1405,12 @@ func TestParallelIOCheck(t *testing.T) {
 
 	testConf.service.opts.AutoProbe = true
 	testConf.service.arrays.Store("array1", mockStorage(ctx))
-	GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+	GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 		mockHost := mockAHost("name", 1, 0)
 		return mockHost, nil
 	}
 
-	CreateMetricsCollection = func(s *service, ctx context.Context, arrayId string, metricPaths []string, interval int) (*types.MetricQueryCreateResponse, error) {
+	CreateMetricsCollection = func(ctx context.Context, s *service, arrayId string, metricPaths []string, interval int) (*types.MetricQueryCreateResponse, error) {
 		return &types.MetricQueryCreateResponse{
 			Base:    "Mock",
 			Updated: time.Now().String(),
@@ -1426,7 +1427,7 @@ func TestParallelIOCheck(t *testing.T) {
 	// Fill cache
 	metricsCollectionCache.Store("array2", 1)
 
-	GetMetricsCollection = func(s *service, ctx context.Context, arrayId string, id int) (*types.MetricQueryResult, error) {
+	GetMetricsCollection = func(ctx context.Context, s *service, arrayId string, id int) (*types.MetricQueryResult, error) {
 		if id == 1 {
 			log.Infof("FileSystem metrics")
 			read := map[string]interface{}{
@@ -1513,12 +1514,12 @@ func TestMetricsRefresher(t *testing.T) {
 
 	testConf.service.opts.AutoProbe = true
 	testConf.service.arrays.Store("array1", mockStorage(ctx))
-	GetHostId = func(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+	GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 		mockHost := mockAHost("name", 1, 0)
 		return mockHost, nil
 	}
 
-	CreateMetricsCollection = func(s *service, ctx context.Context, arrayId string, metricPaths []string, interval int) (*types.MetricQueryCreateResponse, error) {
+	CreateMetricsCollection = func(ctx context.Context, s *service, arrayId string, metricPaths []string, interval int) (*types.MetricQueryCreateResponse, error) {
 		return &types.MetricQueryCreateResponse{
 			Base:    "Mock",
 			Updated: time.Now().String(),
@@ -1532,7 +1533,7 @@ func TestMetricsRefresher(t *testing.T) {
 		}, nil
 	}
 
-	GetMetricsCollection = func(s *service, ctx context.Context, arrayId string, id int) (*types.MetricQueryResult, error) {
+	GetMetricsCollection = func(ctx context.Context, s *service, arrayId string, id int) (*types.MetricQueryResult, error) {
 		log.Infof("Volume Metrics")
 		currentIOs := map[string]interface{}{
 			"spa": map[string]interface{}{
@@ -1578,7 +1579,7 @@ func TestMetricsRefresher(t *testing.T) {
 	}
 }
 
-func runTestCases(t *testing.T, ctx context.Context, testCases map[string]testCaseSpec) {
+func runTestCases(ctx context.Context, t *testing.T, testCases map[string]testCaseSpec) {
 	for name, tc := range testCases {
 		if tc.skip {
 			t.Logf("Skipping test %s", name)
@@ -1635,7 +1636,7 @@ func runTestCases(t *testing.T, ctx context.Context, testCases map[string]testCa
 }
 
 var mockGetArrayFromVolumeFail string
-var mockGetArrayIdErr error
+var mockGetArrayIDErr error
 var mockRequireProbeErr error
 var mockGetHost *types.Host
 var mockGetHostErr error
@@ -1646,22 +1647,22 @@ var mockBadInitiator string
 var mockFindInitatorFail string
 var mockGetMetricsCollectionError error
 var mockCreateMetricsCollectionError error
-var mockMetricsCollectionId int
+var mockMetricsCollectionID int
 var mockMetricValueMap map[string]interface{}
 
 func defaultMocks() {
-	GetHostId = mockGetHostId
+	GetHostID = mockGetHostID
 	RequireProbe = mockRequireProbe
 	GetUnityClient = mockGetUnityClient
-	GetArrayIdFromVolumeContext = mockGetArrayIdFromVolumeContext
+	GetArrayIDFromVolumeContext = mockGetArrayIDFromVolumeContext
 	GetProtocolFromVolumeContext = mockGetProtocolFromVolumeContext
-	FindHostInitiatorById = mockFindHostInitiatorById
+	FindHostInitiatorByID = mockFindHostInitiatorByID
 	GetMetricsCollection = mockGetMetricsCollection
 	CreateMetricsCollection = mockCreateMetricsCollection
 	CollectionWait = 10 // msec
 
 	mockGetArrayFromVolumeFail = ""
-	mockGetArrayIdErr = nil
+	mockGetArrayIDErr = nil
 	mockRequireProbeErr = nil
 	mockGetHost = nil
 	mockGetHostErr = nil
@@ -1670,7 +1671,7 @@ func defaultMocks() {
 	mockFindHostInitiatorErr = nil
 	mockBadInitiator = ""
 	mockFindInitatorFail = ""
-	mockMetricsCollectionId = 1
+	mockMetricsCollectionID = 1
 	mockCreateMetricsCollectionError = nil
 	mockGetMetricsCollectionError = nil
 	metricsCollectionCache.Delete("array1:sp.*.storage.lun.*.currentIOCount")
@@ -1688,16 +1689,16 @@ func defaultMocks() {
 	refreshEnabled = false
 }
 
-func mockGetArrayIdFromVolumeContext(_ *service, contextVolId string) (string, error) {
-	if mockGetArrayFromVolumeFail == contextVolId {
-		return "", mockGetArrayIdErr
+func mockGetArrayIDFromVolumeContext(_ *service, contextVolID string) (string, error) {
+	if mockGetArrayFromVolumeFail == contextVolID {
+		return "", mockGetArrayIDErr
 	}
-	components := strings.Split(contextVolId, "-")
-	return components[len(components)-2], mockGetArrayIdErr
+	components := strings.Split(contextVolID, "-")
+	return components[len(components)-2], mockGetArrayIDErr
 }
 
-func mockGetProtocolFromVolumeContext(_ *service, contextVolId string) (string, error) {
-	tokens := strings.Split(contextVolId, "-")
+func mockGetProtocolFromVolumeContext(_ *service, contextVolID string) (string, error) {
+	tokens := strings.Split(contextVolID, "-")
 	if len(tokens) == 1 {
 		// Only one token found, which means volume created using csi-unity v1.0 and v1.1. So return Unknown protocol
 		return ProtocolUnknown, nil
@@ -1707,15 +1708,15 @@ func mockGetProtocolFromVolumeContext(_ *service, contextVolId string) (string, 
 	return "", errors.New("invalid volume context id")
 }
 
-func mockRequireProbe(s *service, ctx context.Context, arrayId string) error {
+func mockRequireProbe(ctx context.Context, s *service, arrayID string) error {
 	return mockRequireProbeErr
 }
 
-func mockGetHostId(s *service, ctx context.Context, arrayId, shortHostname, longHostname string) (*types.Host, error) {
+func mockGetHostID(ctx context.Context, s *service, arrayID, shortHostname, longHostname string) (*types.Host, error) {
 	return mockGetHost, mockGetHostErr
 }
 
-func mockGetUnityClient(s *service, ctx context.Context, arrayId string) (*gounity.Client, error) {
+func mockGetUnityClient(ctx context.Context, s *service, arrayID string) (*gounity.Client, error) {
 	return mockGetUnity, mockGetUnityErr
 }
 
@@ -1723,7 +1724,7 @@ func mockStorage(ctx context.Context) *StorageArrayConfig {
 	client, _ := gounity.NewClient(ctx)
 	insecure := true
 	return &StorageArrayConfig{
-		ArrayId:                   "array1",
+		ArrayID:                   "array1",
 		Username:                  "username",
 		Password:                  "pass",
 		Endpoint:                  "http://some.host.com",
@@ -1785,15 +1786,15 @@ func mockAnInitiator(id string) *types.HostInitiator {
 	}
 }
 
-func mockFindHostInitiatorById(unity *gounity.Client, ctx context.Context, wwnOrIqn string) (*types.HostInitiator, error) {
+func mockFindHostInitiatorByID(ctx context.Context, unity *gounity.Client, wwnOrIqn string) (*types.HostInitiator, error) {
 	return mockAnInitiator(wwnOrIqn), mockFindHostInitiatorErr
 }
 
-func mockGetMetricsCollection(s *service, ctx context.Context, arrayId string, id int) (*types.MetricQueryResult, error) {
+func mockGetMetricsCollection(ctx context.Context, s *service, arrayID string, id int) (*types.MetricQueryResult, error) {
 	return mockVolMetricResult(id, mockMetricValueMap), mockGetMetricsCollectionError
 }
 
-func mockCreateMetricsCollection(s *service, ctx context.Context, arrayId string, metricPaths []string, interval int) (*types.MetricQueryCreateResponse, error) {
+func mockCreateMetricsCollection(ctx context.Context, s *service, arrayID string, metricPaths []string, interval int) (*types.MetricQueryCreateResponse, error) {
 	mockCollection := &types.MetricQueryCreateResponse{
 		Base:    "Mock",
 		Updated: time.Now().String(),
@@ -1802,7 +1803,7 @@ func mockCreateMetricsCollection(s *service, ctx context.Context, arrayId string
 			Expiration:     "mockExpiration",
 			Interval:       interval,
 			Paths:          metricPaths,
-			Id:             mockMetricsCollectionId,
+			Id:             mockMetricsCollectionID,
 		},
 	}
 	return mockCollection, mockCreateMetricsCollectionError

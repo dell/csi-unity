@@ -1,8 +1,9 @@
+package provider
+
 /*
 Copyright (c) 2019 Dell EMC Corporation
 All Rights Reserved
 */
-package provider
 
 import (
 	"github.com/dell/csi-unity/service"
