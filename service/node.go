@@ -1625,7 +1625,7 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 	unity := array.UnityClient
 
 	// Variable which will be comsumed by hostApi.CreateHost once gounity code change
-	tenantID := s.opts.TenantId
+	tenantID := s.opts.TenantID
 
 	//Create Host
 
