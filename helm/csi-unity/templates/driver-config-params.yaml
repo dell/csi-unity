@@ -9,6 +9,7 @@ data:
     ALLOW_RWO_MULTIPOD_ACCESS: "{{ .Values.allowRWOMultiPodAccess }}"
     MAX_UNITY_VOLUMES_PER_NODE: "{{ .Values.maxUnityVolumesPerNode }}"
     SYNC_NODE_INFO_TIME_INTERVAL: "{{ .Values.syncNodeInfoTimeInterval }}"
+    TENANT_ID: "{{ .Values.tenantId }}"
     {{ if .Values.podmon.enabled }}
     PODMON_CONTROLLER_LOG_LEVEL: "debug"
     PODMON_CONTROLLER_LOG_FORMAT: "TEXT"
