@@ -1478,7 +1478,7 @@ func (s *service) exportFilesystem(ctx context.Context, volID, hostID, nodeID, a
 	if foundIncompatible {
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Host: %s has access on NFS Share: %s with incompatible access mode.", nodeID, nfsShareID))
 	}
-	if am.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER && otherHostsWithAccess > 0 {
+	if (am.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER || am.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_SINGLE_WRITER || am.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_MULTI_WRITER) && otherHostsWithAccess > 0 {
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Other hosts have access on NFS Share: %s", nfsShareID))
 	}
 	//Idempotent case
@@ -1539,7 +1539,7 @@ func (s *service) exportVolume(ctx context.Context, protocol, volID, hostID, nod
 		if hostAccessID == hostID {
 			log.Debug("Volume has been published to the given host and exists in the required state.")
 			return &csi.ControllerPublishVolumeResponse{PublishContext: pinfo}, nil
-		} else if vc.GetMount() != nil && (am.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER || am.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY) {
+		} else if vc.GetMount() != nil && (am.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER || am.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_SINGLE_WRITER || am.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_MULTI_WRITER || am.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY) {
 			return nil, status.Error(codes.Aborted, utils.GetMessageWithRunID(rid, "Volume has been published to a different host already."))
 		}
 		//Gather list of hosts to which the volume is already published to
