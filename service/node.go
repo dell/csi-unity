@@ -1625,12 +1625,12 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 	unity := array.UnityClient
 
 	// Variable which will be comsumed by hostApi.CreateHost once gounity code change
-	tenant_id := s.opts.TenantId
+	tenantID := s.opts.TenantId
 
 	//Create Host
 
-	hostApi := gounity.NewHost(unity)
-	host, err := hostApi.CreateHost(ctx, s.opts.LongNodeName, tenant_id)
+	hostAPI := gounity.NewHost(unity)
+	host, err := hostAPI.CreateHost(ctx, s.opts.LongNodeName, tenantID)
 
 	if err != nil {
 		return err
