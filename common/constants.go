@@ -28,5 +28,5 @@ const (
 	ParamSyncNodeInfoTimeInterval = "SYNC_NODE_INFO_TIME_INTERVAL"
 
 	// ParamTenantID defines tenant id to be set while adding host entry
-	ParamTenantID = "TENANT_ID"
+	ParamTenantName = "TENANT_NAME"
 )
