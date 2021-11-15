@@ -1749,11 +1749,17 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 	unity := array.UnityClient
 
 	// Variable which will be comsumed by hostApi.CreateHost once gounity code change
-	tenantID := s.opts.TenantID
+	tenantName := s.opts.TenantName
 
 	//Create Host
 
 	hostAPI := gounity.NewHost(unity)
+	tenants, err:= hostAPI.FindTenants(ctx)
+	for eachtenant := range tenants.Entries {
+        if tenants.Entries[eachtenant].Content.Name == s.opts.TenantName{
+            tenantID := tenants.Entries[i].Content.Id
+            log.Debugf("tenant details: %s ", t.Entries[i].Content.Name)
+        }
 	host, err := hostAPI.CreateHost(ctx, s.opts.LongNodeName, tenantID)
 
 	if err != nil {
