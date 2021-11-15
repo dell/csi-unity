@@ -1757,8 +1757,8 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 	tenants, err:= hostAPI.FindTenants(ctx)
 	for eachtenant := range tenants.Entries {
         if tenants.Entries[eachtenant].Content.Name == s.opts.TenantName{
-            tenantID := tenants.Entries[i].Content.Id
-            log.Debugf("tenant details: %s ", t.Entries[i].Content.Name)
+            tenantID := tenants.Entries[eachtenant].Content.Id
+            log.Debugf("tenant details: %s ", t.Entries[eachtenant].Content.Name)
         }
 	host, err := hostAPI.CreateHost(ctx, s.opts.LongNodeName, tenantID)
 
