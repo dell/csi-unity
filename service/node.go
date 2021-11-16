@@ -1748,13 +1748,13 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 	ctx, log = setArrayIDContext(ctx, array.ArrayID)
 	unity := array.UnityClient
 
-	// Variable which will be comsumed by hostApi.CreateHost once gounity code change
 	tenantName := s.opts.TenantName
 	var tenantID string
 
 	//Create Host
-
 	hostAPI := gounity.NewHost(unity)
+	
+	// get tenantid from tenant name
 	tenants, err:= hostAPI.FindTenants(ctx)
 	for eachtenant := range tenants.Entries {
         if tenants.Entries[eachtenant].Content.Name == tenantName{
