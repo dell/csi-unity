@@ -1788,33 +1788,106 @@ func (s *service) ControllerGetVolume(ctx context.Context,
 		volumeAPI := gounity.NewVolume(unity)
 		vol, err := volumeAPI.FindVolumeById(ctx, volID)
 		if err != nil {
-			if err == gounity.VolumeNotFoundError {
-				abnormal = true
-				message = "volume not found"
+			if err != gounity.VolumeNotFoundError {
+				return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find volume failed with error: %v", err))
 			}
-			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find volume failed with error: %v", err))
-		}
-
-		content := vol.VolumeContent
-		if len(content.HostAccessResponse) > 0 {
-			for _, hostaccess := range content.HostAccessResponse {
-				hostcontent := hostaccess.HostContent
-				hosts = append(hosts, hostcontent.ID)
-			}
-		}
-
-		// check if volume is in ready state
-		if content.Health.Value != 5 {
 			abnormal = true
-			message = "Volume is not in ok state"
+			message = "Volume not found"
 		}
 
-		abnormal = false
-		message = "Volume is in ok state"
+		if !abnormal {
+			content := vol.VolumeContent
+			if len(content.HostAccessResponse) > 0 {
+				for _, hostaccess := range content.HostAccessResponse {
+					hostcontent := hostaccess.HostContent
+					hosts = append(hosts, hostcontent.ID)
+				}
+			}
+
+			// check if volume is in ok state
+			if content.Health.Value != 5 {
+				abnormal = true
+				message = "Volume is not in ok state"
+			}
+			abnormal = false
+			message = "Volume is in ok state"
+		}
 	} else {
-		abnormal = false
-		message = "FileSystem is in ok state"
+		fileAPI := gounity.NewFilesystem(unity)
+		isSnapshot := false
+		filesystem, err := fileAPI.FindFilesystemById(ctx, volID)
+
+		if err != nil {
+			var snapResp *types.Snapshot
+			snapshotAPI := gounity.NewSnapshot(unity)
+			snapResp, err = snapshotAPI.FindSnapshotById(ctx, volID)
+			if err != nil {
+				if err != gounity.SnapshotNotFoundError {
+					return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find filesystem: %s failed with error: %v", volID, err))
+				}
+				abnormal = true
+				message = "Filesystem not found"
+			}
+
+			isSnapshot = true
+			if !abnormal {
+				filesystem, err = s.getFilesystemByResourceID(ctx, snapResp.SnapshotContent.StorageResource.Id, arrayID)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+
+		if !abnormal {
+			nfsShareID := ""
+			for _, nfsShare := range filesystem.FileContent.NFSShare {
+				if isSnapshot {
+					if nfsShare.Path == NFSShareLocalPath && nfsShare.ParentSnap.Id == volID {
+						nfsShareID = nfsShare.Id
+					}
+				} else {
+					if nfsShare.Path == NFSShareLocalPath && nfsShare.ParentSnap.Id == "" {
+						nfsShareID = nfsShare.Id
+					}
+				}
+			}
+
+			if nfsShareID != "" {
+				nfsShareResp, err := fileAPI.FindNFSShareById(ctx, nfsShareID)
+				if err != nil {
+					return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find NFS Share: %s failed. Error: %v", nfsShareID, err))
+				}
+				readOnlyHosts := nfsShareResp.NFSShareContent.ReadOnlyHosts
+				readWriteHosts := nfsShareResp.NFSShareContent.ReadWriteHosts
+				readOnlyRootHosts := nfsShareResp.NFSShareContent.ReadOnlyRootAccessHosts
+				readWriteRootHosts := nfsShareResp.NFSShareContent.RootAccessHosts
+
+				for _, host := range readOnlyHosts {
+					hosts = append(hosts, host.ID)
+				}
+				for _, host := range readWriteHosts {
+					hosts = append(hosts, host.ID)
+				}
+				for _, host := range readOnlyRootHosts {
+					hosts = append(hosts, host.ID)
+				}
+				for _, host := range readWriteRootHosts {
+					hosts = append(hosts, host.ID)
+				}
+			}
+		}
+
+		// check if filesystem is in ok state
+		if !abnormal {
+			if filesystem.FileContent.Health.Value != 5 {
+				abnormal = true
+				message = "Filesystem is not in ok state"
+			}
+			abnormal = false
+			message = "Filesystem is in ok state"
+		}
 	}
+
 	resp := &csi.ControllerGetVolumeResponse{
 		Volume: &csi.Volume{
 			VolumeId: req.GetVolumeId(),

@@ -935,7 +935,7 @@ func (s *service) NodeGetVolumeStats(
 				resp := &csi.NodeGetVolumeStatsResponse{
 					VolumeCondition: &csi.VolumeCondition{
 						Abnormal: true,
-						Message:  "filesystem not found",
+						Message:  "Filesystem not found",
 					},
 				}
 				return resp, nil
@@ -950,7 +950,7 @@ func (s *service) NodeGetVolumeStats(
 				resp := &csi.NodeGetVolumeStatsResponse{
 					VolumeCondition: &csi.VolumeCondition{
 						Abnormal: true,
-						Message:  "volume not found",
+						Message:  "Volume not found",
 					},
 				}
 				return resp, nil
@@ -964,7 +964,7 @@ func (s *service) NodeGetVolumeStats(
 		resp := &csi.NodeGetVolumeStatsResponse{
 			VolumeCondition: &csi.VolumeCondition{
 				Abnormal: true,
-				Message:  "volume path not mounted",
+				Message:  "Volume path is not mounted",
 			},
 		}
 		return resp, nil
@@ -976,7 +976,7 @@ func (s *service) NodeGetVolumeStats(
 		resp := &csi.NodeGetVolumeStatsResponse{
 			VolumeCondition: &csi.VolumeCondition{
 				Abnormal: true,
-				Message:  "volume path not accessible",
+				Message:  "Volume path is not accessible",
 			},
 		}
 		return resp, nil
