@@ -1750,15 +1750,15 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 
 	tenantName := s.opts.TenantName
 	var tenantID string
-
+	
 	//Create Host
 	hostAPI := gounity.NewHost(unity)
 	
 	// get tenantid from tenant name
-	tenants, err:= hostAPI.FindTenants(ctx)
+	tenants, err := hostAPI.FindTenants(ctx)
 	for eachtenant := range tenants.Entries {
-        if tenants.Entries[eachtenant].Content.Name == tenantName{
-            tenantID = tenants.Entries[eachtenant].Content.Id
+			if tenants.Entries[eachtenant].Content.Name == tenantName{
+				tenantID = tenants.Entries[eachtenant].Content.Id
         }
 	}
 
