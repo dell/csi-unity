@@ -1750,6 +1750,7 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 
 	// Variable which will be comsumed by hostApi.CreateHost once gounity code change
 	tenantName := s.opts.TenantName
+	var tenantID string
 
 	//Create Host
 
@@ -1758,7 +1759,7 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 	for eachtenant := range tenants.Entries {
         if tenants.Entries[eachtenant].Content.Name == s.opts.TenantName{
             tenantID := tenants.Entries[eachtenant].Content.Id
-            log.Debugf("tenant details: %s ", t.Entries[eachtenant].Content.Name)
+            log.Debugf("tenant details: %s ", tenants.Entries[eachtenant].Content.Name)
         }
 	}
 	host, err := hostAPI.CreateHost(ctx, s.opts.LongNodeName, tenantID)
