@@ -36,6 +36,7 @@ type feature struct {
 	validateVolumeCapabilitiesRequest *csi.ValidateVolumeCapabilitiesRequest
 	controllerGetCapabilitiesRequest  *csi.ControllerGetCapabilitiesRequest
 	controllerExpandVolumeRequest     *csi.ControllerExpandVolumeRequest
+	controllerGetVolumeRequest        *csi.ControllerGetVolumeRequest
 	nodePublishVolumeRequest          *csi.NodePublishVolumeRequest
 	nodeUnpublishVolumeRequest        *csi.NodeUnpublishVolumeRequest
 	nodeStageVolumeRequest            *csi.NodeStageVolumeRequest
@@ -794,6 +795,25 @@ func (f *feature) iCallControllerExpandVolumeWithVolume(new_size int, volID stri
 		f.addError(err)
 	} else {
 		fmt.Printf("Controller expand volume completed successfully\n")
+	}
+	return nil
+}
+
+//iCallControllerGetVolume - Test case for controller get volume with volume id as parameter
+func (f *feature) iCallControllerGetVolumeWithVolume(volID string) error {
+	f.controllerGetVolumeRequest = nil
+	req := new(csi.ControllerGetVolumeRequest)
+	req.VolumeId = volID
+	f.controllerGetVolumeRequest = req
+
+	ctx := context.Background()
+	client := csi.NewControllerClient(grpcClient)
+	_, err := client.ControllerGetVolume(ctx, req)
+	if err != nil {
+		fmt.Printf("Controller get volume failed: %s\n", err.Error())
+		f.addError(err)
+	} else {
+		fmt.Printf("Controller get volume completed successfully\n")
 	}
 	return nil
 }

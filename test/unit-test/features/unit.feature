@@ -475,6 +475,22 @@ Feature: CSI interface
     When I call Controller Expand Volume "2" with volume ""
     Then the error message should contain "required"
 
+  Scenario: Controller get volume for FC protocol
+    Given a CSI service
+    And a basic block volume request name "gdtest-vol26" arrayId "Array1-Id" protocol "FC"
+    When I call CreateVolume
+    Then there are no errors
+    When I call Controller Get Volume "gdtest-vol26"
+    Then there are no errors
+
+  Scenario: Controller get volume for NFS protocol
+    Given a CSI service
+    And a basic block volume request name "gdtest-vol26" arrayId "Array1-Id" protocol "NFS"
+    When I call CreateVolume
+    Then there are no errors
+    When I call Controller Get Volume "gdtest-vol26"
+    Then there are no errors
+
   Scenario: Node stage, publish, unpublish and unstage volume
     Given a CSI service
     And a basic block volume request name "gdtest-vol30" arrayId "Array1-Id" protocol "FC" size "5"
