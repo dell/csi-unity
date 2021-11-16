@@ -1760,6 +1760,7 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
             tenantID := tenants.Entries[eachtenant].Content.Id
             log.Debugf("tenant details: %s ", t.Entries[eachtenant].Content.Name)
         }
+	}
 	host, err := hostAPI.CreateHost(ctx, s.opts.LongNodeName, tenantID)
 
 	if err != nil {
