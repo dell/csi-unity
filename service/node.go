@@ -1762,13 +1762,18 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 		}
 	}
 
-	host, err := hostAPI.CreateHost(ctx, s.opts.LongNodeName, tenantID)
+	var hostContent types.HostContent
+	if tenantName != "" && tenantID == "" {
+		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Please enter Valid tenant Name : %s", tenantName))
 
-	if err != nil {
-		return err
+	}else{
+		host, err := hostAPI.CreateHost(ctx, s.opts.LongNodeName, tenantID)
+		if err != nil {
+			return err
+		}
+		hostContent = host.HostContent
+		log.Debugf("New Host Id: %s", hostContent.ID)
 	}
-	hostContent := host.HostContent
-	log.Debugf("New Host Id: %s", hostContent.ID)
 
 	//Create Host Ip Port
 	_, err = hostAPI.CreateHostIpPort(ctx, hostContent.ID, s.opts.LongNodeName)
