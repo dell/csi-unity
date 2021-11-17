@@ -1766,7 +1766,7 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 	if tenantName != "" && tenantID == "" {
 		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Please enter Valid tenant Name : %s", tenantName))
 
-	}else{
+	} else {
 		host, err := hostAPI.CreateHost(ctx, s.opts.LongNodeName, tenantID)
 		if err != nil {
 			return err
