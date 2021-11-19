@@ -41,5 +41,5 @@ const (
 	EnvAllowRWOMultiPodAccess = "X_CSI_UNITY_ALLOW_MULTI_POD_ACCESS"
 
 	// EnvIsVolumeHealthMonitorEnabled - Environment variable to enable/disable health monitor of CSI volumes
-	EnvIsVolumeHealthMonitorEnabled = "X_CSI_UNITY_ENABLE_VOLUME_HEALTH_MONITOR"
+	EnvIsVolumeHealthMonitorEnabled = "X_CSI_ENABLE_VOL_HEALTH_MONITOR"
 )

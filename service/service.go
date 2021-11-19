@@ -228,7 +228,13 @@ func (s *service) BeforeServe(
 	}
 
 	opts.AutoProbe = pb(EnvAutoProbe)
-	opts.IsVolumeHealthMonitorEnabled = pb(EnvIsVolumeHealthMonitorEnabled)
+	if volumeHealthMonitor, ok := csictx.LookupEnv(ctx, EnvIsVolumeHealthMonitorEnabled); ok {
+		if volumeHealthMonitor == "true" {
+			opts.IsVolumeHealthMonitorEnabled = true
+		}
+	} else {
+		opts.IsVolumeHealthMonitorEnabled = false
+	}
 
 	//Global mount directory will be used to node unstage volumes mounted via CSI-Unity v1.0 or v1.1
 	if pvtmountDir, ok := csictx.LookupEnv(ctx, EnvPvtMountDir); ok {
