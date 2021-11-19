@@ -82,6 +82,19 @@ controller:
   #    value: "true"
   #    effect: "NoSchedule"
 
+  volumeHealthMonitor:
+    # enabled: Enable/Disable health monitor of CSI volumes- volume state, volume condition
+    # Allowed values:
+    #   true: enable checking of health condition of CSI volumes
+    #   false: disable checking of health condition of CSI volumes
+    # Default value: None
+    enabled: false
+
+    # healthMonitorInterval: Interval of monitoring volume health condition
+    # Allowed values: Number followed by unit of time (s,m,h)
+    # Default value: 60s
+    interval: 60s
+
 # node: configure node pod specific parameters
 node:
   # dnsPolicy : Define the DNS Policy of the Node service.
@@ -90,6 +103,15 @@ node:
   # In certain scenarios, users might need to change the default dnsPolicy.
   # Default value: None
   dnsPolicy: "ClusterFirstWithHostNet"
+
+  volumeHealthMonitor:
+  # enabled: Enable/Disable health monitor of CSI Volumes - volume usage
+  # Allowed values:
+  #   true: enable checking of health condition of CSI volumes
+  #   false: disable checking of health condition of CSI volumes
+  # Default value: None
+  enabled: false
+
 
 # CSM module attributes
 # service to monitor failing jobs and notify
@@ -145,18 +167,5 @@ maxUnityVolumesPerNode: 0
 # Default value: ""
 # Examples : "tenant2" , "tenant3"
 tenantName: ""
-
-volumeHealthMonitor:
-  # enabled: Enable/Disable health monitor of CSI Volumes
-  # Allowed values:
-  #   true: enable checking of health condition of CSI volumes
-  #   false: disable checking of health condition of CSI volumes
-  # Default value: None
-  enabled: false
-  # volumeHealthMonitorInterval: Interval of monitoring volume health condition
-  # Allowed values: Number followed by unit (s,m,h)
-  # Examples: 60s, 5m, 1h
-  # Default value: 60s
-  volumeHealthMonitorInterval: 60s
 
 

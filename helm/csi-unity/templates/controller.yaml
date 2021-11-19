@@ -229,8 +229,8 @@ spec:
               mountPath: /var/run/csi
         {{ end }}
         {{ end }}
-        {{- if hasKey .Values "volumeHealthMonitor" }}
-        {{- if eq .Values.volumeHealthMonitor.enabled true }}
+        {{- if hasKey .Values.controller "volumeHealthMonitor" }}
+        {{- if eq .Values.controller.volumeHealthMonitor.enabled true }}
         - name: csi-external-health-monitor-controller
           image: {{ required "Must provide the CSI external health monitor controller image." .Values.images.externalhealthmonitorcontroller}}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
@@ -240,7 +240,7 @@ spec:
             - "--leader-election"
             - "--http-endpoint=:8080"
             - "--enable-node-watcher=true"
-            - "--monitor-interval={{ .Values.volumeHealthMonitor.volumeHealthMonitorInterval | default "60s" }}"
+            - "--monitor-interval={{ .Values.controller.volumeHealthMonitor.interval | default "60s" }}"
             - "--timeout=180s"
           env:
             - name: ADDRESS
@@ -267,10 +267,10 @@ spec:
               value: "true"
             - name: SSL_CERT_DIR
               value: /certs
-            {{- if hasKey .Values "volumeHealthMonitor" }}
-            {{- if eq .Values.volumeHealthMonitor.enabled true }}
+            {{- if hasKey .Values.controller "volumeHealthMonitor" }}
+            {{- if eq .Values.controller.volumeHealthMonitor.enabled true }}
             - name: X_CSI_UNITY_ENABLE_VOLUME_HEALTH_MONITOR
-              value: {{ .Values.volumeHealthMonitor.enabled }}
+              value: {{ .Values.controller.volumeHealthMonitor.enabled }}
             {{ end }}
             {{ end }}
           volumeMounts:
