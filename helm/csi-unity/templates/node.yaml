@@ -172,7 +172,7 @@ spec:
             - name: X_CSI_UNITY_SYNC_NODEINFO_INTERVAL
               value: {{ .Values.syncNodeInfoInterval | default "15" | quote }}
             - name: X_CSI_UNITY_ENABLE_VOLUME_HEALTH_MONITOR
-              value: {{ .Values.volumeHealthMonitor.enabled | default "false" | lower | quote }}
+              value: {{ .Values.volumeHealthMonitor.enabled }}
           volumeMounts:
             - name: driver-path
               mountPath: {{ .Values.kubeletConfigDir }}/plugins/unity.emc.dell.com
