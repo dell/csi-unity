@@ -270,7 +270,7 @@ spec:
             {{- if hasKey .Values "volumeHealthMonitor" }}
             {{- if eq .Values.volumeHealthMonitor.enabled true }}
             - name: X_CSI_UNITY_ENABLE_VOLUME_HEALTH_MONITOR
-              value: {{ .Values.volumeHealthMonitor.enabled  | default "false" | lower | quote }}
+              value: {{ .Values.volumeHealthMonitor.enabled }}
             {{ end }}
             {{ end }}
           volumeMounts:
