@@ -116,6 +116,7 @@ type Opts struct {
 	MaxVolumesPerNode             int64
 	LogLevel                      string
 	TenantName                    string
+	IsVolumeHealthMonitorEnabled  bool
 }
 
 type service struct {
@@ -227,6 +228,7 @@ func (s *service) BeforeServe(
 	}
 
 	opts.AutoProbe = pb(EnvAutoProbe)
+	opts.IsVolumeHealthMonitorEnabled = pb(EnvIsVolumeHealthMonitorEnabled)
 
 	//Global mount directory will be used to node unstage volumes mounted via CSI-Unity v1.0 or v1.1
 	if pvtmountDir, ok := csictx.LookupEnv(ctx, EnvPvtMountDir); ok {

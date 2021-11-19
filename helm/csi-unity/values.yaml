@@ -130,7 +130,7 @@ syncNodeInfoInterval: 15
 
 # allowRWOMultiPodAccess - Flag to enable sharing of volumes across multiple pods within the same node in RWO access mode.
 # Allowed values: boolean
-# Default value: 15
+# Default value: "false"
 # Examples : "true" , "false"
 allowRWOMultiPodAccess: "false"
 
@@ -146,8 +146,16 @@ maxUnityVolumesPerNode: 0
 # Examples : "tenant2" , "tenant3"
 tenantName: ""
 
-# healthMonitorInterval: Interval of monitoring volume health condition
-# Allowed values: Number followed by unit (s,m,h)
-# Examples: 60s, 5m, 1h
-# Default value: 60s
-volumeHealthMonitorInterval: 60s
+volumeHealthMonitor:
+  # enabled: Enable/Disable health monitor of CSI Volumes
+  # Allowed values: boolean
+  # Default value: "false"
+  # Examples: "true", "false"
+  enabled: false
+  # volumeHealthMonitorInterval: Interval of monitoring volume health condition
+  # Allowed values: Number followed by unit (s,m,h)
+  # Examples: 60s, 5m, 1h
+  # Default value: 60s
+  volumeHealthMonitorInterval: 60s
+
+

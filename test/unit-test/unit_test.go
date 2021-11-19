@@ -1264,6 +1264,7 @@ func FeatureContext(s *godog.Suite) {
 	s.Step(`^I call Controller Get Capabilities$`, f.iCallControllerGetCapabilities)
 	s.Step(`^I call Controller Expand Volume "([^"]*)"$`, f.iCallControllerExpandVolume)
 	s.Step(`^I call Controller Expand Volume "([^"]*)" with volume "([^"]*)"$`, f.iCallControllerExpandVolumeWithVolume)
+	s.Step(`^I call Controller Get Volume "([^"]*)" with volume "([^"]*)"$`, f.iCallControllerGetVolumeWithVolume)
 	s.Step(`^when I call NodePublishVolume fsType "([^"]*)" readonly "([^"]*)"$`, f.whenICallNodePublishVolume)
 	s.Step(`^when I call NodePublishVolume targetpath "([^"]*)" fsType "([^"]*)"$`, f.whenICallNodePublishVolumeWithTargetPath)
 	s.Step(`^when I call EphemeralNodePublishVolume with volName "([^"]*)" fsType "([^"]*)" arrayId "([^"]*)" am "([^"]*)" size "([^"]*)" storagePool "([^"]*)" protocol "([^"]*)" nasServer "([^"]*)" thinProvision "([^"]*)" dataReduction "([^"]*)"$`, f.whenICallEphemeralNodePublishVolume)
@@ -1278,4 +1279,5 @@ func FeatureContext(s *godog.Suite) {
 	s.Step(`^When I call GetPluginCapabilities$`, f.whenICallGetPluginCapabilities)
 	s.Step(`^When I call GetPluginInfo$`, f.whenICallGetPluginInfo)
 	s.Step(`^when I call Node Expand Volume$`, f.whenICallNodeExpandVolume)
+
 }
