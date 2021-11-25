@@ -10,7 +10,7 @@
 ## Description
 CSI Driver for Unity XT is part of the [CSM (Container Storage Modules)](https://github.com/dell/csm) open-source suite of Kubernetes storage enablers for Dell EMC products. CSI Driver for Unity XT is a Container Storage Interface (CSI) driver that provides support for provisioning persistent storage using Dell EMC Unity XT storage array. 
 
-It supports CSI specification version 1.3.
+It supports CSI specification version 1.5.
 
 This project may be compiled as a stand-alone binary using Golang that, when run, provides a valid CSI endpoint. It also can be used as a precompiled container image.
 
@@ -41,3 +41,10 @@ Please refer to the section `Testing Drivers` in the [Documentation](https://del
 
 ## Documentation
 For more detailed information on the driver, please refer to [Container Storage Modules documentation](https://dell.github.io/csm-docs/).
+
+## Downloading Images 
+For the latest stable release, download `dellemc/csi-unity:latest`
+
+For the nightly builds (Built from main branch every night), download `dellemc/csi-unity:nightly`
+
+For particular release, download `dellemc/csi-unity:<release-tag>`
