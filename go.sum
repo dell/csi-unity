@@ -156,8 +156,8 @@ github.com/dell/dell-csi-extensions/podmon v1.0.0 h1:QoxioaFfjIP6cJ4s166A1JhgxIX
 github.com/dell/dell-csi-extensions/podmon v1.0.0/go.mod h1:Jjt+zHbLIZ3qJMug17WBYdz7wu90+hd65kgJwv8ZOec=
 github.com/dell/gobrick v1.2.0 h1:dlgWgonXG7qoa+SXlek/NkdFBnfxgqSv+8tsHIBIEDg=
 github.com/dell/gobrick v1.2.0/go.mod h1:pYN9r3XvIjct/QkEg5mEM+k2L3QBLVaHUZeAMzQgwRg=
-github.com/dell/gocsi v1.4.1-0.20211014153731-e18975a3a38c h1:aZb2rtCMt5I8T0eNbJ259NmIOroGavUUsp694d/tcBY=
-github.com/dell/gocsi v1.4.1-0.20211014153731-e18975a3a38c/go.mod h1:nIsIXXB5JpAvOQ0//gtPGULC2+NUddpi5qwpBeMhiLs=
+github.com/dell/gocsi v1.5.0 h1:qi2T6H6JHDo9sJEw24jo6Z88fJszBXfQc3lxOBaUijo=
+github.com/dell/gocsi v1.5.0/go.mod h1:nIsIXXB5JpAvOQ0//gtPGULC2+NUddpi5qwpBeMhiLs=
 github.com/dell/gofsutil v1.6.0 h1:u5PiMJIyecAWpSlPloov1/3LF5OWrcjJwoFF8dWkjcA=
 github.com/dell/gofsutil v1.6.0/go.mod h1:98Wpcg7emz4iGgY16fd4MKpnal2SX2hBiwP5ghHlvhg=
 github.com/dell/goiscsi v1.1.0/go.mod h1:MfuMjbKWsh/MOb0VDW20C+LFYRIOfWKGiAxWkeM5TKo=
