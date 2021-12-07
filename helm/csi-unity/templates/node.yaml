@@ -34,14 +34,14 @@ rules:
     resourceNames: [ "privileged" ]
     resources: [ "securitycontextconstraints" ]
     verbs: [ "use" ]
-{{ if .Values.podmon.enabled }}
+{{- if .Values.podmon.enabled }}
   - apiGroups: [ "" ]
     resources: [ "pods" ]
     verbs: [ "get", "list", "watch", "update", "delete" ]
   - apiGroups: [ "coordination.k8s.io" ]
     resources: [ "leases" ]
     verbs: [ "get", "watch", "list", "delete", "update", "create" ]
-{{ end }}
+{{- end }}
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -88,7 +88,7 @@ spec:
       hostNetwork: true
       dnsPolicy: {{ .Values.node.dnsPolicy }}
       containers:
-{{ if .Values.podmon.enabled }}
+{{- if .Values.podmon.enabled }}
         - name: podmon
           securityContext:
             privileged: true
@@ -132,14 +132,14 @@ spec:
               mountPath: /var/run
             - name: unity-config
               mountPath: /unity-config
-{{ end }}
+{{- end }}
         - name: driver
           securityContext:
             privileged: true
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: {{ required "Must provide the Unity driver container image." .Values.images.driver }}
+          image: "{{ required "Must provide the driver image repository." .Values.images.driverRepository }}/{{ .Chart.Name }}:v{{ .Values.version }}"
           args:
             - "--driver-name=csi-unity.dellemc.com"
             - "--driver-config=/unity-config/driver-config-params.yaml"
@@ -198,7 +198,7 @@ spec:
             - name: unity-secret
               mountPath: /unity-secret
         - name: registrar
-          image: {{ required "Must provide the CSI node registrar container image." .Values.images.registrar }}
+          image: {{ required "Must provide the CSI registrar container image." ( include "csi-unity.registrarImage" . ) }}
           args:
             - "--v=5"
             - "--csi-address=$(ADDRESS)"
@@ -257,7 +257,7 @@ spec:
         - name: unity-secret
           secret:
               secretName: {{ .Release.Name }}-creds
-{{ if .Values.podmon.enabled }}
+{{- if .Values.podmon.enabled }}
         - name: usr-bin
           hostPath:
             path: /usr/bin
@@ -270,4 +270,4 @@ spec:
           hostPath:
             path: /var/run
             type: Directory
-{{ end }}
+{{- end }}

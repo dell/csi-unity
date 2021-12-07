@@ -19,7 +19,7 @@ function verify-csi-unity() {
   verify_unity_protocol_installation
   verify_snap_requirements  
   verify_helm_3
-  verify_helm_values_version "2.1.0"
+  verify_helm_values_version "${DRIVER_VERSION}"
 }
 
 

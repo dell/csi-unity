@@ -1,6 +1,7 @@
 name: csi-unity
 version: 2.1.0
 appVersion: 2.1.0
+kubeVersion: ">= 1.20.0 <= 1.23.0"
 description: |
   Unity CSI (Container Storage Interface) driver Kubernetes
   integration. This chart includes everything required to provision via CSI as
@@ -12,4 +13,3 @@ sources:
 - https://github.com/dell/csi-unity
 maintainers:
 - name: DellEMC
-engine: gotpl
