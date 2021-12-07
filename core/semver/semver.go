@@ -118,9 +118,9 @@ func main() {
 		Notes:  m[4],
 		Type:   buildType,
 		Build:  toInt(buildNumber),
-		Sha7:   m[7],
+		Sha7:   m[6],
 		Sha32:  chkErr(doExec("git", "log", "-n1", `--format=%H`)),
-		Dirty:  m[8] != "",
+		Dirty:  m[7] != "",
 		Epoch:  toInt64(chkErr(doExec("git", "log", "-n1", `--format=%ct`))),
 	}
 	ver.SemVer = ver.String()
