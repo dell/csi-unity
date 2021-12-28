@@ -5,7 +5,7 @@ COPY csi-unity/ /go/src/csi-unity
 
 WORKDIR /go/src/csi-unity
 RUN mkdir -p bin
-RUN go generate
+#RUN go generate
 RUN GOOS=linux CGO_ENABLED=0 GOARCH=amd64 go build -ldflags '-extldflags "-static"' -o bin/csi-unity
 # Print the version
 RUN go run core/semver/semver.go -f mk
