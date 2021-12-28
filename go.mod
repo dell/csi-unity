@@ -1,6 +1,6 @@
 module github.com/dell/csi-unity
 
-go 1.16
+go 1.17
 
 require (
 	github.com/container-storage-interface/spec v1.5.0
