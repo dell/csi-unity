@@ -168,4 +168,6 @@ maxUnityVolumesPerNode: 0
 # Examples : "tenant2" , "tenant3"
 tenantName: ""
 
-
+images:
+  # "driver" defines the container image, used for the driver container.
+  driverRepository: dellemc
