@@ -3,7 +3,7 @@
 
 # version: version of this values file
 # Note: Do not change this value
-version: "2.1.0"
+version: "2.2.0"
 
 # LogLevel is used to set the logging level of the driver.
 # Allowed values: "error", "warn"/"warning", "info", "debug"
@@ -168,4 +168,6 @@ maxUnityVolumesPerNode: 0
 # Examples : "tenant2" , "tenant3"
 tenantName: ""
 
-
+images:
+  # "driver" defines the container image, used for the driver container.
+  driverRepository: dellemc
