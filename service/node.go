@@ -853,45 +853,57 @@ func (s *service) NodeGetCapabilities(
 	*csi.NodeGetCapabilitiesResponse, error) {
 	ctx, log, _ := GetRunidLog(ctx)
 	log.Infof("Executing NodeGetCapabilities with args: %+v", *req)
-
-	return &csi.NodeGetCapabilitiesResponse{
-		Capabilities: []*csi.NodeServiceCapability{
-			{
-				Type: &csi.NodeServiceCapability_Rpc{
-					Rpc: &csi.NodeServiceCapability_RPC{
-						Type: csi.NodeServiceCapability_RPC_UNKNOWN,
-					},
-				},
-			},
-			{
-				Type: &csi.NodeServiceCapability_Rpc{
-					Rpc: &csi.NodeServiceCapability_RPC{
-						Type: csi.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME,
-					},
-				},
-			},
-			{
-				Type: &csi.NodeServiceCapability_Rpc{
-					Rpc: &csi.NodeServiceCapability_RPC{
-						Type: csi.NodeServiceCapability_RPC_EXPAND_VOLUME,
-					},
-				},
-			},
-			{
-				Type: &csi.NodeServiceCapability_Rpc{
-					Rpc: &csi.NodeServiceCapability_RPC{
-						Type: csi.NodeServiceCapability_RPC_GET_VOLUME_STATS,
-					},
-				},
-			},
-			{
-				Type: &csi.NodeServiceCapability_Rpc{
-					Rpc: &csi.NodeServiceCapability_RPC{
-						Type: csi.NodeServiceCapability_RPC_VOLUME_CONDITION,
-					},
+	capabilities := []*csi.NodeServiceCapability{
+		{
+			Type: &csi.NodeServiceCapability_Rpc{
+				Rpc: &csi.NodeServiceCapability_RPC{
+					Type: csi.NodeServiceCapability_RPC_UNKNOWN,
 				},
 			},
 		},
+		{
+			Type: &csi.NodeServiceCapability_Rpc{
+				Rpc: &csi.NodeServiceCapability_RPC{
+					Type: csi.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME,
+				},
+			},
+		},
+		{
+			Type: &csi.NodeServiceCapability_Rpc{
+				Rpc: &csi.NodeServiceCapability_RPC{
+					Type: csi.NodeServiceCapability_RPC_EXPAND_VOLUME,
+				},
+			},
+		},
+		{
+			Type: &csi.NodeServiceCapability_Rpc{
+				Rpc: &csi.NodeServiceCapability_RPC{
+					Type: csi.NodeServiceCapability_RPC_SINGLE_NODE_MULTI_WRITER,
+				},
+			},
+		},
+	}
+	volumeHealthMonitorCapabilities := []*csi.NodeServiceCapability{
+		{
+			Type: &csi.NodeServiceCapability_Rpc{
+				Rpc: &csi.NodeServiceCapability_RPC{
+					Type: csi.NodeServiceCapability_RPC_GET_VOLUME_STATS,
+				},
+			},
+		},
+		{
+			Type: &csi.NodeServiceCapability_Rpc{
+				Rpc: &csi.NodeServiceCapability_RPC{
+					Type: csi.NodeServiceCapability_RPC_VOLUME_CONDITION,
+				},
+			},
+		},
+	}
+	if s.opts.IsVolumeHealthMonitorEnabled {
+		capabilities = append(capabilities, volumeHealthMonitorCapabilities...)
+	}
+	return &csi.NodeGetCapabilitiesResponse{
+		Capabilities: capabilities,
 	}, nil
 }
 
@@ -1755,11 +1767,18 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 	hostAPI := gounity.NewHost(unity)
 
 	// get tenantid from tenant name
-	tenants, err := hostAPI.FindTenants(ctx)
-	for eachtenant := range tenants.Entries {
-		if tenants.Entries[eachtenant].Content.Name == tenantName {
-			tenantID = tenants.Entries[eachtenant].Content.Id
+	if tenantName != "" {
+		tenants, err := hostAPI.FindTenants(ctx)
+		if err != nil {
+			return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Unable to fetch tenants"))
 		}
+		for eachtenant := range tenants.Entries {
+			if tenants.Entries[eachtenant].Content.Name == tenantName {
+				tenantID = tenants.Entries[eachtenant].Content.Id
+			}
+		}
+	} else {
+		tenantID = ""
 	}
 
 	var hostContent types.HostContent

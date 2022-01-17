@@ -7,10 +7,10 @@ require (
 	github.com/cucumber/godog v0.10.0
 	github.com/dell/dell-csi-extensions/podmon v1.0.0
 	github.com/dell/gobrick v1.2.0
-	github.com/dell/gocsi v1.4.1-0.20211014153731-e18975a3a38c
+	github.com/dell/gocsi v1.5.0
 	github.com/dell/gofsutil v1.6.0
 	github.com/dell/goiscsi v1.2.0
-	github.com/dell/gounity v1.7.1-0.20211116121253-a4fd4c0f2898
+	github.com/dell/gounity v1.8.0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/golang/protobuf v1.5.2
 	github.com/kubernetes-csi/csi-lib-utils v0.7.0

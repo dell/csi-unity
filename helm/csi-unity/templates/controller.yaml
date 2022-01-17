@@ -229,6 +229,8 @@ spec:
               mountPath: /var/run/csi
         {{ end }}
         {{ end }}
+        {{- if hasKey .Values.controller "volumeHealthMonitor" }}
+        {{- if eq .Values.controller.volumeHealthMonitor.enabled true }}
         - name: csi-external-health-monitor-controller
           image: {{ required "Must provide the CSI external health monitor controller image." .Values.images.externalhealthmonitorcontroller}}
           imagePullPolicy: {{ .Values.imagePullPolicy }}
@@ -238,7 +240,7 @@ spec:
             - "--leader-election"
             - "--http-endpoint=:8080"
             - "--enable-node-watcher=true"
-            - "--monitor-interval={{ .Values.volumeHealthMonitorInterval | default "60s" }}"
+            - "--monitor-interval={{ .Values.controller.volumeHealthMonitor.interval | default "60s" }}"
             - "--timeout=180s"
           env:
             - name: ADDRESS
@@ -246,6 +248,8 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /var/run/csi
+        {{- end }}
+        {{- end }}
         - name: driver
           image: {{ required "Must provide the Unity driver container image." .Values.images.driver }}
           args:
@@ -263,6 +267,12 @@ spec:
               value: "true"
             - name: SSL_CERT_DIR
               value: /certs
+            {{- if hasKey .Values.controller "volumeHealthMonitor" }}
+            {{- if eq .Values.controller.volumeHealthMonitor.enabled true }}
+            - name: X_CSI_ENABLE_VOL_HEALTH_MONITOR
+              value: "{{ .Values.controller.volumeHealthMonitor.enabled }}"
+            {{- end }}
+            {{- end }}
           volumeMounts:
             - name: socket-dir
               mountPath: /var/run/csi
@@ -273,7 +283,6 @@ spec:
               mountPath: /unity-config
             - name: unity-secret
               mountPath: /unity-secret
-              
       volumes:
         - name: certs
           projected:
