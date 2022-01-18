@@ -1767,11 +1767,18 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 	hostAPI := gounity.NewHost(unity)
 
 	// get tenantid from tenant name
-	tenants, err := hostAPI.FindTenants(ctx)
-	for eachtenant := range tenants.Entries {
-		if tenants.Entries[eachtenant].Content.Name == tenantName {
-			tenantID = tenants.Entries[eachtenant].Content.Id
+	if tenantName != "" {
+		tenants, err := hostAPI.FindTenants(ctx)
+		if err != nil {
+			return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Unable to fetch tenants"))
 		}
+		for eachtenant := range tenants.Entries {
+			if tenants.Entries[eachtenant].Content.Name == tenantName {
+				tenantID = tenants.Entries[eachtenant].Content.Id
+			}
+		}
+	} else {
+		tenantID = ""
 	}
 
 	var hostContent types.HostContent
