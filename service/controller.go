@@ -182,7 +182,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 		filesystem, _ := fileAPI.FindFilesystemByName(ctx, volName)
 		if filesystem != nil {
 			content := filesystem.FileContent
-			if int64(content.SizeTotal) == size && content.NASServer.Id == nasServer && content.Pool.Id == storagePool {
+			if int64(content.SizeTotal) == size && content.NASServer.ID == nasServer && content.Pool.ID == storagePool {
 				log.Info("Filesystem exists in the requested state with same size, NAS server and storage pool")
 				filesystem.FileContent.SizeTotal -= AdditionalFilesystemSize
 				return utils.GetVolumeResponseFromFilesystem(filesystem, arrayID, protocol, preferredAccessibility), nil
@@ -234,7 +234,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 				return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "HostIOLimitName %s not found. Error: %v", hostIOLimitName, err))
 			}
 
-			hostIOLimitID = hostIOLimit.IoLimitPolicyContent.Id
+			hostIOLimitID = hostIOLimit.IoLimitPolicyContent.ID
 		}
 
 		//Idempotency check
@@ -306,7 +306,7 @@ func (s *service) DeleteVolume(
 	if err == nil {
 		log.Debugf("DeleteVolume successful for volid: [%s]", req.VolumeId)
 		return deleteVolumeResp, nil
-	} else if err == gounity.FilesystemNotFoundError || err == gounity.VolumeNotFoundError || snapErr == gounity.SnapshotNotFoundError {
+	} else if err == gounity.ErrorFilesystemNotFound || err == gounity.ErrorVolumeNotFound || snapErr == gounity.ErrorSnapshotNotFound {
 		log.Debug("Volume not found on array")
 		log.Debugf("DeleteVolume successful for volid: [%s]", req.VolumeId)
 		return deleteVolumeResp, nil
@@ -393,11 +393,11 @@ func (s *service) ControllerUnpublishVolume(
 	if protocol != NFS {
 
 		volumeAPI := gounity.NewVolume(unity)
-		vol, err := volumeAPI.FindVolumeById(ctx, volID)
+		vol, err := volumeAPI.FindVolumeByID(ctx, volID)
 		if err != nil {
 			// If the volume isn't found, k8s will retry Controller Unpublish forever so...
 			// There is no way back if volume isn't found and so considering this scenario idempotent
-			if err == gounity.VolumeNotFoundError {
+			if err == gounity.ErrorVolumeNotFound {
 				log.Debugf("Volume %s not found on the array %s during Controller Unpublish. Hence considering the call to be idempotent", volID, arrayID)
 				return &csi.ControllerUnpublishVolumeResponse{}, nil
 			}
@@ -454,7 +454,7 @@ func (s *service) ValidateVolumeCapabilities(ctx context.Context, req *csi.Valid
 	}
 
 	volumeAPI := gounity.NewVolume(unity)
-	_, err = volumeAPI.FindVolumeById(ctx, volID)
+	_, err = volumeAPI.FindVolumeByID(ctx, volID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Volume not found. Error: %v", err))
 	}
@@ -538,7 +538,7 @@ func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotReq
 
 	snapAPI := gounity.NewSnapshot(unity)
 	//Idempotency check
-	snap, err := snapAPI.FindSnapshotById(ctx, snapID)
+	snap, err := snapAPI.FindSnapshotByID(ctx, snapID)
 	//snapshot exists, continue deleting the snapshot
 	if err != nil {
 		log.Info("Snapshot doesn't exists")
@@ -752,10 +752,10 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 		capacity += AdditionalFilesystemSize
 		filesystemAPI := gounity.NewFilesystem(unity)
 
-		filesystem, err := filesystemAPI.FindFilesystemById(ctx, volID)
+		filesystem, err := filesystemAPI.FindFilesystemByID(ctx, volID)
 		if err != nil {
 			snapshotAPI := gounity.NewSnapshot(unity)
-			_, err = snapshotAPI.FindSnapshotById(ctx, volID)
+			_, err = snapshotAPI.FindSnapshotByID(ctx, volID)
 			if err != nil {
 				return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find filesystem %s failed with error: %v", volID, err))
 			}
@@ -777,7 +777,7 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 			return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Expand filesystem failed with error: %v", err))
 		}
 
-		filesystem, err = filesystemAPI.FindFilesystemById(ctx, volID)
+		filesystem, err = filesystemAPI.FindFilesystemByID(ctx, volID)
 		if err != nil {
 			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find filesystem failed with error: %v", err))
 		}
@@ -787,7 +787,7 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 	}
 	volumeAPI := gounity.NewVolume(unity)
 	//Idempotency check
-	volume, err := volumeAPI.FindVolumeById(ctx, volID)
+	volume, err := volumeAPI.FindVolumeByID(ctx, volID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find volume failed with error: %v", err))
 	}
@@ -812,7 +812,7 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 		return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Expand volume failed with error: %v", err))
 	}
 
-	volume, err = volumeAPI.FindVolumeById(ctx, volID)
+	volume, err = volumeAPI.FindVolumeByID(ctx, volID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find volume failed with error: %v", err))
 	}
@@ -829,11 +829,11 @@ func (s *service) getCSIVolumes(volumes []types.Volume) ([]*csi.ListVolumesRespo
 			"Name":          vol.VolumeContent.Name,
 			"Type":          strconv.Itoa(vol.VolumeContent.Type),
 			"Wwn":           vol.VolumeContent.Wwn,
-			"StoragePoolID": vol.VolumeContent.Pool.Id,
+			"StoragePoolID": vol.VolumeContent.Pool.ID,
 		}
 		//Create CSI volume
 		vi := &csi.Volume{
-			VolumeId:      vol.VolumeContent.ResourceId,
+			VolumeId:      vol.VolumeContent.ResourceID,
 			CapacityBytes: int64(vol.VolumeContent.SizeTotal),
 			VolumeContext: attributes,
 		}
@@ -858,7 +858,7 @@ func (s *service) getCSISnapshots(snaps []types.Snapshot, volID, protocol, array
 			timestamp, _ = ptypes.TimestampProto(snap.SnapshotContent.CreationTime)
 		}
 
-		snapID := fmt.Sprintf("%s-%s-%s-%s", snap.SnapshotContent.Name, protocol, arrayID, snap.SnapshotContent.ResourceId)
+		snapID := fmt.Sprintf("%s-%s-%s-%s", snap.SnapshotContent.Name, protocol, arrayID, snap.SnapshotContent.ResourceID)
 
 		size := snap.SnapshotContent.Size
 		if protocol == NFS {
@@ -889,11 +889,11 @@ func (s *service) getFilesystemByResourceID(ctx context.Context, resourceID, arr
 	}
 	filesystemAPI := gounity.NewFilesystem(unity)
 
-	filesystemID, err := filesystemAPI.GetFilesystemIdFromResId(ctx, resourceID)
+	filesystemID, err := filesystemAPI.GetFilesystemIDFromResID(ctx, resourceID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Storage resource: %s filesystem Id not found. Error: %v", resourceID, err))
 	}
-	sourceFilesystemResp, err := filesystemAPI.FindFilesystemById(ctx, filesystemID)
+	sourceFilesystemResp, err := filesystemAPI.FindFilesystemByID(ctx, filesystemID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Filesystem: %s not found. Error: %v", filesystemID, err))
 	}
@@ -935,15 +935,15 @@ func (s *service) createIdempotentSnapshot(ctx context.Context, snapshotName, so
 	var filesystemResp *types.Filesystem
 	if protocol == NFS {
 		fileAPI := gounity.NewFilesystem(unity)
-		filesystemResp, err = fileAPI.FindFilesystemById(ctx, sourceVolID)
+		filesystemResp, err = fileAPI.FindFilesystemByID(ctx, sourceVolID)
 		if err != nil {
 			snapshotAPI := gounity.NewSnapshot(unity)
-			snapResp, err = snapshotAPI.FindSnapshotById(ctx, sourceVolID)
+			snapResp, err = snapshotAPI.FindSnapshotByID(ctx, sourceVolID)
 			if err != nil {
 				return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find source filesystem: %s failed with error: %v", sourceVolID, err))
 			}
 			isSnapshot = true
-			filesystemResp, err = s.getFilesystemByResourceID(ctx, snapResp.SnapshotContent.StorageResource.Id, arrayID)
+			filesystemResp, err = s.getFilesystemByResourceID(ctx, snapResp.SnapshotContent.StorageResource.ID, arrayID)
 			if err != nil {
 				return nil, err
 			}
@@ -951,12 +951,12 @@ func (s *service) createIdempotentSnapshot(ctx context.Context, snapshotName, so
 	}
 
 	if protocol == NFS && !isSnapshot {
-		sourceVolID = filesystemResp.FileContent.StorageResource.Id
+		sourceVolID = filesystemResp.FileContent.StorageResource.ID
 	}
 
 	snap, _ := snapshotAPI.FindSnapshotByName(ctx, snapshotName)
 	if snap != nil {
-		if snap.SnapshotContent.StorageResource.Id == sourceVolID || (isSnapshot && snap.SnapshotContent.StorageResource.Id == filesystemResp.FileContent.StorageResource.Id) {
+		if snap.SnapshotContent.StorageResource.ID == sourceVolID || (isSnapshot && snap.SnapshotContent.StorageResource.ID == filesystemResp.FileContent.StorageResource.ID) {
 			//Subtract AdditionalFilesystemSize for Filesystem snapshots
 			if protocol == NFS {
 				snap.SnapshotContent.Size -= AdditionalFilesystemSize
@@ -964,7 +964,7 @@ func (s *service) createIdempotentSnapshot(ctx context.Context, snapshotName, so
 			log.Infof("Snapshot already exists with same name %s for same storage resource %s", snapshotName, sourceVolID)
 			return snap, nil
 		}
-		return nil, status.Error(codes.AlreadyExists, utils.GetMessageWithRunID(rid, "Snapshot with same name %s already exists for storage resource %s", snapshotName, snap.SnapshotContent.StorageResource.Id))
+		return nil, status.Error(codes.AlreadyExists, utils.GetMessageWithRunID(rid, "Snapshot with same name %s already exists for storage resource %s", snapshotName, snap.SnapshotContent.StorageResource.ID))
 	}
 
 	var newSnapshot *types.Snapshot
@@ -973,9 +973,9 @@ func (s *service) createIdempotentSnapshot(ctx context.Context, snapshotName, so
 		if err != nil {
 			return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Create Snapshot error: %v", err))
 		}
-		err = snapshotAPI.ModifySnapshot(ctx, newSnapshot.SnapshotContent.ResourceId, description, retentionDuration)
+		err = snapshotAPI.ModifySnapshot(ctx, newSnapshot.SnapshotContent.ResourceID, description, retentionDuration)
 		if err != nil {
-			log.Infof("Unable to modify description and retention duration in created snapshot %s. Error: %s", newSnapshot.SnapshotContent.ResourceId, err)
+			log.Infof("Unable to modify description and retention duration in created snapshot %s. Error: %s", newSnapshot.SnapshotContent.ResourceID, err)
 		}
 	} else {
 		if isClone {
@@ -1009,12 +1009,12 @@ func (s *service) getHostID(ctx context.Context, arrayID, shortHostname, longHos
 	hostAPI := gounity.NewHost(unity)
 	host, err := hostAPI.FindHostByName(ctx, shortHostname)
 	if err != nil {
-		if err != gounity.HostNotFoundError {
+		if err != gounity.ErrorHostNotFound {
 			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find Host Failed %v", err))
 		}
 	}
 	if host != nil {
-		for _, hostIPPort := range host.HostContent.IpPorts {
+		for _, hostIPPort := range host.HostContent.IPPorts {
 			if hostIPPort.Address == longHostname {
 				return host, nil
 			}
@@ -1025,7 +1025,7 @@ func (s *service) getHostID(ctx context.Context, arrayID, shortHostname, longHos
 	if err != nil {
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find Host Failed %v", err))
 	}
-	for _, hostIPPort := range host.HostContent.IpPorts {
+	for _, hostIPPort := range host.HostContent.IPPorts {
 		if hostIPPort.Address == longHostname {
 			return host, nil
 		}
@@ -1064,19 +1064,19 @@ func (s *service) createVolumeClone(ctx context.Context, crParams *CRParams, sou
 
 		snapAPI := gounity.NewSnapshot(unity)
 		fileAPI := gounity.NewFilesystem(unity)
-		filesystem, err := fileAPI.FindFilesystemById(ctx, sourceVolID)
+		filesystem, err := fileAPI.FindFilesystemByID(ctx, sourceVolID)
 		isSnapshot := false
 		var snapResp *types.Snapshot
 		var snapErr error
 		if err != nil {
 			//Filesystem not found - Check if PVC exists as a snapshot [Cloned volume in case of NFS]
-			snapResp, snapErr = snapAPI.FindSnapshotById(ctx, sourceVolID)
+			snapResp, snapErr = snapAPI.FindSnapshotByID(ctx, sourceVolID)
 			if snapErr != nil {
 				log.Debugf("Tried to check if PVC exists as a snapshot: %v", snapErr)
 				return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find source filesystem: %s Failed. Error: %v ", sourceVolID, err))
 			}
 			isSnapshot = true
-			filesystem, err = s.getFilesystemByResourceID(ctx, snapResp.SnapshotContent.StorageResource.Id, arrayID)
+			filesystem, err = s.getFilesystemByResourceID(ctx, snapResp.SnapshotContent.StorageResource.ID, arrayID)
 			if err != nil {
 				return nil, err
 			}
@@ -1126,7 +1126,7 @@ func (s *service) createVolumeClone(ctx context.Context, crParams *CRParams, sou
 
 	//If protocol is FC or iSCSI
 	volumeAPI := gounity.NewVolume(unity)
-	sourceVolResp, err := volumeAPI.FindVolumeById(ctx, sourceVolID)
+	sourceVolResp, err := volumeAPI.FindVolumeByID(ctx, sourceVolID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Source volume not found: %s. Error: %v", sourceVolID, err))
 	}
@@ -1139,7 +1139,7 @@ func (s *service) createVolumeClone(ctx context.Context, crParams *CRParams, sou
 	volResp, _ := volumeAPI.FindVolumeByName(ctx, volName)
 	if volResp != nil {
 		//Idempotency Check
-		if volResp.VolumeContent.IsThinClone && len(volResp.VolumeContent.ParentVolume.Id) > 0 && volResp.VolumeContent.ParentVolume.Id == sourceVolID &&
+		if volResp.VolumeContent.IsThinClone && len(volResp.VolumeContent.ParentVolume.ID) > 0 && volResp.VolumeContent.ParentVolume.ID == sourceVolID &&
 			volResp.VolumeContent.SizeTotal == sourceVolResp.VolumeContent.SizeTotal {
 			log.Infof("Volume %s exists in the requested state as a clone of volume %s", volName, sourceVolResp.VolumeContent.Name)
 			csiVolResp := utils.GetVolumeResponseFromVolume(volResp, arrayID, protocol, preferredAccessibility)
@@ -1152,9 +1152,9 @@ func (s *service) createVolumeClone(ctx context.Context, crParams *CRParams, sou
 	//Perform volume cloning
 	volResp, err = volumeAPI.CreateCloneFromVolume(ctx, volName, sourceVolID)
 	if err != nil {
-		if err == gounity.CreateSnapshotFailedError {
+		if err == gounity.ErrorCreateSnapshotFailed {
 			return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Unable to Create Snapshot for Volume Cloning for source volume: %s", sourceVolID))
-		} else if err == gounity.CloningFailedError {
+		} else if err == gounity.ErrorCloningFailed {
 			return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Volume cloning for source volume: %s failed.", sourceVolID))
 		}
 	}
@@ -1195,14 +1195,14 @@ func (s *service) createVolumeFromSnap(ctx context.Context, crParams *CRParams, 
 	hostIoSize := crParams.HostIoSize
 
 	snapAPI := gounity.NewSnapshot(unity)
-	snapResp, err := snapAPI.FindSnapshotById(ctx, snapshotID)
+	snapResp, err := snapAPI.FindSnapshotByID(ctx, snapshotID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Source snapshot not found: %s", snapshotID))
 	}
 
 	if protocol == NFS {
 
-		sourceFilesystemResp, err := s.getFilesystemByResourceID(ctx, snapResp.SnapshotContent.StorageResource.Id, arrayID)
+		sourceFilesystemResp, err := s.getFilesystemByResourceID(ctx, snapResp.SnapshotContent.StorageResource.ID, arrayID)
 		if err != nil {
 			return nil, err
 		}
@@ -1220,7 +1220,7 @@ func (s *service) createVolumeFromSnap(ctx context.Context, crParams *CRParams, 
 		snapResp, err := snapAPI.FindSnapshotByName(ctx, volName)
 		if snapResp != nil {
 			//Idempotency check
-			if snapResp.SnapshotContent.ParentSnap.Id == snapshotID && snapResp.SnapshotContent.AccessType == int(gounity.ProtocolAccessType) {
+			if snapResp.SnapshotContent.ParentSnap.ID == snapshotID && snapResp.SnapshotContent.AccessType == int(gounity.ProtocolAccessType) {
 				log.Infof("Filesystem %s exists in the requested state as a volume from snapshot(snapshot on array) %s", volName, snapshotID)
 				snapResp.SnapshotContent.Size -= AdditionalFilesystemSize
 				csiVolResp := utils.GetVolumeResponseFromSnapshot(snapResp, arrayID, protocol, preferredAccessibility)
@@ -1246,9 +1246,9 @@ func (s *service) createVolumeFromSnap(ctx context.Context, crParams *CRParams, 
 	}
 
 	//If protocol is FC or iSCSI
-	volID := snapResp.SnapshotContent.StorageResource.Id
+	volID := snapResp.SnapshotContent.StorageResource.ID
 	volumeAPI := gounity.NewVolume(unity)
-	sourceVolResp, err := volumeAPI.FindVolumeById(ctx, volID)
+	sourceVolResp, err := volumeAPI.FindVolumeByID(ctx, volID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Source volume not found: %s", volID))
 	}
@@ -1266,7 +1266,7 @@ func (s *service) createVolumeFromSnap(ctx context.Context, crParams *CRParams, 
 	volResp, _ := volumeAPI.FindVolumeByName(ctx, volName)
 	if volResp != nil {
 		//Idempotency Check
-		if volResp.VolumeContent.IsThinClone == true && len(volResp.VolumeContent.ParentSnap.Id) > 0 && volResp.VolumeContent.ParentSnap.Id == snapshotID {
+		if volResp.VolumeContent.IsThinClone == true && len(volResp.VolumeContent.ParentSnap.ID) > 0 && volResp.VolumeContent.ParentSnap.ID == snapshotID {
 			log.Info("Volume exists in the requested state")
 			csiVolResp := utils.GetVolumeResponseFromVolume(volResp, arrayID, protocol, preferredAccessibility)
 			csiVolResp.Volume.ContentSource = contentSource
@@ -1305,14 +1305,14 @@ func (s *service) deleteFilesystem(ctx context.Context, volID string, unity *gou
 	fileAPI := gounity.NewFilesystem(unity)
 	var filesystemResp *types.Filesystem
 	var snapErr error
-	filesystemResp, err := fileAPI.FindFilesystemById(ctx, volID)
+	filesystemResp, err := fileAPI.FindFilesystemByID(ctx, volID)
 	if err == nil {
 		//Validate if filesystem has any NFS or SMB shares or snapshots attached
 		if len(filesystemResp.FileContent.NFSShare) > 0 || len(filesystemResp.FileContent.CIFSShare) > 0 {
 			return nil, nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Filesystem %s can not be deleted as it has associated NFS or SMB shares.", volID))
 		}
 		snapshotAPI := gounity.NewSnapshot(unity)
-		snapsResp, _, snapshotErr := snapshotAPI.ListSnapshots(ctx, 0, 0, filesystemResp.FileContent.StorageResource.Id, "")
+		snapsResp, _, snapshotErr := snapshotAPI.ListSnapshots(ctx, 0, 0, filesystemResp.FileContent.StorageResource.ID, "")
 		if snapshotErr != nil {
 			return nil, nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "List snapshots for filesystem %s failed with error: %v", volID, snapshotErr))
 		}
@@ -1326,20 +1326,20 @@ func (s *service) deleteFilesystem(ctx context.Context, volID string, unity *gou
 	} else {
 		//Do not reuse err as it is used for idempotency check
 		snapshotAPI := gounity.NewSnapshot(unity)
-		snapResp, fsSnapErr := snapshotAPI.FindSnapshotById(ctx, volID)
+		snapResp, fsSnapErr := snapshotAPI.FindSnapshotByID(ctx, volID)
 		snapErr = fsSnapErr
 		if fsSnapErr == nil {
 			//Validate if snapshot has any NFS or SMB shares
-			sourceVolID, err := fileAPI.GetFilesystemIdFromResId(ctx, snapResp.SnapshotContent.StorageResource.Id)
+			sourceVolID, err := fileAPI.GetFilesystemIDFromResID(ctx, snapResp.SnapshotContent.StorageResource.ID)
 			if err != nil {
-				return nil, nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Source storage resource: %s filesystem Id not found. Error: %v", snapResp.SnapshotContent.StorageResource.Id, err))
+				return nil, nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Source storage resource: %s filesystem Id not found. Error: %v", snapResp.SnapshotContent.StorageResource.ID, err))
 			}
-			filesystemResp, err = fileAPI.FindFilesystemById(ctx, sourceVolID)
+			filesystemResp, err = fileAPI.FindFilesystemByID(ctx, sourceVolID)
 			if err != nil {
 				return nil, nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find source filesystem: %s failed with error: %v", sourceVolID, err))
 			}
 			for _, nfsShare := range filesystemResp.FileContent.NFSShare {
-				if nfsShare.ParentSnap.Id == volID {
+				if nfsShare.ParentSnap.ID == volID {
 					return nil, nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Snapshot %s can not be deleted as it has associated NFS or SMB shares.", volID))
 				}
 			}
@@ -1364,7 +1364,7 @@ func (s *service) deleteBlockVolume(ctx context.Context, volID string, unity *go
 		snapshotName := snapResp.SnapshotContent.Name
 		if strings.Contains(snapshotName, gounity.SnapForClone) {
 			reqDeleteSnapshot := new(csi.DeleteSnapshotRequest)
-			reqDeleteSnapshot.SnapshotId = snapResp.SnapshotContent.ResourceId
+			reqDeleteSnapshot.SnapshotId = snapResp.SnapshotContent.ResourceID
 			_, snapshotErr = s.DeleteSnapshot(ctx, reqDeleteSnapshot)
 			if snapshotErr != nil {
 				return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Volume %s can not be deleted as it has associated snapshots.", volID))
@@ -1388,18 +1388,18 @@ func (s *service) exportFilesystem(ctx context.Context, volID, hostID, nodeID, a
 	pinfo["filesystem"] = volID
 	fileAPI := gounity.NewFilesystem(unity)
 	isSnapshot := false
-	filesystemResp, err := fileAPI.FindFilesystemById(ctx, volID)
+	filesystemResp, err := fileAPI.FindFilesystemByID(ctx, volID)
 	var snapResp *types.Snapshot
 
 	if err != nil {
 		snapshotAPI := gounity.NewSnapshot(unity)
-		snapResp, err = snapshotAPI.FindSnapshotById(ctx, volID)
+		snapResp, err = snapshotAPI.FindSnapshotByID(ctx, volID)
 		if err != nil {
 			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find filesystem: %s failed with error: %v", volID, err))
 		}
 		isSnapshot = true
 
-		filesystemResp, err = s.getFilesystemByResourceID(ctx, snapResp.SnapshotContent.StorageResource.Id, arrayID)
+		filesystemResp, err = s.getFilesystemByResourceID(ctx, snapResp.SnapshotContent.StorageResource.ID, arrayID)
 		if err != nil {
 			return nil, err
 		}
@@ -1413,16 +1413,16 @@ func (s *service) exportFilesystem(ctx context.Context, volID, hostID, nodeID, a
 	var nfsShareID string
 	for _, nfsShare := range filesystemResp.FileContent.NFSShare {
 		if isSnapshot {
-			if nfsShare.Path == NFSShareLocalPath && nfsShare.ParentSnap.Id == volID {
+			if nfsShare.Path == NFSShareLocalPath && nfsShare.ParentSnap.ID == volID {
 				nfsShareExist = true
 				nfsShareName = nfsShare.Name
-				nfsShareID = nfsShare.Id
+				nfsShareID = nfsShare.ID
 			}
 		} else {
-			if nfsShare.Path == NFSShareLocalPath && nfsShare.ParentSnap.Id == "" {
+			if nfsShare.Path == NFSShareLocalPath && nfsShare.ParentSnap.ID == "" {
 				nfsShareExist = true
 				nfsShareName = nfsShare.Name
-				nfsShareID = nfsShare.Id
+				nfsShareID = nfsShare.ID
 			}
 		}
 	}
@@ -1432,7 +1432,7 @@ func (s *service) exportFilesystem(ctx context.Context, volID, hostID, nodeID, a
 			if err != nil {
 				return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Create NFS Share failed. Error: %v", err))
 			}
-			nfsShareID = nfsShareResp.NFSShareContent.Id
+			nfsShareID = nfsShareResp.NFSShareContent.ID
 		} else {
 			filesystemResp, err = fileAPI.CreateNFSShare(ctx, nfsShareName, NFSShareLocalPath, volID, gounity.NoneDefaultAccess)
 			if err != nil {
@@ -1441,13 +1441,13 @@ func (s *service) exportFilesystem(ctx context.Context, volID, hostID, nodeID, a
 		}
 		for _, nfsShare := range filesystemResp.FileContent.NFSShare {
 			if nfsShare.Name == nfsShareName {
-				nfsShareID = nfsShare.Id
+				nfsShareID = nfsShare.ID
 			}
 		}
 	}
 
 	//Allocate host access to NFS Share with appropriate access mode
-	nfsShareResp, err := fileAPI.FindNFSShareById(ctx, nfsShareID)
+	nfsShareResp, err := fileAPI.FindNFSShareByID(ctx, nfsShareID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find NFS Share: %s failed. Error: %v", nfsShareID, err))
 	}
@@ -1551,7 +1551,7 @@ func (s *service) exportVolume(ctx context.Context, protocol, volID, hostID, nod
 	}
 
 	volumeAPI := gounity.NewVolume(unity)
-	vol, err := volumeAPI.FindVolumeById(ctx, volID)
+	vol, err := volumeAPI.FindVolumeByID(ctx, volID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find volume Failed %v", err))
 	}
@@ -1592,22 +1592,22 @@ func (s *service) unexportFilesystem(ctx context.Context, volID, hostID, nodeID,
 	ctx, log, rid := GetRunidLog(ctx)
 	fileAPI := gounity.NewFilesystem(unity)
 	isSnapshot := false
-	filesystem, err := fileAPI.FindFilesystemById(ctx, volID)
+	filesystem, err := fileAPI.FindFilesystemByID(ctx, volID)
 	var snapResp *types.Snapshot
 	if err != nil {
 		snapshotAPI := gounity.NewSnapshot(unity)
-		snapResp, err = snapshotAPI.FindSnapshotById(ctx, volID)
+		snapResp, err = snapshotAPI.FindSnapshotByID(ctx, volID)
 		if err != nil {
-			// If the filesysten isn't found, k8s will retry Controller Unpublish forever so...
+			// If the filesystem isn't found, k8s will retry Controller Unpublish forever so...
 			// There is no way back if filesystem isn't found and so considering this scenario idempotent
-			if err == gounity.FilesystemNotFoundError || err == gounity.SnapshotNotFoundError {
+			if err == gounity.ErrorFilesystemNotFound || err == gounity.ErrorSnapshotNotFound {
 				log.Debugf("Filesystem %s not found on the array %s during Controller Unpublish. Hence considering the call to be idempotent", volID, arrayID)
 				return nil
 			}
 			return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Find filesystem %s failed with error: %v", volID, err))
 		}
 		isSnapshot = true
-		filesystem, err = s.getFilesystemByResourceID(ctx, snapResp.SnapshotContent.StorageResource.Id, arrayID)
+		filesystem, err = s.getFilesystemByResourceID(ctx, snapResp.SnapshotContent.StorageResource.ID, arrayID)
 		if err != nil {
 			return err
 		}
@@ -1622,24 +1622,24 @@ func (s *service) unexportFilesystem(ctx context.Context, volID, hostID, nodeID,
 	var nfsShareID string
 	for _, nfsShare := range filesystem.FileContent.NFSShare {
 		if isSnapshot {
-			if nfsShare.Path == NFSShareLocalPath && nfsShare.ParentSnap.Id == volID {
+			if nfsShare.Path == NFSShareLocalPath && nfsShare.ParentSnap.ID == volID {
 				shareExists = true
 				if nfsShare.Name != nfsShareName {
 					//This means that share was created manually on array, hence don't delete via driver
 					deleteShare = false
 					nfsShareName = nfsShare.Name
 				}
-				nfsShareID = nfsShare.Id
+				nfsShareID = nfsShare.ID
 			}
 		} else {
-			if nfsShare.Path == NFSShareLocalPath && nfsShare.ParentSnap.Id == "" {
+			if nfsShare.Path == NFSShareLocalPath && nfsShare.ParentSnap.ID == "" {
 				shareExists = true
 				if nfsShare.Name != nfsShareName {
 					//This means that share was created manually on array, hence don't delete via driver
 					deleteShare = false
 					nfsShareName = nfsShare.Name
 				}
-				nfsShareID = nfsShare.Id
+				nfsShareID = nfsShare.ID
 			}
 		}
 	}
@@ -1648,7 +1648,7 @@ func (s *service) unexportFilesystem(ctx context.Context, volID, hostID, nodeID,
 		return nil
 	}
 
-	nfsShareResp, err := fileAPI.FindNFSShareById(ctx, nfsShareID)
+	nfsShareResp, err := fileAPI.FindNFSShareByID(ctx, nfsShareID)
 	if err != nil {
 		return status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find NFS Share: %s failed. Error: %v", nfsShareID, err))
 	}
@@ -1731,7 +1731,7 @@ func (s *service) unexportFilesystem(ctx context.Context, volID, hostID, nodeID,
 			if isSnapshot {
 				err = fileAPI.DeleteNFSShareCreatedFromSnapshot(ctx, nfsShareID)
 			} else {
-				err = fileAPI.DeleteNFSShare(ctx, filesystem.FileContent.Id, nfsShareID)
+				err = fileAPI.DeleteNFSShare(ctx, filesystem.FileContent.ID, nfsShareID)
 			}
 			if err != nil {
 				return status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Delete NFS Share: %s Failed with error: %v", nfsShareID, err))
@@ -1799,9 +1799,9 @@ func (s *service) ControllerGetVolume(ctx context.Context,
 
 	if protocol != NFS {
 		volumeAPI := gounity.NewVolume(unity)
-		vol, err := volumeAPI.FindVolumeById(ctx, volID)
+		vol, err := volumeAPI.FindVolumeByID(ctx, volID)
 		if err != nil {
-			if err != gounity.VolumeNotFoundError {
+			if err != gounity.ErrorVolumeNotFound {
 				return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find volume failed with error: %v", err))
 			}
 			abnormal = true
@@ -1828,14 +1828,14 @@ func (s *service) ControllerGetVolume(ctx context.Context,
 	} else {
 		fileAPI := gounity.NewFilesystem(unity)
 		isSnapshot := false
-		filesystem, err := fileAPI.FindFilesystemById(ctx, volID)
+		filesystem, err := fileAPI.FindFilesystemByID(ctx, volID)
 
 		if err != nil {
 			var snapResp *types.Snapshot
 			snapshotAPI := gounity.NewSnapshot(unity)
-			snapResp, err = snapshotAPI.FindSnapshotById(ctx, volID)
+			snapResp, err = snapshotAPI.FindSnapshotByID(ctx, volID)
 			if err != nil {
-				if err != gounity.SnapshotNotFoundError {
+				if err != gounity.ErrorSnapshotNotFound {
 					return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find filesystem: %s failed with error: %v", volID, err))
 				}
 				abnormal = true
@@ -1844,7 +1844,7 @@ func (s *service) ControllerGetVolume(ctx context.Context,
 
 			isSnapshot = true
 			if !abnormal {
-				filesystem, err = s.getFilesystemByResourceID(ctx, snapResp.SnapshotContent.StorageResource.Id, arrayID)
+				filesystem, err = s.getFilesystemByResourceID(ctx, snapResp.SnapshotContent.StorageResource.ID, arrayID)
 				if err != nil {
 					return nil, err
 				}
@@ -1855,18 +1855,18 @@ func (s *service) ControllerGetVolume(ctx context.Context,
 			nfsShareID := ""
 			for _, nfsShare := range filesystem.FileContent.NFSShare {
 				if isSnapshot {
-					if nfsShare.Path == NFSShareLocalPath && nfsShare.ParentSnap.Id == volID {
-						nfsShareID = nfsShare.Id
+					if nfsShare.Path == NFSShareLocalPath && nfsShare.ParentSnap.ID == volID {
+						nfsShareID = nfsShare.ID
 					}
 				} else {
-					if nfsShare.Path == NFSShareLocalPath && nfsShare.ParentSnap.Id == "" {
-						nfsShareID = nfsShare.Id
+					if nfsShare.Path == NFSShareLocalPath && nfsShare.ParentSnap.ID == "" {
+						nfsShareID = nfsShare.ID
 					}
 				}
 			}
 
 			if nfsShareID != "" {
-				nfsShareResp, err := fileAPI.FindNFSShareById(ctx, nfsShareID)
+				nfsShareResp, err := fileAPI.FindNFSShareByID(ctx, nfsShareID)
 				if err != nil {
 					return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find NFS Share: %s failed. Error: %v", nfsShareID, err))
 				}

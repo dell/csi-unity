@@ -125,9 +125,9 @@ func validateCreateFsFromSnapshot(ctx context.Context, sourceFilesystemResp *typ
 	rid, _ := utils.GetRunidAndLogger(ctx)
 
 	// Validate the storagePool parameter
-	if sourceFilesystemResp.FileContent.Pool.Id != storagePool {
+	if sourceFilesystemResp.FileContent.Pool.ID != storagePool {
 		return status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Source filesystem storage pool %s is different than the requested storage pool %s",
-			sourceFilesystemResp.FileContent.Pool.Id, storagePool))
+			sourceFilesystemResp.FileContent.Pool.ID, storagePool))
 	}
 
 	//Validate the thinProvisioned parameter
@@ -163,9 +163,9 @@ func validateCreateVolumeFromSource(ctx context.Context, sourceVolResp *types.Vo
 	rid, _ := utils.GetRunidAndLogger(ctx)
 
 	// Validate the storagePool parameter
-	if sourceVolResp.VolumeContent.Pool.Id != storagePool {
+	if sourceVolResp.VolumeContent.Pool.ID != storagePool {
 		return status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Source volume storage pool %s is different than the requested storage pool %s",
-			sourceVolResp.VolumeContent.Pool.Id, storagePool))
+			sourceVolResp.VolumeContent.Pool.ID, storagePool))
 	}
 	//Validate the tieringPolicy parameter
 	if int64(sourceVolResp.VolumeContent.TieringPolicy) != tieringPolicy {

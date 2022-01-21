@@ -103,7 +103,7 @@ func (s *service) NodeStageVolume(
 
 		exportPaths := nfsShare.NFSShareContent.ExportPaths
 		if len(exportPaths) == 0 {
-			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Export paths not exist on NFS Share: %s", nfsShare.NFSShareContent.Id))
+			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Export paths not exist on NFS Share: %s", nfsShare.NFSShareContent.ID))
 		}
 
 		err = stagePublishNFS(ctx, req, exportPaths, arrayID, nfsv3, nfsv4)
@@ -116,7 +116,7 @@ func (s *service) NodeStageVolume(
 	//Protocol if FC or iSCSI
 
 	volumeAPI := gounity.NewVolume(unity)
-	volume, err := volumeAPI.FindVolumeById(ctx, volID)
+	volume, err := volumeAPI.FindVolumeByID(ctx, volID)
 	if err != nil {
 		// If the volume isn't found, we cannot stage it
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Volume not found. [%v]", err))
@@ -142,7 +142,7 @@ func (s *service) NodeStageVolume(
 
 	useFC := false
 	if protocol == ISCSI {
-		ipInterfaceAPI := gounity.NewIpInterface(unity)
+		ipInterfaceAPI := gounity.NewIPInterface(unity)
 		ipInterfaces, err := ipInterfaceAPI.ListIscsiIPInterfaces(ctx)
 		if err != nil {
 			return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Error retrieving iScsi Interface IPs from the array: [%v]", err))
@@ -165,18 +165,18 @@ func (s *service) NodeStageVolume(
 		}
 
 		for _, initiator := range host.HostContent.FcInitiators {
-			hostInitiator, err := hostAPI.FindHostInitiatorById(ctx, initiator.Id)
+			hostInitiator, err := hostAPI.FindHostInitiatorByID(ctx, initiator.ID)
 			if err != nil {
 				return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find Host Initiator Failed [%v]", err))
 			}
 
 			for _, initiatorPath := range hostInitiator.HostInitiatorContent.Paths {
-				hostInitiatorPath, err := hostAPI.FindHostInitiatorPathById(ctx, initiatorPath.Id)
+				hostInitiatorPath, err := hostAPI.FindHostInitiatorPathByID(ctx, initiatorPath.ID)
 				if err != nil {
 					return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find Host Initiator Path Failed [%v]", err))
 				}
 
-				fcPort, err := hostAPI.FindFcPortById(ctx, hostInitiatorPath.HostInitiatorPathContent.FcPortID.Id)
+				fcPort, err := hostAPI.FindFcPortByID(ctx, hostInitiatorPath.HostInitiatorPathContent.FcPortID.ID)
 				if err != nil {
 					return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find Fc port Failed [%v]", err))
 				}
@@ -242,7 +242,7 @@ func (s *service) NodeUnstageVolume(
 		if err != nil {
 			// If the filesysten isn't found, k8s will retry NodeUnstage forever so...
 			// There is no way back if filesystem isn't found and so considering this scenario idempotent
-			if err == gounity.FilesystemNotFoundError {
+			if err == gounity.ErrorFilesystemNotFound {
 				log.Debugf("Filesystem %s not found on the array %s during Node Unstage. Hence considering the call to be idempotent", volID, arrayID)
 				return &csi.NodeUnstageVolumeResponse{}, nil
 			}
@@ -251,7 +251,7 @@ func (s *service) NodeUnstageVolume(
 
 		exportPaths := nfsShare.NFSShareContent.ExportPaths
 		if len(exportPaths) == 0 {
-			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Export paths not exist on NFS Share: %s", nfsShare.NFSShareContent.Id))
+			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Export paths not exist on NFS Share: %s", nfsShare.NFSShareContent.ID))
 		}
 
 		err = unpublishNFS(ctx, stageTgt, arrayID, exportPaths)
@@ -280,11 +280,11 @@ func (s *service) NodeUnstageVolume(
 	}
 
 	volumeAPI := gounity.NewVolume(unity)
-	volume, err := volumeAPI.FindVolumeById(ctx, volID)
+	volume, err := volumeAPI.FindVolumeByID(ctx, volID)
 	if err != nil {
 		// If the volume isn't found, k8s will retry NodeUnstage forever so...
 		// There is no way back if volume isn't found and so considering this scenario idempotent
-		if err == gounity.VolumeNotFoundError {
+		if err == gounity.ErrorVolumeNotFound {
 			log.Debugf("Volume %s not found on the array %s during Node Unstage. Hence considering the call to be idempotent", volID, arrayID)
 			return &csi.NodeUnstageVolumeResponse{}, nil
 		}
@@ -406,7 +406,7 @@ func (s *service) NodePublishVolume(
 		}
 		exportPaths := nfsShare.NFSShareContent.ExportPaths
 		if len(exportPaths) == 0 {
-			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Export paths not exist on NFS Share: %s", nfsShare.NFSShareContent.Id))
+			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Export paths not exist on NFS Share: %s", nfsShare.NFSShareContent.ID))
 		}
 		err = publishNFS(ctx, req, exportPaths, arrayID, s.opts.Chroot, nfsv3, nfsv4, s.opts.AllowRWOMultiPodAccess)
 		if err != nil {
@@ -425,7 +425,7 @@ func (s *service) NodePublishVolume(
 	}
 
 	volumeAPI := gounity.NewVolume(unity)
-	volume, err := volumeAPI.FindVolumeById(ctx, volID)
+	volume, err := volumeAPI.FindVolumeByID(ctx, volID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "volume with ID '%s' not found", volID))
 	}
@@ -693,7 +693,7 @@ func (s *service) NodeUnpublishVolume(
 		if err != nil {
 			// If the filesysten isn't found, k8s will retry NodeUnpublish forever so...
 			// There is no way back if filesystem isn't found and so considering this scenario idempotent
-			if err == gounity.FilesystemNotFoundError {
+			if err == gounity.ErrorFilesystemNotFound {
 				log.Debugf("Filesystem %s not found on the array %s during Node Unpublish. Hence considering the call to be idempotent", volID, arrayID)
 				return &csi.NodeUnpublishVolumeResponse{}, nil
 			}
@@ -701,7 +701,7 @@ func (s *service) NodeUnpublishVolume(
 		}
 		exportPaths := nfsShare.NFSShareContent.ExportPaths
 		if len(exportPaths) == 0 {
-			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Export paths not exist on NFS Share: %s", nfsShare.NFSShareContent.Id))
+			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Export paths not exist on NFS Share: %s", nfsShare.NFSShareContent.ID))
 		}
 
 		err = unpublishNFS(ctx, target, arrayID, exportPaths)
@@ -713,11 +713,11 @@ func (s *service) NodeUnpublishVolume(
 	}
 
 	volumeAPI := gounity.NewVolume(unity)
-	_, err = volumeAPI.FindVolumeById(ctx, volID)
+	_, err = volumeAPI.FindVolumeByID(ctx, volID)
 	if err != nil {
 		// If the volume isn't found, k8s will retry NodeUnpublish forever so...
 		// There is no way back if volume isn't found and so considering this scenario idempotent
-		if err == gounity.VolumeNotFoundError {
+		if err == gounity.ErrorVolumeNotFound {
 			log.Debugf("Volume %s not found on the array %s during Node Unpublish. Hence considering the call to be idempotent", volID, arrayID)
 			return &csi.NodeUnpublishVolumeResponse{}, nil
 		}
@@ -941,9 +941,9 @@ func (s *service) NodeGetVolumeStats(
 
 	if protocol == NFS {
 		fileAPI := gounity.NewFilesystem(unity)
-		_, err := fileAPI.FindFilesystemById(ctx, volumeID)
+		_, err := fileAPI.FindFilesystemByID(ctx, volumeID)
 		if err != nil {
-			if err == gounity.FilesystemNotFoundError {
+			if err == gounity.ErrorFilesystemNotFound {
 				resp := &csi.NodeGetVolumeStatsResponse{
 					VolumeCondition: &csi.VolumeCondition{
 						Abnormal: true,
@@ -956,9 +956,9 @@ func (s *service) NodeGetVolumeStats(
 		}
 	} else {
 		volumeAPI := gounity.NewVolume(unity)
-		_, err := volumeAPI.FindVolumeById(ctx, volumeID)
+		_, err := volumeAPI.FindVolumeByID(ctx, volumeID)
 		if err != nil {
-			if err == gounity.VolumeNotFoundError {
+			if err == gounity.ErrorVolumeNotFound {
 				resp := &csi.NodeGetVolumeStatsResponse{
 					VolumeCondition: &csi.VolumeCondition{
 						Abnormal: true,
@@ -1056,7 +1056,7 @@ func (s *service) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolum
 	}
 
 	volumeAPI := gounity.NewVolume(unity)
-	volume, err := volumeAPI.FindVolumeById(ctx, volID)
+	volume, err := volumeAPI.FindVolumeByID(ctx, volID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find volume Failed %v", err))
 	}
@@ -1168,16 +1168,16 @@ func (s *service) getNFSShare(ctx context.Context, filesystemID, arrayID string)
 
 	isSnapshot := false
 	fileAPI := gounity.NewFilesystem(unity)
-	filesystem, err := fileAPI.FindFilesystemById(ctx, filesystemID)
+	filesystem, err := fileAPI.FindFilesystemByID(ctx, filesystemID)
 	var snapResp *types.Snapshot
 	if err != nil {
 		snapshotAPI := gounity.NewSnapshot(unity)
-		snapResp, err = snapshotAPI.FindSnapshotById(ctx, filesystemID)
+		snapResp, err = snapshotAPI.FindSnapshotByID(ctx, filesystemID)
 		if err != nil {
 			return nil, false, false, err
 		}
 		isSnapshot = true
-		filesystem, err = s.getFilesystemByResourceID(ctx, snapResp.SnapshotContent.StorageResource.Id, arrayID)
+		filesystem, err = s.getFilesystemByResourceID(ctx, snapResp.SnapshotContent.StorageResource.ID, arrayID)
 		if err != nil {
 			return nil, false, false, err
 		}
@@ -1187,12 +1187,12 @@ func (s *service) getNFSShare(ctx context.Context, filesystemID, arrayID string)
 
 	for _, nfsShare := range filesystem.FileContent.NFSShare {
 		if isSnapshot {
-			if nfsShare.Path == NFSShareLocalPath && nfsShare.ParentSnap.Id == filesystemID {
-				nfsShareID = nfsShare.Id
+			if nfsShare.Path == NFSShareLocalPath && nfsShare.ParentSnap.ID == filesystemID {
+				nfsShareID = nfsShare.ID
 			}
 		} else {
-			if nfsShare.Path == NFSShareLocalPath && nfsShare.ParentSnap.Id == "" {
-				nfsShareID = nfsShare.Id
+			if nfsShare.Path == NFSShareLocalPath && nfsShare.ParentSnap.ID == "" {
+				nfsShareID = nfsShare.ID
 			}
 		}
 	}
@@ -1201,18 +1201,18 @@ func (s *service) getNFSShare(ctx context.Context, filesystemID, arrayID string)
 		return nil, false, false, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "NFS Share for filesystem: %s not found. Error: %v", filesystemID, err))
 	}
 
-	nfsShare, err := fileAPI.FindNFSShareById(ctx, nfsShareID)
+	nfsShare, err := fileAPI.FindNFSShareByID(ctx, nfsShareID)
 	if err != nil {
 		return nil, false, false, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "NFS Share: %s not found. Error: %v", nfsShareID, err))
 	}
 
-	nasServer, err := fileAPI.FindNASServerById(ctx, filesystem.FileContent.NASServer.Id)
+	nasServer, err := fileAPI.FindNASServerByID(ctx, filesystem.FileContent.NASServer.ID)
 	if err != nil {
-		return nil, false, false, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "NAS Server: %s not found. Error: %v", filesystem.FileContent.NASServer.Id, err))
+		return nil, false, false, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "NAS Server: %s not found. Error: %v", filesystem.FileContent.NASServer.ID, err))
 	}
 
 	if !nasServer.NASServerContent.NFSServer.NFSv3Enabled && !nasServer.NASServerContent.NFSServer.NFSv4Enabled {
-		return nil, false, false, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Nas Server: %s does not support NFSv3 and NFSv4. At least one of the versions should be supported", nasServer.NASServerContent.Id))
+		return nil, false, false, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Nas Server: %s does not support NFSv3 and NFSv4. At least one of the versions should be supported", nasServer.NASServerContent.ID))
 	}
 
 	return nfsShare, nasServer.NASServerContent.NFSServer.NFSv3Enabled, nasServer.NASServerContent.NFSServer.NFSv4Enabled, nil
@@ -1252,7 +1252,7 @@ func (s *service) checkFilesystemMapping(ctx context.Context, nfsShare *types.NF
 		}
 	}
 	if !hostHasAccess {
-		return status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Host: %s does not have access: %s on NFS Share: %s", host.HostContent.Name, accessType, nfsShare.NFSShareContent.Id))
+		return status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Host: %s does not have access: %s on NFS Share: %s", host.HostContent.Name, accessType, nfsShare.NFSShareContent.ID))
 	}
 	return nil
 }
@@ -1315,12 +1315,12 @@ func (s *service) getArrayHostInitiators(ctx context.Context, host *types.Host, 
 	hostAPI := gounity.NewHost(unity)
 	hostInitiators := append(hostContent.FcInitiators, hostContent.IscsiInitiators...)
 	for _, initiator := range hostInitiators {
-		initiatorID := initiator.Id
-		hostInitiator, err := hostAPI.FindHostInitiatorById(ctx, initiatorID)
+		initiatorID := initiator.ID
+		hostInitiator, err := hostAPI.FindHostInitiatorByID(ctx, initiatorID)
 		if err != nil {
 			return nil, err
 		}
-		hostInitiatorWwns = append(hostInitiatorWwns, strings.ToLower(hostInitiator.HostInitiatorContent.InitiatorId))
+		hostInitiatorWwns = append(hostInitiatorWwns, strings.ToLower(hostInitiator.HostInitiatorContent.InitiatorID))
 	}
 	return hostInitiatorWwns, nil
 }
@@ -1610,13 +1610,13 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 	//Find Host on the Array
 	host, err := hostAPI.FindHostByName(ctx, s.opts.NodeName)
 	if err != nil {
-		if err == gounity.HostNotFoundError {
+		if err == gounity.ErrorHostNotFound {
 			host, err = hostAPI.FindHostByName(ctx, s.opts.LongNodeName)
 			if err == nil {
 				fqdnHost = true
 			} else {
 				var addHostErr error
-				if err == gounity.HostNotFoundError {
+				if err == gounity.ErrorHostNotFound {
 					addHostErr = s.addNewNodeToArray(ctx, array, nodeIps, iqns, wwns)
 				} else {
 					return status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Unable to add host. Error: %v", err))
@@ -1639,7 +1639,7 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 		if fqdnHost {
 			host, err = hostAPI.FindHostByName(ctx, s.opts.LongNodeName)
 			if err != nil {
-				if err == gounity.HostNotFoundError {
+				if err == gounity.ErrorHostNotFound {
 					addHostErr := s.addNewNodeToArray(ctx, array, nodeIps, iqns, wwns)
 					if addHostErr != nil {
 						return addHostErr
@@ -1675,18 +1675,18 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 		}
 		//Check Ip of the host with Host IP Port
 		findHostNamePort := false
-		for _, ipPort := range hostContent.IpPorts {
-			hostIPPort, err := hostAPI.FindHostIpPortById(ctx, ipPort.Id)
+		for _, ipPort := range hostContent.IPPorts {
+			hostIPPort, err := hostAPI.FindHostIPPortByID(ctx, ipPort.ID)
 			if err != nil {
 				continue
 			}
-			if hostIPPort != nil && hostIPPort.HostIpContent.Address == s.opts.LongNodeName {
+			if hostIPPort != nil && hostIPPort.HostIPContent.Address == s.opts.LongNodeName {
 				findHostNamePort = true
 				continue
 			}
 			if hostIPPort != nil {
 				for i, nodeIP := range nodeIps {
-					if hostIPPort.HostIpContent.Address == nodeIP {
+					if hostIPPort.HostIPContent.Address == nodeIP {
 						nodeIps[i] = nodeIps[len(nodeIps)-1]
 						nodeIps = nodeIps[:len(nodeIps)-1]
 						break
@@ -1697,13 +1697,13 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 		var ipFormat = regexp.MustCompile(`(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}`)
 		if findHostNamePort == false {
 			//Create Host Ip Port
-			_, err = hostAPI.CreateHostIpPort(ctx, hostContent.ID, s.opts.LongNodeName)
+			_, err = hostAPI.CreateHostIPPort(ctx, hostContent.ID, s.opts.LongNodeName)
 			if err != nil {
 				return err
 			}
 		}
 		for _, nodeIP := range nodeIps {
-			_, err = hostAPI.CreateHostIpPort(ctx, hostContent.ID, nodeIP)
+			_, err = hostAPI.CreateHostIPPort(ctx, hostContent.ID, nodeIP)
 			if err != nil && !ipFormat.MatchString(s.opts.NodeName) {
 				return err
 			}
@@ -1715,7 +1715,7 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 		if err != nil {
 			log.Infof("Error copying multipath config file: %v", err)
 		}
-		ipInterfaceAPI := gounity.NewIpInterface(unity)
+		ipInterfaceAPI := gounity.NewIPInterface(unity)
 		ipInterfaces, err := ipInterfaceAPI.ListIscsiIPInterfaces(ctx)
 		if err != nil {
 			return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Error retrieving iScsi Interface IPs from the array: %v", err))
@@ -1774,7 +1774,7 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 		}
 		for eachtenant := range tenants.Entries {
 			if tenants.Entries[eachtenant].Content.Name == tenantName {
-				tenantID = tenants.Entries[eachtenant].Content.Id
+				tenantID = tenants.Entries[eachtenant].Content.ID
 			}
 		}
 	} else {
@@ -1794,13 +1794,13 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 	log.Debugf("New Host Id: %s", hostContent.ID)
 
 	//Create Host Ip Port
-	_, err = hostAPI.CreateHostIpPort(ctx, hostContent.ID, s.opts.LongNodeName)
+	_, err = hostAPI.CreateHostIPPort(ctx, hostContent.ID, s.opts.LongNodeName)
 	if err != nil {
 		return err
 	}
 	var ipFormat = regexp.MustCompile(`(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}`)
 	for _, nodeIP := range nodeIps {
-		_, err = hostAPI.CreateHostIpPort(ctx, hostContent.ID, nodeIP)
+		_, err = hostAPI.CreateHostIPPort(ctx, hostContent.ID, nodeIP)
 		if err != nil && !ipFormat.MatchString(s.opts.NodeName) {
 			return err
 		}
@@ -1936,8 +1936,8 @@ func (s *service) validateProtocols(ctx context.Context, arraysList []*StorageAr
 				if host != nil && len(host.HostContent.FcInitiators) != 0 {
 					log.Infof("Got FC Initiators, Checking health of initiators:%s", host.HostContent.FcInitiators)
 					for _, initiator := range host.HostContent.FcInitiators {
-						initiatorID := initiator.Id
-						hostInitiator, err := hostAPI.FindHostInitiatorById(ctx, initiatorID)
+						initiatorID := initiator.ID
+						hostInitiator, err := hostAPI.FindHostInitiatorByID(ctx, initiatorID)
 						if err != nil {
 							log.Infof("Unable to get initiators: %s", err)
 						}
@@ -1955,8 +1955,8 @@ func (s *service) validateProtocols(ctx context.Context, arraysList []*StorageAr
 				if host != nil && len(host.HostContent.IscsiInitiators) != 0 {
 					log.Infof("Got iSCSI Initiators, Checking health of initiators:%s", host.HostContent.IscsiInitiators)
 					for _, initiator := range host.HostContent.IscsiInitiators {
-						initiatorID := initiator.Id
-						hostInitiator, err := hostAPI.FindHostInitiatorById(ctx, initiatorID)
+						initiatorID := initiator.ID
+						hostInitiator, err := hostAPI.FindHostInitiatorByID(ctx, initiatorID)
 						if err != nil {
 							log.Infof("Unable to get initiators: %s", err)
 						}

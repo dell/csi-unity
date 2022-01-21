@@ -291,7 +291,7 @@ func (s *service) checkIfNodeIsConnected(ctx context.Context, arrayID string, no
 	if host != nil && len(host.HostContent.FcInitiators) != 0 {
 		log.Infof("Got FC Initiators, Checking health of initiators:%s", host.HostContent.FcInitiators)
 		for _, initiator := range host.HostContent.FcInitiators {
-			initiatorID := initiator.Id
+			initiatorID := initiator.ID
 			hostInitiator, err := FindHostInitiatorByID(ctx, unity, initiatorID)
 			if err != nil {
 				log.Infof("Unable to get initiators: %s", err)
@@ -316,7 +316,7 @@ func (s *service) checkIfNodeIsConnected(ctx context.Context, arrayID string, no
 	if host != nil && len(host.HostContent.IscsiInitiators) != 0 && !fcConnectivity {
 		log.Infof("Got iSCSI Initiators, Checking health of initiators:%s", host.HostContent.IscsiInitiators)
 		for _, initiator := range host.HostContent.IscsiInitiators {
-			initiatorID := initiator.Id
+			initiatorID := initiator.ID
 			hostInitiator, err := FindHostInitiatorByID(ctx, unity, initiatorID)
 			if err != nil {
 				log.Infof("Unable to get initiators: %s", err)
@@ -527,7 +527,7 @@ func (s *service) getMetrics(ctx context.Context, arrayID string, metrics []stri
 		return nil, createErr
 	}
 
-	log.Infof("Metrics collection %d created for %s", collection.Content.Id, arrayID)
+	log.Infof("Metrics collection %d created for %s", collection.Content.ID, arrayID)
 
 	// Wait a bit before trying the first query
 	time.Sleep(time.Duration(CollectionWait) * time.Millisecond)
@@ -536,16 +536,16 @@ func (s *service) getMetrics(ctx context.Context, arrayID string, metrics []stri
 	getMetricCtx, getMetricCancel := context.WithTimeout(context.Background(), MetricsTimeout)
 	defer getMetricCancel()
 	// Cache the collection Id for subsequent use (above, when there is a cache hit)
-	results, getErr := GetMetricsCollection(getMetricCtx, s, arrayID, collection.Content.Id)
+	results, getErr := GetMetricsCollection(getMetricCtx, s, arrayID, collection.Content.ID)
 	if getErr != nil {
 		return nil, getErr
 	}
-	metricsCollectionCache.Store(cacheKey, collection.Content.Id)
+	metricsCollectionCache.Store(cacheKey, collection.Content.ID)
 
 	// Reset this counter so that we can continue to "keep-alive" collections for some time.
 	refreshCount.Store(0)
 
-	log.Infof("Successfully queried metrics collection %d for %s", collection.Content.Id, arrayID)
+	log.Infof("Successfully queried metrics collection %d for %s", collection.Content.ID, arrayID)
 
 	return results, nil
 }
@@ -638,7 +638,7 @@ func getUnityClient(ctx context.Context, s *service, arrayID string) (*gounity.C
 
 func findHostInitiatorByID(ctx context.Context, unity *gounity.Client, wwnOrIqn string) (*types.HostInitiator, error) {
 	hostAPI := gounity.NewHost(unity)
-	return hostAPI.FindHostInitiatorById(ctx, wwnOrIqn)
+	return hostAPI.FindHostInitiatorByID(ctx, wwnOrIqn)
 }
 
 func getMetricsCollection(ctx context.Context, s *service, arrayID string, id int) (*types.MetricQueryResult, error) {
