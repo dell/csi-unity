@@ -30,22 +30,22 @@ import (
 //GetVolumeResponseFromVolume Utility method to convert Unity Rest type Volume to CSI standard Volume Response
 func GetVolumeResponseFromVolume(volume *types.Volume, arrayID, protocol string, preferredAccessibility []*csi.Topology) *csi.CreateVolumeResponse {
 	content := volume.VolumeContent
-	return getVolumeResponse(content.Name, protocol, arrayID, content.ResourceId, content.SizeTotal, preferredAccessibility)
+	return getVolumeResponse(content.Name, protocol, arrayID, content.ResourceID, content.SizeTotal, preferredAccessibility)
 }
 
 //GetVolumeResponseFromFilesystem Utility method to convert Unity rest Filesystem response to CSI standard Volume Response
 func GetVolumeResponseFromFilesystem(filesystem *types.Filesystem, arrayID, protocol string, preferredAccessibility []*csi.Topology) *csi.CreateVolumeResponse {
 	content := filesystem.FileContent
-	return getVolumeResponse(content.Name, protocol, arrayID, content.Id, content.SizeTotal, preferredAccessibility)
+	return getVolumeResponse(content.Name, protocol, arrayID, content.ID, content.SizeTotal, preferredAccessibility)
 }
 
 // GetVolumeResponseFromSnapshot - Get volumd from snapshot
 func GetVolumeResponseFromSnapshot(snapshot *types.Snapshot, arrayID, protocol string, preferredAccessibility []*csi.Topology) *csi.CreateVolumeResponse {
-	volID := fmt.Sprintf("%s-%s-%s-%s", snapshot.SnapshotContent.Name, protocol, arrayID, snapshot.SnapshotContent.ResourceId)
+	volID := fmt.Sprintf("%s-%s-%s-%s", snapshot.SnapshotContent.Name, protocol, arrayID, snapshot.SnapshotContent.ResourceID)
 	VolumeContext := make(map[string]string)
 	VolumeContext["protocol"] = protocol
 	VolumeContext["arrayId"] = arrayID
-	VolumeContext["volumeId"] = snapshot.SnapshotContent.ResourceId
+	VolumeContext["volumeId"] = snapshot.SnapshotContent.ResourceID
 
 	volumeReq := &csi.Volume{
 		VolumeId:           volID,
@@ -175,7 +175,7 @@ func GetHostIP() ([]string, error) {
 // GetSnapshotResponseFromSnapshot - Utility method to convert Unity Rest type Snapshot to CSI standard Snapshot Response
 func GetSnapshotResponseFromSnapshot(snap *types.Snapshot, protocol, arrayID string) *csi.CreateSnapshotResponse {
 	content := snap.SnapshotContent
-	snapID := fmt.Sprintf("%s-%s-%s-%s", content.Name, protocol, arrayID, content.ResourceId)
+	snapID := fmt.Sprintf("%s-%s-%s-%s", content.Name, protocol, arrayID, content.ResourceID)
 	var timestamp *timestamp.Timestamp
 	if !snap.SnapshotContent.CreationTime.IsZero() {
 		timestamp, _ = ptypes.TimestampProto(snap.SnapshotContent.CreationTime)
@@ -185,7 +185,7 @@ func GetSnapshotResponseFromSnapshot(snap *types.Snapshot, protocol, arrayID str
 		SizeBytes:      snap.SnapshotContent.Size,
 		ReadyToUse:     true,
 		SnapshotId:     snapID,
-		SourceVolumeId: content.StorageResource.Id,
+		SourceVolumeId: content.StorageResource.ID,
 		CreationTime:   timestamp,
 	}
 

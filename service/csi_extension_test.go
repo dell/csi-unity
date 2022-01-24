@@ -370,7 +370,7 @@ func TestValidateVolumeHostConnectivityISCSI(t *testing.T) {
 				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					return mockHost, nil
 				}
-				mockBadInitiator = mockHost.HostContent.IscsiInitiators[0].Id
+				mockBadInitiator = mockHost.HostContent.IscsiInitiators[0].ID
 			},
 			cleanup: func() {
 				testConf.service.arrays.Delete("array1")
@@ -393,7 +393,7 @@ func TestValidateVolumeHostConnectivityISCSI(t *testing.T) {
 				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					return mockHost, nil
 				}
-				mockBadInitiator = mockHost.HostContent.IscsiInitiators[0].Id
+				mockBadInitiator = mockHost.HostContent.IscsiInitiators[0].ID
 			},
 			cleanup: func() {
 				testConf.service.arrays.Delete("array1")
@@ -416,7 +416,7 @@ func TestValidateVolumeHostConnectivityISCSI(t *testing.T) {
 				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					return mockHost, nil
 				}
-				mockFindInitatorFail = mockHost.HostContent.IscsiInitiators[0].Id
+				mockFindInitatorFail = mockHost.HostContent.IscsiInitiators[0].ID
 				mockFindHostInitiatorErr = fmt.Errorf("induced FindHostInitiatorByID error")
 			},
 			cleanup: func() {
@@ -475,7 +475,7 @@ func TestValidateVolumeHostConnectivityFC(t *testing.T) {
 				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					return mockHost, nil
 				}
-				mockBadInitiator = mockHost.HostContent.FcInitiators[0].Id
+				mockBadInitiator = mockHost.HostContent.FcInitiators[0].ID
 			},
 			cleanup: func() {
 				testConf.service.arrays.Delete("array1")
@@ -498,7 +498,7 @@ func TestValidateVolumeHostConnectivityFC(t *testing.T) {
 				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					return mockHost, nil
 				}
-				mockBadInitiator = mockHost.HostContent.FcInitiators[0].Id
+				mockBadInitiator = mockHost.HostContent.FcInitiators[0].ID
 			},
 			cleanup: func() {
 				testConf.service.arrays.Delete("array1")
@@ -521,7 +521,7 @@ func TestValidateVolumeHostConnectivityFC(t *testing.T) {
 				GetHostID = func(ctx context.Context, s *service, arrayId, shortHostname, longHostname string) (*types.Host, error) {
 					return mockHost, nil
 				}
-				mockFindInitatorFail = mockHost.HostContent.FcInitiators[0].Id
+				mockFindInitatorFail = mockHost.HostContent.FcInitiators[0].ID
 				mockFindHostInitiatorErr = fmt.Errorf("induced FindHostInitiatorByID error")
 			},
 			cleanup: func() {
@@ -711,7 +711,7 @@ func TestVolumeIOCheck(t *testing.T) {
 						return mockGetMetricsCollection(ctx, s, arrayId, id)
 					}
 					result := types.MetricResult{
-						QueryId:   id,
+						QueryID:   id,
 						Path:      "sp.*.storage.filesystemSummary.clientReadBytes",
 						Timestamp: time.Now().String(),
 						Values: map[string]interface{}{
@@ -999,7 +999,7 @@ func TestFileSystemIOCheck(t *testing.T) {
 						return mockNfsMetricResult(id, read, write), nil
 					}
 					result := types.MetricResult{
-						QueryId:   id,
+						QueryID:   id,
 						Path:      "sp.*.storage.lun.*.currentIOs",
 						Timestamp: time.Now().String(),
 						Values: map[string]interface{}{
@@ -1419,7 +1419,7 @@ func TestParallelIOCheck(t *testing.T) {
 				Expiration:     "mockExpiration",
 				Interval:       interval,
 				Paths:          metricPaths,
-				Id:             2,
+				ID:             2,
 			},
 		}, nil
 	}
@@ -1528,7 +1528,7 @@ func TestMetricsRefresher(t *testing.T) {
 				Expiration:     "mockExpiration",
 				Interval:       interval,
 				Paths:          metricPaths,
-				Id:             2,
+				ID:             2,
 			},
 		}, nil
 	}
@@ -1739,11 +1739,11 @@ func mockStorage(ctx context.Context) *StorageArrayConfig {
 func mockAHost(name string, iScsiPorts, fcPorts int) *types.Host {
 	mockISCSI := make([]types.Initiators, 0)
 	for i := 0; i < iScsiPorts; i++ {
-		mockISCSI = append(mockISCSI, types.Initiators{Id: fmt.Sprintf("mock_%s_iscsi_initiator_%d", name, i)})
+		mockISCSI = append(mockISCSI, types.Initiators{ID: fmt.Sprintf("mock_%s_iscsi_initiator_%d", name, i)})
 	}
 	mockFC := make([]types.Initiators, 0)
 	for i := 0; i < fcPorts; i++ {
-		mockFC = append(mockFC, types.Initiators{Id: fmt.Sprintf("mock_%s_fc_initiator_%d", name, i)})
+		mockFC = append(mockFC, types.Initiators{ID: fmt.Sprintf("mock_%s_fc_initiator_%d", name, i)})
 	}
 	mockHost := &types.Host{
 		HostContent: types.HostContent{
@@ -1752,7 +1752,7 @@ func mockAHost(name string, iScsiPorts, fcPorts int) *types.Host {
 			Description:     fmt.Sprintf("Mock test host %s", name),
 			FcInitiators:    mockFC,
 			IscsiInitiators: mockISCSI,
-			IpPorts:         nil,
+			IPPorts:         nil,
 			Address:         fmt.Sprintf("%s.host.name", name),
 		},
 	}
@@ -1774,12 +1774,12 @@ func mockAnInitiator(id string) *types.HostInitiator {
 
 	return &types.HostInitiator{
 		HostInitiatorContent: types.HostInitiatorContent{
-			Id: id,
+			ID: id,
 			Health: types.HealthContent{
 				DescriptionIDs: descriptions,
 			},
 			Type:        0,
-			InitiatorId: id,
+			InitiatorID: id,
 			IsIgnored:   false,
 			Paths:       nil,
 		},
@@ -1803,7 +1803,7 @@ func mockCreateMetricsCollection(ctx context.Context, s *service, arrayID string
 			Expiration:     "mockExpiration",
 			Interval:       interval,
 			Paths:          metricPaths,
-			Id:             mockMetricsCollectionID,
+			ID:             mockMetricsCollectionID,
 		},
 	}
 	return mockCollection, mockCreateMetricsCollectionError
@@ -1811,7 +1811,7 @@ func mockCreateMetricsCollection(ctx context.Context, s *service, arrayID string
 
 func mockVolMetricResult(id int, currentIOs map[string]interface{}) *types.MetricQueryResult {
 	result := types.MetricResult{
-		QueryId:   id,
+		QueryID:   id,
 		Path:      "sp.*.storage.lun.*.currentIOs",
 		Timestamp: time.Now().String(),
 		Values:    currentIOs,
@@ -1836,14 +1836,14 @@ func mockVolMetricResult(id int, currentIOs map[string]interface{}) *types.Metri
 
 func mockNfsMetricResult(id int, read, write map[string]interface{}) *types.MetricQueryResult {
 	resultR := types.MetricResult{
-		QueryId:   id,
+		QueryID:   id,
 		Path:      "sp.*.storage.filesystem.*.clientReads",
 		Timestamp: time.Now().String(),
 		Values:    read,
 	}
 
 	resultW := types.MetricResult{
-		QueryId:   id,
+		QueryID:   id,
 		Path:      "sp.*.storage.filesystem.*.clientWrites",
 		Timestamp: time.Now().String(),
 		Values:    write,
