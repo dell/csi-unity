@@ -531,7 +531,7 @@ func (s *service) ephemeralNodePublishVolume(
 	}
 	log.Debug("Ephemeral Node Publish Successful")
 
-	f, err := os.Create(path.Join(stagingMountPath, "id"))
+	f, err := os.Create(filepath.Clean(path.Join(stagingMountPath, "id")))
 	if err != nil {
 		//Call Ephemeral Node Unpublish for recovery
 		_, _ = s.ephemeralNodeUnpublish(ctx, nodeUnpublishRequest, req.VolumeId)
