@@ -139,7 +139,7 @@ spec:
             capabilities:
               add: ["SYS_ADMIN"]
             allowPrivilegeEscalation: true
-          image: "{{ required "Must provide the driver image repository." .Values.images.driverRepository }}/{{ .Chart.Name }}:v{{ .Values.version }}"
+          image: "{{ required "Must provide the driver image repository." .Values.images.driverRepository }}/{{ .Chart.Name }}:{{ .Values.version }}"
           args:
             - "--driver-name=csi-unity.dellemc.com"
             - "--driver-config=/unity-config/driver-config-params.yaml"
