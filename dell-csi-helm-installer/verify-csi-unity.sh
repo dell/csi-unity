@@ -14,7 +14,7 @@ function verify-csi-unity() {
   verify_openshift_versions "4.8" "4.9"
   verify_namespace "${NS}"
   verify_required_secrets "${RELEASE}-creds"
-  verify_required_secrets "${RELEASE}-certs-0"
+  verify_optional_secrets "${RELEASE}-certs"
   verify_alpha_snap_resources
   verify_unity_protocol_installation
   verify_snap_requirements  
