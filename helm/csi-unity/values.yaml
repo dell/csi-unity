@@ -76,11 +76,11 @@ controller:
   nodeSelector:
 
   # tolerations: Define tolerations for the controllers, if required.
+  # Leave as blank to install controller on worker nodes
   # Default value: None
   tolerations:
   #  - key: "node-role.kubernetes.io/master"
-  #    operator: "Equal"
-  #    value: "true"
+  #    operator: "Exists"
   #    effect: "NoSchedule"
 
   volumeHealthMonitor:
