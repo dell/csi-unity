@@ -43,7 +43,7 @@ Return the appropriate sidecar images based on k8s version
 
 {{- define "csi-unity.healthmonitorImage" -}}
   {{- if eq .Capabilities.KubeVersion.Major "1" }}
-    {{- else if and (ge (trimSuffix "+" .Capabilities.KubeVersion.Minor) "21") (le (trimSuffix "+" .Capabilities.KubeVersion.Minor) "23") -}}
+    {{- if and (ge (trimSuffix "+" .Capabilities.KubeVersion.Minor) "21") (le (trimSuffix "+" .Capabilities.KubeVersion.Minor) "23") -}}
       {{- print "gcr.io/k8s-staging-sig-storage/csi-external-health-monitor-controller:v0.4.0" -}}
     {{- end -}}
   {{- end -}}
