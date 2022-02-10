@@ -33,7 +33,7 @@ kubeletConfigDir: /var/lib/kubelet
 #To set nodeSelectors and tolerations for controller.
 # controller: configure controller pod specific parameters
 controller:
-  # controllerCount: defines the number of csi-powerscale controller pods to deploy to
+  # controllerCount: defines the number of csi-unity controller pods to deploy to
   # the Kubernetes release.
   # Allowed values: n, where n > 0
   # Default value: None
@@ -76,11 +76,11 @@ controller:
   nodeSelector:
 
   # tolerations: Define tolerations for the controllers, if required.
+  # Leave as blank to install controller on worker nodes
   # Default value: None
   tolerations:
   #  - key: "node-role.kubernetes.io/master"
-  #    operator: "Equal"
-  #    value: "true"
+  #    operator: "Exists"
   #    effect: "NoSchedule"
 
   volumeHealthMonitor:
