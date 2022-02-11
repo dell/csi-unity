@@ -53,7 +53,7 @@ parameters:
   # Default value: None
   # Examples: "APM000000001", "APM000000002"
   arrayId: <ARRAY_ID>
-  #storagePool - Defines Storage pool, the value from the storage array GUI Pools column labeled "CLI ID".
+  #storagePool - Defines the value from Pools which should be picked from the column labeled "CLI ID"  in the storage array GUI.
   # Allowed values: String
   # Default value: None
   # Optional: false
@@ -68,10 +68,10 @@ parameters:
   thinProvisioned: true
   #isDataReductionEnabled - Defines Boolean to choose value of is DataReductionEnabled while creating a new volume
   # Allowed values: 
-  #    true      - to enable data reduction for all-flash storage pool.
-  #    false     - to disable data reduction for any storage pool.
-  # Default value: false
+  #    true      - Enables data reduction for all-flash storage pool.
+  #    false     - Disables data reduction.
   # Optional: true
+  # Default value: false
   isDataReductionEnabled: true
   #TieringPolicy - Tiering policy to be used during provisioning
   #                Requires FAST VP license.
@@ -106,8 +106,9 @@ allowedTopologies:
       - key: csi-unity.dellemc.com/<array_id>-nfs
         values:
           - "true"
-# mountOptions - Defines mount input values
+# mountOptions - Defines mount input values.
 # Default value: []
 # Optional: false
-# Examples: "hard" mount with NFS , "context" mount for block storage
+# Examples: "hard"    - option for mounting with NFS
+#           "context" - option for mounting with block storage
 mountOptions: ["<mountOption1>", "<mountOption2>", ..., "<mountOptionN>"]
