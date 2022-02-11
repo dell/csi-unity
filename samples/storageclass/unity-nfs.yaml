@@ -53,7 +53,7 @@ parameters:
   # Default value: None
   # Examples: "APM000000001", "APM000000002"
   arrayId: <ARRAY_ID>
-  #storagePool - Defines the value from Pools which should be picked from the column labeled "CLI ID"  in the storage array GUI.
+  #storagePool - Defines storage pool. The value should be picked from the column labeled "CLI ID" of Pools in the Unisphere GUI.
   # Allowed values: String
   # Default value: None
   # Optional: false
@@ -85,7 +85,7 @@ parameters:
   #   "2" for "Highest Available Tier"
   #   "3" for "Lowest Available Tier"
   tieringPolicy: <TIERING_POLICY>
-  # nasServer - Defines the value from NAS Servers which should be picked from the column labeled "CLI ID"  in the storage array GUI.
+  # nasServer - Defines storage NAS Servers. The value should be picked from the column labeled "CLI ID" of NAS Servers tab in the Unisphere GUI.
   # Default value: None
   # Optional: false
   # Examples : nasserver_0
@@ -109,6 +109,7 @@ allowedTopologies:
 # mountOptions - Defines mount input values.
 # Default value: []
 # Optional: false
-# Examples: "hard"    - option for mounting with NFS
-#           "context" - option for mounting with block storage
+# Examples:
+#   "hard"    - option for mounting with NFS
+#   "context" - option for mounting with block storage
 mountOptions: ["<mountOption1>", "<mountOption2>", ..., "<mountOptionN>"]

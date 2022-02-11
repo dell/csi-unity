@@ -56,7 +56,7 @@ parameters:
   # Optional: false
   # Examples: "APM000000001", "APM000000002"
   arrayId: <ARRAY_ID>
-  #storagePool - Defines the value from Pools which should be picked from the column labeled "CLI ID"  in the storage array GUI.
+  #storagePool - Defines storage pool. The value should be picked from the column labeled "CLI ID" of Pools in the Unisphere GUI.
   # Allowed values: String
   # Default value: None
   # Optional: false
@@ -108,6 +108,7 @@ allowedTopologies:
 # mountOptions - Defines mount input values.
 # Default value: []
 # Optional: false
-# Examples: "hard"    - option for mounting with NFS
-#           "context" - option for mounting with block storage
+# Examples:
+#   "hard"    - option for mounting with NFS
+#   "context" - option for mounting with block storage
 mountOptions: ["<mountOption1>", "<mountOption2>", ..., "<mountOptionN>"]
