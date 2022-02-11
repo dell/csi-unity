@@ -56,7 +56,7 @@ parameters:
   # Optional: false
   # Examples: "APM000000001", "APM000000002"
   arrayId: <ARRAY_ID>
-  #storagePool - Define Storage pool CLI Id of the storage array.
+  #storagePool - Defines Storage pool, the value from the storage array GUI Pools column labeled "CLI ID".
   # Allowed values: String
   # Default value: None
   # Optional: false
@@ -71,16 +71,22 @@ parameters:
   thinProvisioned: true 
   #isDataReductionEnabled - Defines Boolean to choose value of is DataReductionEnabled while creating a new volume
   # Allowed values: 
-  #    true      - to enable data reduction
-  #    false     - to disable data reduction
+  #    true      - to enable data reduction for all-flash storage pool.
+  #    false     - to disable data reduction for any storage pool.
   # Optional: true
   # Default value: false
   isDataReductionEnabled: true
-  #tieringPolicy - Define Tiering policy that is to be used for provisioning
+  #TieringPolicy - Tiering policy to be used during provisioning
+  #                Requires FAST VP license.
   # Allowed values: String
   # Optional: true
-  # Default value: None
   # Examples: "0"
+  # Default value: None
+  # Accepted values:
+  #   "0" for "Start High Then Auto-Tier"
+  #   "1" for "Auto-Tier"
+  #   "2" for "Highest Available Tier"
+  #   "3" for "Lowest Available Tier"
   tieringPolicy: <TIERING_POLICY>
   # hostIOLimitName- Insert Host IO Limit Name that is to be used for provisioning here. 
   # Allowed values: String
@@ -92,13 +98,15 @@ parameters:
 # Allowed values: map of key-value pairs
 # Optional: false
 # Default value: None
+# Examples: "apm0020280XXXX" , "apm0021340XXXX"
+# Here first three characters  should be in small letters.
 allowedTopologies:
   - matchLabelExpressions:
       - key: csi-unity.dellemc.com/<array_id>-fc
         values:
           - "true"
-# mountOptions - Defines mount input vlaues
+# mountOptions - Defines mount input values
+# Default value: []
 # Optional: false
-# Default value: None
-# Examples: "/dev/sdc", "/dev/unity"        
+# Examples: "hard" mount with NFS , "context" mount for block storage
 mountOptions: ["<mountOption1>", "<mountOption2>", ..., "<mountOptionN>"]
