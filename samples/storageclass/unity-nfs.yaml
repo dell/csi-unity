@@ -85,7 +85,7 @@ parameters:
   #   "2" for "Highest Available Tier"
   #   "3" for "Lowest Available Tier"
   tieringPolicy: <TIERING_POLICY>
-  # nasServer - Define NAS Server,the value from the storage array GUI nasServer column labeled "CLI ID" .
+  # nasServer - Defines the value from NAS Servers which should be picked from the column labeled "CLI ID"  in the storage array GUI.
   # Default value: None
   # Optional: false
   # Examples : nasserver_0
