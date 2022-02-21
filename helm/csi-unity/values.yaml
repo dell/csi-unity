@@ -126,7 +126,7 @@ podmon:
   # allowed values - string
   # default value : None
   # Example : "podman:latest", "pod:latest"
-  image:
+  image: dellemc/podmon:v1.0.1
 #  controller:
 #    args:
 #      - "--csisock=unix:/var/run/csi/csi.sock"
