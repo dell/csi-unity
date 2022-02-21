@@ -133,6 +133,7 @@ podmon:
 #      - "--labelvalue=csi-unity"
 #      - "--driverPath=csi-unity.dellemc.com"
 #      - "--mode=controller"
+#      - "--skipArrayConnectionValidation=false"
 #      - "--driver-config-params=/unity-config/driver-config-params.yaml"
 #  node:
 #    args:
