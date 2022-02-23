@@ -1,10 +1,10 @@
 # This is a sample manifest for utilizing the topology feature and mount options.
-# PVCs created using this storage class will be scheduled 
+# PVCs created using this storage class will be scheduled
 # only on the nodes with FC connectivity to the array
 
 # Change all instances of <ARRAY_ID> to the array serial ID of the unisphere instance used
 
-# Provide mount options through "mountOptions" attribute 
+# Provide mount options through "mountOptions" attribute
 # to create PVCs with mount options.
 
 apiVersion: storage.k8s.io/v1
@@ -33,7 +33,7 @@ reclaimPolicy: Delete
 allowVolumeExpansion: true
 # volumeBindingMode- controls when volume binding and dynamic provisioning should occur.
 # Allowed values:
-#   Immediate- indicates that volume binding and dynamic provisioning 
+#   Immediate- indicates that volume binding and dynamic provisioning
 #              occurs once the PersistentVolumeClaim is created
 #   WaitForFirstConsumer- will delay the binding and provisioning of a PersistentVolume
 #              until a Pod using the PersistentVolumeClaim is created
@@ -61,21 +61,21 @@ parameters:
   # Default value: None
   # Optional: false
   # Examples: pool_0
-  storagePool: <STORAGE_POOL> 
+  storagePool: <STORAGE_POOL>
   #thinProvisioned- Defines Boolean to choose value of thinProvisioned while creating a new volume
-  # Allowed values: 
-  #    true      - for thin provision
-  #    false     - for thick provision
+  # Allowed values:
+  #    "true"      - for thin provision
+  #    "false"     - for thick provision
   # Optional: true
   # Default value: false
-  thinProvisioned: true 
+  thinProvisioned: "true"
   #isDataReductionEnabled - Defines Boolean to choose value of is DataReductionEnabled while creating a new volume
-  # Allowed values: 
-  #    true      - Enables data reduction for all-flash storage pool.
-  #    false     - Disables data reduction.
+  # Allowed values:
+  #    "true"      - Enables data reduction for all-flash storage pool.
+  #    "false"     - Disables data reduction.
   # Optional: true
   # Default value: false
-  isDataReductionEnabled: true
+  isDataReductionEnabled: "true"
   #TieringPolicy - Tiering policy to be used during provisioning
   #                Requires FAST VP license.
   # Allowed values: String
@@ -88,12 +88,18 @@ parameters:
   #   "2" for "Highest Available Tier"
   #   "3" for "Lowest Available Tier"
   tieringPolicy: <TIERING_POLICY>
-  # hostIOLimitName- Insert Host IO Limit Name that is to be used for provisioning here. 
+  # hostIOLimitName - Insert Host IO Limit Name that is to be used for provisioning here.
   # Allowed values: String
   # Optional: true
   # Default value: None
   # Examples: "Autotier"
   hostIOLimitName: <HOST_IO_LIMIT_NAME>
+  # csi.storage.k8s.io/fstype - Set the filesystem type to format the new volume
+  # Default value: ext4
+  # Accepted values:
+  #   "ext4"
+  #   "xfs"
+  csi.storage.k8s.io/fstype: xfs
 # Restrict provisioning to specific topologies
 # Allowed values: map of key-value pairs
 # Optional: false
