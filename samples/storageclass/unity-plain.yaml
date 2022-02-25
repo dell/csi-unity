@@ -11,11 +11,11 @@ reclaimPolicy: Delete
 allowVolumeExpansion: true
 # volumeBindingMode- controls when volume binding and dynamic provisioning should occur.
 # Allowed values:
-#   Immediate- indicates that volume binding and dynamic provisioning 
+#   Immediate- indicates that volume binding and dynamic provisioning
 #              occurs once the PersistentVolumeClaim is created
 volumeBindingMode: Immediate
 parameters:
-  protocol: iSCSI 
+  protocol: iSCSI
     # arrayId - Serial Id of the array that will be used for provisioning.
   # Allowed values: String
   # Default value: None
@@ -26,19 +26,25 @@ parameters:
   # Allowed values: String
   # Default value: None
   # Optional: false
-  # Examples: pool_0 
+  # Examples: pool_0
   storagePool: <STORAGE_POOL>
-  thinProvisioned: true
-  isDataReductionEnabled: true
+  thinProvisioned: "true"
+  isDataReductionEnabled: "true"
   #tieringPolicy - Define Tiering policy that is to be used for provisioning
   # Allowed values: integer
   # Default value: None
   # Optional: false
   # Examples: 0
-  tieringPolicy: <TIERING_POLICY> 
-  # hostIOLimitName- Insert Host IO Limit Name that is to be used for provisioning here. 
+  tieringPolicy: <TIERING_POLICY>
+  # hostIOLimitName- Insert Host IO Limit Name that is to be used for provisioning here.
   # Allowed values: String
   # Default value: None
   # Optional: false
   # Examples: "Autotyre"
-  hostIOLimitName: <HOST_IO_LIMIT_NAME> 
+  hostIOLimitName: <HOST_IO_LIMIT_NAME>
+  # csi.storage.k8s.io/fstype - Set the filesystem type to format the new volume
+  # Default value: ext4
+  # Accepted values:
+  #   "ext4"
+  #   "xfs"
+  csi.storage.k8s.io/fstype: ext4
