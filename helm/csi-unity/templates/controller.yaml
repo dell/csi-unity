@@ -269,7 +269,7 @@ spec:
               value: /certs
             {{- if hasKey .Values.controller "healthMonitor" }}
             {{- if eq .Values.controller.healthMonitor.enabled true }}
-            - name: X_CSI_ENABLE_VOL_HEALTH_MONITOR
+            - name: X_CSI_HEALTH_MONITOR_ENABLED
               value: "{{ .Values.controller.healthMonitor.enabled }}"
             {{- end }}
             {{- end }}
