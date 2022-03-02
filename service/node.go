@@ -994,7 +994,7 @@ func (s *service) NodeGetVolumeStats(
 	}
 
 	// get volume metrics for mounted volume path
-	availableBytes, totalBytes, usedBytes, totalInodes, freeInodes, usedInodes, err := gofsutil.FsInfo(ctx,volumePath)
+	availableBytes, totalBytes, usedBytes, totalInodes, freeInodes, usedInodes, err := gofsutil.FsInfo(ctx, volumePath)
 	if err != nil {
 		return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "failed to get metrics for volume with error: %v", err))
 	}
