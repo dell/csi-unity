@@ -26,7 +26,6 @@ import (
 	"github.com/dell/gounity/types"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/kubernetes/pkg/volume/util/fs"
 )
 
 // Variables that can be used across module
@@ -995,7 +994,7 @@ func (s *service) NodeGetVolumeStats(
 	}
 
 	// get volume metrics for mounted volume path
-	availableBytes, totalBytes, usedBytes, totalInodes, freeInodes, usedInodes, err := fs.Info(volumePath)
+	availableBytes, totalBytes, usedBytes, totalInodes, freeInodes, usedInodes, err := gofsutil.FsInfo(ctx, volumePath)
 	if err != nil {
 		return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "failed to get metrics for volume with error: %v", err))
 	}

@@ -83,7 +83,7 @@ controller:
   #    operator: "Exists"
   #    effect: "NoSchedule"
 
-  volumeHealthMonitor:
+  healthMonitor:
     # enabled: Enable/Disable health monitor of CSI volumes- volume state, volume condition
     # Allowed values:
     #   true: enable checking of health condition of CSI volumes
@@ -105,7 +105,7 @@ node:
   # Default value: None
   dnsPolicy: "ClusterFirstWithHostNet"
 
-  volumeHealthMonitor:
+  healthMonitor:
     # enabled: Enable/Disable health monitor of CSI Volumes - volume usage
     # Allowed values:
     #   true: enable checking of health condition of CSI volumes
