@@ -74,16 +74,14 @@ spec:
         app: {{ .Release.Name }}-node
     spec:
       serviceAccountName: {{ .Release.Name }}-node
+      {{- if .Values.node.nodeSelector }}
+      nodeSelector:
+      {{- toYaml .Values.node.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- if .Values.node.tolerations }}
       tolerations:
-        - key: "node.kubernetes.io/memory-pressure"
-          operator: "Exists"
-          effect: "NoExecute"
-        - key: "node.kubernetes.io/disk-pressure"
-          operator: "Exists"
-          effect: "NoExecute"
-        - key: "node.kubernetes.io/network-unavailable"
-          operator: "Exists"
-          effect: "NoExecute"
+      {{- toYaml .Values.node.tolerations | nindent 8 }}
+      {{- end }}
       hostIPC: true
       hostNetwork: true
       dnsPolicy: {{ .Values.node.dnsPolicy }}
