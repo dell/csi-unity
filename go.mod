@@ -90,6 +90,10 @@ require (
 
 replace (
 	github.com/dell/gounity => github.com/dell/gounity v1.8.1-0.20220117113341-b5ac52a19020
+	github.com/dell/gobrick => github.com/dell/gobrick v1.2.1-0.20220224111903-717383a5e97e
+	github.com/dell/goiscsi => github.com/dell/goiscsi v1.2.1-0.20220222054507-9cc2d02a05dd
+	github.com/dell/gocsi => github.com/dell/gocsi v1.5.1-0.20220218201557-b18545e234c3
+	google.golang.org/grpc => google.golang.org/grpc v1.43.0
 	k8s.io/api => k8s.io/api v0.20.2
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.2
 	k8s.io/apimachinery => k8s.io/apimachinery v0.20.2
