@@ -8,7 +8,7 @@ require (
 	github.com/dell/dell-csi-extensions/podmon v1.0.0
 	github.com/dell/gobrick v1.2.0
 	github.com/dell/gocsi v1.5.0
-	github.com/dell/gofsutil v1.7.1-0.20220204052137-9928a2dc48d8
+	github.com/dell/gofsutil v1.7.0
 	github.com/dell/goiscsi v1.2.0
 	github.com/dell/gounity v1.8.0
 	github.com/fsnotify/fsnotify v1.4.9
@@ -84,6 +84,7 @@ require (
 )
 
 replace (
+	github.com/dell/gofsutil => github.com/dell/gofsutil v1.7.1-0.20220204052137-9928a2dc48d8
 	github.com/dell/gounity => github.com/dell/gounity v1.8.1-0.20220117113341-b5ac52a19020
 	k8s.io/api => k8s.io/api v0.20.2
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.2
