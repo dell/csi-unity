@@ -33,7 +33,7 @@ require (
 	github.com/cucumber/gherkin-go/v11 v11.0.0 // indirect
 	github.com/cucumber/messages-go/v10 v10.0.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dell/gonvme v0.0.0-20220224072409-dcb82cef802a // indirect
+	github.com/dell/gonvme v1.0.0 // indirect
 	github.com/go-logr/logr v0.4.0 // indirect
 	github.com/gofrs/uuid v3.2.0+incompatible // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
