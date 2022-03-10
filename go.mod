@@ -6,10 +6,10 @@ require (
 	github.com/container-storage-interface/spec v1.5.0
 	github.com/cucumber/godog v0.10.0
 	github.com/dell/dell-csi-extensions/podmon v1.0.0
-	github.com/dell/gobrick v1.2.0
-	github.com/dell/gocsi v1.5.0
-	github.com/dell/gofsutil v1.7.0
-	github.com/dell/goiscsi v1.2.0
+	github.com/dell/gobrick v1.3.0
+	github.com/dell/gocsi v1.5.1
+	github.com/dell/gofsutil v1.8.0
+	github.com/dell/goiscsi v1.3.0
 	github.com/dell/gounity v1.9.0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/golang/protobuf v1.5.2
@@ -85,11 +85,6 @@ require (
 )
 
 replace (
-	github.com/dell/gobrick => github.com/dell/gobrick v1.2.1-0.20220224111903-717383a5e97e
-	github.com/dell/gocsi => github.com/dell/gocsi v1.5.1-0.20220218201557-b18545e234c3
-	github.com/dell/gofsutil => github.com/dell/gofsutil v1.7.1-0.20220204052137-9928a2dc48d8
-	github.com/dell/goiscsi => github.com/dell/goiscsi v1.2.1-0.20220222054507-9cc2d02a05dd
-	google.golang.org/grpc => google.golang.org/grpc v1.43.0
 	k8s.io/api => k8s.io/api v0.20.2
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.2
 	k8s.io/apimachinery => k8s.io/apimachinery v0.20.2
