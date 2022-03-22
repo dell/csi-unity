@@ -25,20 +25,7 @@ COPY csi-unity/scripts/run.sh /
 RUN chmod 777 /run.sh
 ENTRYPOINT ["/run.sh"]
 
-# Stage to check for critical and high CVE issues via Trivy (https://github.com/aquasecurity/trivy)
-# will break image build if CRITICAL issues found
-# will print out all HIGH issues found
-FROM driver as trivy-ubi
 RUN microdnf install -y tar
-
-FROM trivy-ubi as trivy
-COPY ./csi-unity/.trivyignore .
-RUN curl https://raw.githubusercontent.com/aquasecurity/trivy/master/contrib/install.sh | sh
-RUN trivy fs -s CRITICAL --exit-code 1 / && \
-    trivy fs -s HIGH / && \
-    trivy image --reset && \
-    rm ./bin/trivy && \
-    rm ./.trivyignore
 
 # final stage
 FROM driver as final
