@@ -124,6 +124,9 @@ spec:
             - name: driver-path
               mountPath: {{ .Values.kubeletConfigDir }}/plugins/unity.emc.dell.com
               mountPropagation: "Bidirectional"
+            - name: volumedevices-path
+              mountPath: {{ .Values.kubeletConfigDir }}/plugins/kubernetes.io/csi
+              mountPropagation: "Bidirectional"
             - name: usr-bin
               mountPath: /usr-bin
             - name: var-run
