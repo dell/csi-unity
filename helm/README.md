@@ -11,7 +11,7 @@ The general outline is:
     3. Make a copy of the `csi-unity/values.yaml` to the location of your choice(say csi-unity/myvalues.yaml) and fill in various installation parameters.
 
     4. Run the helm install command, first using the --dry-run flag to confirm various parameters are as desired.
-       Once the parameteres are validated, run the command without the --dry-run flag.
+       Once the parameters are validated, run the command without the --dry-run flag.
        Note: The below example assumes that the user is at repo root helm folder i.e csi-unity/helm.
               
        Syntax: helm install --dry-run --values <myvalues.yaml location> --namespace <namespace> <name of secret> <helmPath>
