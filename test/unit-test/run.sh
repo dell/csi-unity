@@ -1,6 +1,6 @@
 #!/bin/sh
 # This will run coverage analysis using the integration testing.
-# The env.sh must point to a valid Unity Array# on this system.
+# The env.sh must point to a valid Unity XT Array# on this system.
 
 rm -f /root/go/bin/csi.sock
 source ../../env.sh

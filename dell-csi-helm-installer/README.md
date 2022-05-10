@@ -8,9 +8,9 @@ These same scripts are present in all Dell EMC Container Storage Interface ([CSI
 * [PowerMax](https://github.com/dell/csi-powermax)
 * [PowerScale](https://github.com/dell/csi-powerscale)
 * [PowerStore](https://github.com/dell/csi-powerstore)
-* [Unity](https://github.com/dell/csi-unity)
+* [Unity XT](https://github.com/dell/csi-unity)
 
-NOTE: This documentation uses the Unity driver as an example. If working with a different driver, substitute the name as appropriate.
+NOTE: This documentation uses the Unity XT driver as an example. If working with a different driver, substitute the name as appropriate.
 
 ## Dependencies
 
@@ -39,7 +39,7 @@ Most of these usages require the creation/specification of a values file. These 
 1. Copy a template file for the driver to a new location, naming this new file is at the users discretion. The template files are always found within the driver repo at `helm/csi-<drivername>/values.yaml`
 2. Edit the file such that it contains the proper configuration settings for the specific environment. These files are yaml formatted so maintaining the file structure is important.
 
-For example, to create a values file for the Unity driver the following steps can be executed
+For example, to create a values file for the Unity XT driver the following steps can be executed
 ```
 # cd to  the installation script directory
 cd dell-csi-helm-installer
@@ -82,7 +82,7 @@ Options:
 
 ### Upgrade A Driver
 
-Upgrading a driver is very similar to installation. The `csi-install.sh` script is run, with the same required arguments, along with a `--upgrade` argument. For example, to upgrade the previously installed Unity driver, the following command can be supplied:
+Upgrading a driver is very similar to installation. The `csi-install.sh` script is run, with the same required arguments, along with a `--upgrade` argument. For example, to upgrade the previously installed Unity XT driver, the following command can be supplied:
 
 ```
 ./csi-install.sh --namespace unity --values ./my-unity-settings.yaml --upgrade
@@ -109,7 +109,7 @@ Options:
 
 ### Uninstall A Driver
 
-To uninstall a driver, the `csi-uninstall.sh` script provides a handy wrapper around the `helm` utility. The only required argument for uninstallation is the namespace name. To uninstall the Unity driver:
+To uninstall a driver, the `csi-uninstall.sh` script provides a handy wrapper around the `helm` utility. The only required argument for uninstallation is the namespace name. To uninstall the Unity XT driver:
 
 ```
 ./csi-uninstall.sh --namespace unity

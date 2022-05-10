@@ -10,7 +10,7 @@ This includes the following drivers:
 * [PowerMax](https://github.com/dell/csi-powermax)
 * [PowerScale](https://github.com/dell/csi-powerscale)
 * [PowerStore](https://github.com/dell/csi-powerstore)
-* [Unity](https://github.com/dell/csi-unity)
+* [Unity XT](https://github.com/dell/csi-unity)
 
 As well as the Dell CSI Operator
 * [Dell CSI Operator](https://github.com/dell/dell-csi-operator)

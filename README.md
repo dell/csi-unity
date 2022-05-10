@@ -27,11 +27,11 @@ To run unit tests, execute `make unit-test`.
 
 To build a podman based image, execute `make podman-build`.
 
-You can run an integration test on a Linux system by populating the env files at `test/integration/` with values for your DellEMC Unity systems and then run `make integration-test`.
+You can run an integration test on a Linux system by populating the env files at `test/integration/` with values for your Dell Unity XT systems and then run `make integration-test`.
 
 
 ## Runtime Dependencies
-Both the Controller and the Node portions of the driver can only be run on nodes which have network connectivity to “`Unisphere for Unity`” (which is used by the driver).
+Both the Controller and the Node portions of the driver can only be run on nodes which have network connectivity to “`Unisphere for Unity XT`” (which is used by the driver).
 
 ## Driver Installation
 Please consult the [Installation Guide](https://dell.github.io/csm-docs/docs/csidriver/installation)

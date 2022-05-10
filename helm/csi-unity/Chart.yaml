@@ -6,9 +6,9 @@ kubeVersion: ">= 1.21.0 < 1.24.0"
 # WARNING: this version of the check will allow the use of alpha and beta versions, which is NOT SUPPORTED
 # kubeVersion: ">= 1.21.0-0 < 1.24.0-0"
 description: |
-  Unity CSI (Container Storage Interface) driver Kubernetes
+  Unity XT CSI (Container Storage Interface) driver Kubernetes
   integration. This chart includes everything required to provision via CSI as
-  well as a Unity StorageClass.
+  well as a Unity XT StorageClass.
 keywords:
 - csi
 - storage
