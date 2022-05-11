@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Dell EMC Corporation
+Copyright (c) 2021 Dell Corporation
 All Rights Reserved
 */
 

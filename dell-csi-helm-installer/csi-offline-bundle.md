@@ -1,8 +1,8 @@
-# Offline Installation of Dell EMC CSI Storage Providers
+# Offline Installation of Dell CSI Storage Providers
 
 ## Description
 
-The `csi-offline-bundle.sh` script can be used to create a package usable for offline installation of the Dell EMC CSI Storage Providers, via either Helm 
+The `csi-offline-bundle.sh` script can be used to create a package usable for offline installation of the Dell CSI Storage Providers, via either Helm 
 or the Dell CSI Operator. 
 
 This includes the following drivers:

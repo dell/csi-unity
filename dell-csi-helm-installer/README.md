@@ -1,9 +1,9 @@
-# Helm Installer for Dell EMC CSI Storage Providers
+# Helm Installer for Dell CSI Storage Providers
 
 ## Description
 
 This directory provides scripts to install, upgrade, uninstall the CSI drivers, and to verify the Kubernetes environment.
-These same scripts are present in all Dell EMC Container Storage Interface ([CSI](https://github.com/container-storage-interface/spec)) drivers. This includes the drivers for:
+These same scripts are present in all Dell Container Storage Interface ([CSI](https://github.com/container-storage-interface/spec)) drivers. This includes the drivers for:
 * [PowerFlex](https://github.com/dell/csi-vxflexos)
 * [PowerMax](https://github.com/dell/csi-powermax)
 * [PowerScale](https://github.com/dell/csi-powerscale)
@@ -14,7 +14,7 @@ NOTE: This documentation uses the Unity XT driver as an example. If working with
 
 ## Dependencies
 
-Installing any of the Dell EMC CSI Drivers requires a few utilities to be installed on the system running the installation.
+Installing any of the Dell CSI Drivers requires a few utilities to be installed on the system running the installation.
 
 | Dependency    | Usage  |
 | ------------- | ----- |

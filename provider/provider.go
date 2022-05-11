@@ -1,7 +1,7 @@
 package provider
 
 /*
-Copyright (c) 2019 Dell EMC Corporation
+Copyright (c) 2019 Dell Corporation
 All Rights Reserved
 */
 
