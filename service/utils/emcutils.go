@@ -1,7 +1,7 @@
 package utils
 
 /*
-Copyright (c) 2019 Dell EMC Corporation
+Copyright (c) 2019 Dell Corporation
 All Rights Reserved
 */
 
@@ -27,13 +27,13 @@ import (
 	"github.com/dell/gounity/types"
 )
 
-//GetVolumeResponseFromVolume Utility method to convert Unity Rest type Volume to CSI standard Volume Response
+//GetVolumeResponseFromVolume Utility method to convert Unity XT Rest type Volume to CSI standard Volume Response
 func GetVolumeResponseFromVolume(volume *types.Volume, arrayID, protocol string, preferredAccessibility []*csi.Topology) *csi.CreateVolumeResponse {
 	content := volume.VolumeContent
 	return getVolumeResponse(content.Name, protocol, arrayID, content.ResourceID, content.SizeTotal, preferredAccessibility)
 }
 
-//GetVolumeResponseFromFilesystem Utility method to convert Unity rest Filesystem response to CSI standard Volume Response
+//GetVolumeResponseFromFilesystem Utility method to convert Unity XT rest Filesystem response to CSI standard Volume Response
 func GetVolumeResponseFromFilesystem(filesystem *types.Filesystem, arrayID, protocol string, preferredAccessibility []*csi.Topology) *csi.CreateVolumeResponse {
 	content := filesystem.FileContent
 	return getVolumeResponse(content.Name, protocol, arrayID, content.ID, content.SizeTotal, preferredAccessibility)
@@ -172,7 +172,7 @@ func GetHostIP() ([]string, error) {
 	return lookupIps, nil
 }
 
-// GetSnapshotResponseFromSnapshot - Utility method to convert Unity Rest type Snapshot to CSI standard Snapshot Response
+// GetSnapshotResponseFromSnapshot - Utility method to convert Unity XT Rest type Snapshot to CSI standard Snapshot Response
 func GetSnapshotResponseFromSnapshot(snap *types.Snapshot, protocol, arrayID string) *csi.CreateSnapshotResponse {
 	content := snap.SnapshotContent
 	snapID := fmt.Sprintf("%s-%s-%s-%s", content.Name, protocol, arrayID, content.ResourceID)

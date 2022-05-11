@@ -1,8 +1,8 @@
-# Offline Installation of Dell EMC CSI Storage Providers
+# Offline Installation of Dell CSI Storage Providers
 
 ## Description
 
-The `csi-offline-bundle.sh` script can be used to create a package usable for offline installation of the Dell EMC CSI Storage Providers, via either Helm 
+The `csi-offline-bundle.sh` script can be used to create a package usable for offline installation of the Dell CSI Storage Providers, via either Helm 
 or the Dell CSI Operator. 
 
 This includes the following drivers:
@@ -10,7 +10,7 @@ This includes the following drivers:
 * [PowerMax](https://github.com/dell/csi-powermax)
 * [PowerScale](https://github.com/dell/csi-powerscale)
 * [PowerStore](https://github.com/dell/csi-powerstore)
-* [Unity](https://github.com/dell/csi-unity)
+* [Unity XT](https://github.com/dell/csi-unity)
 
 As well as the Dell CSI Operator
 * [Dell CSI Operator](https://github.com/dell/dell-csi-operator)

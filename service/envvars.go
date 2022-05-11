@@ -2,7 +2,7 @@ package service
 
 const (
 	// EnvEndpoint is the name of the environment variable used to set the
-	// HTTP endpoint of the Unity Gateway
+	// HTTP endpoint of the Unity XT Gateway
 	EnvEndpoint = "X_CSI_UNITY_ENDPOINT"
 
 	// EnvNodeName is the name of the enviroment variable used to set the

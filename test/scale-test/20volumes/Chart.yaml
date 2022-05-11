@@ -2,7 +2,7 @@ name: 20volumes
 version: 1.0.0
 appVersion: 1.0.0
 description: |
-  Tests CSI Unity deployments.
+  Tests CSI Unity XT deployments.
 keywords:
 - csi-unity
 - storage

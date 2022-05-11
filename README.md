@@ -1,14 +1,14 @@
-# CSI Driver for Dell EMC Unity XT
+# CSI Driver for Dell Unity XT
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/dell/csi-unity?style=flat-square)](https://goreportcard.com/report/github.com/dell/csi-unity)
 [![License](https://img.shields.io/github/license/dell/csi-unity?style=flat-square&color=blue&label=License)](https://github.com/dell/csi-unity/blob/master/LICENSE)
 [![Docker](https://img.shields.io/docker/pulls/dellemc/csi-unity.svg?logo=docker&style=flat-square&label=Pulls)](https://hub.docker.com/r/dellemc/csi-unity)
 [![Last Release](https://img.shields.io/github/v/release/dell/csi-unity?label=Latest&style=flat-square&logo=go)](https://github.com/dell/csi-unity/releases)
 
-**Repository for CSI Driver for Dell EMC Unity XT**
+**Repository for CSI Driver for Dell Unity XT**
 
 ## Description
-CSI Driver for Unity XT is part of the [CSM (Container Storage Modules)](https://github.com/dell/csm) open-source suite of Kubernetes storage enablers for Dell EMC products. CSI Driver for Unity XT is a Container Storage Interface (CSI) driver that provides support for provisioning persistent storage using Dell EMC Unity XT storage array. 
+CSI Driver for Unity XT is part of the [CSM (Container Storage Modules)](https://github.com/dell/csm) open-source suite of Kubernetes storage enablers for Dell products. CSI Driver for Unity XT is a Container Storage Interface (CSI) driver that provides support for provisioning persistent storage using Dell Unity XT storage array. 
 
 It supports CSI specification version 1.5.
 
@@ -27,11 +27,11 @@ To run unit tests, execute `make unit-test`.
 
 To build a podman based image, execute `make podman-build`.
 
-You can run an integration test on a Linux system by populating the env files at `test/integration/` with values for your DellEMC Unity systems and then run `make integration-test`.
+You can run an integration test on a Linux system by populating the env files at `test/integration/` with values for your Dell Unity XT systems and then run `make integration-test`.
 
 
 ## Runtime Dependencies
-Both the Controller and the Node portions of the driver can only be run on nodes which have network connectivity to “`Unisphere for Unity`” (which is used by the driver).
+Both the Controller and the Node portions of the driver can only be run on nodes which have network connectivity to “`Unisphere for Unity XT`” (which is used by the driver).
 
 ## Driver Installation
 Please consult the [Installation Guide](https://dell.github.io/csm-docs/docs/csidriver/installation)

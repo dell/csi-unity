@@ -1,7 +1,7 @@
 package service
 
 /*
-Copyright (c) 2019 Dell EMC Corporation
+Copyright (c) 2019 Dell Corporation
 All Rights Reserved
 */
 
@@ -160,7 +160,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 			return nil, status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "`%s` is a required parameter", keyNasServer))
 		}
 
-		//Add AdditionalFilesystemSize in size as Unity use this much size for metadata in filesystem
+		//Add AdditionalFilesystemSize in size as Unity XT use this much size for metadata in filesystem
 		size += AdditionalFilesystemSize
 
 		// log all parameters used in Create File System call
