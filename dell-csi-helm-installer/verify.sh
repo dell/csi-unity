@@ -219,7 +219,7 @@ function verify_openshift_versions() {
 
   local MIN=${1}
   local MAX=${2}
-  local V=$(OpenShiftVersion)
+  local V="${oMajorVersion}.${oMinorVersion}"
   # check minimum
   log arrow
   log smart_step "Verifying minimum OpenShift version" "small"
@@ -569,6 +569,10 @@ MASTER_NODES=$(run_command kubectl get nodes -o wide | awk ' /master/{ print $6;
 # Get the kubernetes major and minor version numbers.
 kMajorVersion=$(run_command kubectl version | grep 'Server Version' | sed -e 's/^.*Major:"//' -e 's/[^0-9].*//g')
 kMinorVersion=$(run_command kubectl version | grep 'Server Version' | sed -e 's/^.*Minor:"//' -e 's/[^0-9].*//g')
+# Get the openshift major and minor version numbers.
+oVersion=$(run_command kubectl get clusterversions -o jsonpath="{.items[*].status.desired.version}")
+oMajorVersion=$(echo "${oVersion}" | awk -F '.' '{print $1}')
+oMinorVersion=$(echo "${oVersion}" | awk -F '.' '{print $2}')
 
 # get the list of valid CSI Drivers, this will be the list of directories in drivers/ that contain helm charts
 get_drivers "${SCRIPTDIR}/../helm"
