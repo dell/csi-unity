@@ -148,7 +148,7 @@ func (f *feature) aCSIServiceWithNodeTopology() error {
 }
 
 //aBasicBlockVolumeRequest method is used to build a Create volume request
-func (f *feature) aBasicBlockVolumeRequest(volumeName, arrayId, protocol string, size int) error {
+func (f *feature) aBasicBlockVolumeRequest(volumeName, protocol string, size int) error {
 	f.createVolumeRequest = nil
 	req := new(csi.CreateVolumeRequest)
 	params := make(map[string]string)
@@ -157,7 +157,7 @@ func (f *feature) aBasicBlockVolumeRequest(volumeName, arrayId, protocol string,
 	params["isDataReductionEnabled"] = "false"
 	params["tieringPolicy"] = "0"
 	params["description"] = "CSI Volume Unit Test"
-	params["arrayId"] = os.Getenv(arrayId)
+	params["arrayId"] = os.Getenv("arrayId")
 	params["protocol"] = protocol
 	params["nasServer"] = os.Getenv("NAS_SERVER")
 	req.Parameters = params
@@ -182,7 +182,7 @@ func (f *feature) aBasicBlockVolumeRequest(volumeName, arrayId, protocol string,
 }
 
 //aBasicRawBlockVolumeRequest method is used to build a Create volume request
-func (f *feature) aBasicRawBlockVolumeRequest(volumeName, arrayId, protocol string, size int) error {
+func (f *feature) aBasicRawBlockVolumeRequest(volumeName, protocol string, size int) error {
 	f.createVolumeRequest = nil
 	req := new(csi.CreateVolumeRequest)
 	params := make(map[string]string)
@@ -191,7 +191,7 @@ func (f *feature) aBasicRawBlockVolumeRequest(volumeName, arrayId, protocol stri
 	params["isDataReductionEnabled"] = "false"
 	params["tieringPolicy"] = "0"
 	params["description"] = "CSI Volume Unit Test"
-	params["arrayId"] = os.Getenv(arrayId)
+	params["arrayId"] = os.Getenv("arrayId")
 	params["protocol"] = protocol
 	req.Parameters = params
 	req.Name = volumeName
@@ -216,7 +216,7 @@ func (f *feature) aBasicRawBlockVolumeRequest(volumeName, arrayId, protocol stri
 }
 
 //aBasicFilesystemRequest method is used to build a Create volume request for filesystem
-func (f *feature) aBasicFilesystemRequest(volumeName, arrayId, protocol, am string, size int) error {
+func (f *feature) aBasicFilesystemRequest(volumeName, protocol, am string, size int) error {
 	f.createVolumeRequest = nil
 	req := new(csi.CreateVolumeRequest)
 	params := make(map[string]string)
@@ -225,7 +225,7 @@ func (f *feature) aBasicFilesystemRequest(volumeName, arrayId, protocol, am stri
 	params["isDataReductionEnabled"] = "false"
 	params["tieringPolicy"] = "0"
 	params["description"] = "CSI Volume Unit Test"
-	params["arrayId"] = os.Getenv(arrayId)
+	params["arrayId"] = os.Getenv("arrayId")
 	params["protocol"] = protocol
 	params["nasServer"] = os.Getenv("NAS_SERVER")
 	req.Parameters = params
@@ -258,7 +258,7 @@ func (f *feature) aBasicFilesystemRequest(volumeName, arrayId, protocol, am stri
 }
 
 //aBasicBlockVolumeRequestWithParameters method is used to build a Create volume request with parameters
-func (f *feature) aBasicBlockVolumeRequestWithParameters(volumeName, arrayId, protocol string, size int, storagepool, thinProvisioned, isDataReductionEnabled, tieringPolicy string) error {
+func (f *feature) aBasicBlockVolumeRequestWithParameters(volumeName, protocol string, size int, storagepool, thinProvisioned, isDataReductionEnabled, tieringPolicy string) error {
 	f.createVolumeRequest = nil
 	req := new(csi.CreateVolumeRequest)
 	params := make(map[string]string)
@@ -271,7 +271,7 @@ func (f *feature) aBasicBlockVolumeRequestWithParameters(volumeName, arrayId, pr
 	params["isDataReductionEnabled"] = isDataReductionEnabled
 	params["tieringPolicy"] = tieringPolicy
 	params["description"] = "CSI Volume Unit Test"
-	params["arrayId"] = os.Getenv(arrayId)
+	params["arrayId"] = os.Getenv("arrayId")
 	params["protocol"] = protocol
 	params["nasServer"] = os.Getenv("NAS_SERVER")
 	req.Parameters = params
@@ -296,12 +296,12 @@ func (f *feature) aBasicBlockVolumeRequestWithParameters(volumeName, arrayId, pr
 }
 
 //aBasicBlockVolumeRequest method with volume content source
-func (f *feature) aBasicBlockVolumeRequestWithVolumeContentSource(volumeName, arrayId, protocol string, size int) error {
+func (f *feature) aBasicBlockVolumeRequestWithVolumeContentSource(volumeName, protocol string, size int) error {
 	f.createVolumeRequest = nil
 	req := new(csi.CreateVolumeRequest)
 	params := make(map[string]string)
 	params["storagePool"] = os.Getenv("STORAGE_POOL")
-	params["arrayId"] = os.Getenv(arrayId)
+	params["arrayId"] = os.Getenv("arrayId")
 	params["protocol"] = protocol
 	req.Parameters = params
 	req.Name = volumeName
@@ -332,12 +332,12 @@ func (f *feature) aBasicBlockVolumeRequestWithVolumeContentSource(volumeName, ar
 }
 
 //aBasicBlockVolumeRequest method with volume content source as volume
-func (f *feature) aBasicBlockVolumeRequestWithVolumeContentSourceAsVolume(volumeName, arrayId, protocol string, size int) error {
+func (f *feature) aBasicBlockVolumeRequestWithVolumeContentSourceAsVolume(volumeName, protocol string, size int) error {
 	f.createVolumeRequest = nil
 	req := new(csi.CreateVolumeRequest)
 	params := make(map[string]string)
 	params["storagePool"] = os.Getenv("STORAGE_POOL")
-	params["arrayId"] = os.Getenv(arrayId)
+	params["arrayId"] = os.Getenv("arrayId")
 	params["protocol"] = protocol
 	req.Parameters = params
 	req.Name = volumeName
@@ -417,6 +417,7 @@ func (f *feature) whenICallDeleteAllCreatedVolumes() error {
 	ctx := context.Background()
 	client := csi.NewControllerClient(grpcClient)
 	delVolReq := new(csi.DeleteVolumeRequest)
+	time.Sleep(SleepTime)
 	for i := 0; i < len(f.volIDList); i++ {
 		delVolReq.VolumeId = f.volIDList[i]
 		var err error
@@ -860,7 +861,7 @@ func (f *feature) whenICallNodePublishVolume(fsType, readonly string) error {
 }
 
 //whenICallEphemeralNodePublishVolume - Test case for ephemeral node publish volume
-func (f *feature) whenICallEphemeralNodePublishVolume(volName, fsType, arrayId, am, size, storagePool, protocol, nasServer, thinProvision, dataReduction string) error {
+func (f *feature) whenICallEphemeralNodePublishVolume(volName, fsType, am, size, storagePool, protocol, nasServer, thinProvision, dataReduction string) error {
 	f.nodePublishVolumeRequest = nil
 	req := new(csi.NodePublishVolumeRequest)
 	req.VolumeId = volName
@@ -889,7 +890,7 @@ func (f *feature) whenICallEphemeralNodePublishVolume(volName, fsType, arrayId, 
 	req.VolumeCapability = capability
 	req.Readonly = false
 	params := make(map[string]string)
-	params["arrayId"] = os.Getenv(arrayId)
+	params["arrayId"] = os.Getenv("arrayId")
 	params["size"] = size
 	params["storagePool"] = storagePool
 	if storagePool == "id" {
@@ -1236,13 +1237,13 @@ func FeatureContext(s *godog.Suite) {
 	s.Step(`^a CSI service$`, f.aCSIService)
 	s.Step(`^a CSI service with node$`, f.aCSIServiceWithNode)
 	s.Step(`^a CSI service with node topology$`, f.aCSIServiceWithNodeTopology)
-	s.Step(`^a basic block volume request name "([^"]*)" arrayId "([^"]*)" protocol "([^"]*)" size "(\d+)"$`, f.aBasicBlockVolumeRequest)
-	s.Step(`^a basic raw block volume request name "([^"]*)" arrayId "([^"]*)" protocol "([^"]*)" size "(\d+)"$`, f.aBasicRawBlockVolumeRequest)
-	s.Step(`^a basic filesystem request name "([^"]*)" arrayId "([^"]*)" protocol "([^"]*)" accessMode "([^"]*)" size "(\d+)"$`, f.aBasicFilesystemRequest)
+	s.Step(`^a basic block volume request name "([^"]*)" protocol "([^"]*)" size "(\d+)"$`, f.aBasicBlockVolumeRequest)
+	s.Step(`^a basic raw block volume request name "([^"]*)" protocol "([^"]*)" size "(\d+)"$`, f.aBasicRawBlockVolumeRequest)
+	s.Step(`^a basic filesystem request name "([^"]*)" protocol "([^"]*)" accessMode "([^"]*)" size "(\d+)"$`, f.aBasicFilesystemRequest)
 	s.Step(`^I change volume capability accessmode$`, f.iChangeVolumeCapabilityAccessmode)
-	s.Step(`^a basic block volume request with volumeName "([^"]*)" arrayId "([^"]*)" protocol "([^"]*)" size "([^"]*)" storagepool "([^"]*)" thinProvisioned "([^"]*)" isDataReductionEnabled "([^"]*)" tieringPolicy "([^"]*)"$`, f.aBasicBlockVolumeRequestWithParameters)
-	s.Step(`^a basic block volume request with volume content source as snapshot with name "([^"]*)" arrayId "([^"]*)" protocol "([^"]*)" size "([^"]*)"$`, f.aBasicBlockVolumeRequestWithVolumeContentSource)
-	s.Step(`^a basic block volume request with volume content source as volume with name "([^"]*)" arrayId "([^"]*)" protocol "([^"]*)" size "([^"]*)"$`, f.aBasicBlockVolumeRequestWithVolumeContentSourceAsVolume)
+	s.Step(`^a basic block volume request with volumeName "([^"]*)" protocol "([^"]*)" size "([^"]*)" storagepool "([^"]*)" thinProvisioned "([^"]*)" isDataReductionEnabled "([^"]*)" tieringPolicy "([^"]*)"$`, f.aBasicBlockVolumeRequestWithParameters)
+	s.Step(`^a basic block volume request with volume content source as snapshot with name "([^"]*)" protocol "([^"]*)" size "([^"]*)"$`, f.aBasicBlockVolumeRequestWithVolumeContentSource)
+	s.Step(`^a basic block volume request with volume content source as volume with name "([^"]*)" protocol "([^"]*)" size "([^"]*)"$`, f.aBasicBlockVolumeRequestWithVolumeContentSourceAsVolume)
 	s.Step(`^I call CreateVolume$`, f.iCallCreateVolume)
 	s.Step(`^when I call DeleteVolume$`, f.whenICallDeleteVolume)
 	s.Step(`^When I call DeleteAllCreatedVolumes$`, f.whenICallDeleteAllCreatedVolumes)
@@ -1267,7 +1268,7 @@ func FeatureContext(s *godog.Suite) {
 	s.Step(`^I call Controller Get Volume "([^"]*)" with volume "([^"]*)"$`, f.iCallControllerGetVolumeWithVolume)
 	s.Step(`^when I call NodePublishVolume fsType "([^"]*)" readonly "([^"]*)"$`, f.whenICallNodePublishVolume)
 	s.Step(`^when I call NodePublishVolume targetpath "([^"]*)" fsType "([^"]*)"$`, f.whenICallNodePublishVolumeWithTargetPath)
-	s.Step(`^when I call EphemeralNodePublishVolume with volName "([^"]*)" fsType "([^"]*)" arrayId "([^"]*)" am "([^"]*)" size "([^"]*)" storagePool "([^"]*)" protocol "([^"]*)" nasServer "([^"]*)" thinProvision "([^"]*)" dataReduction "([^"]*)"$`, f.whenICallEphemeralNodePublishVolume)
+	s.Step(`^when I call EphemeralNodePublishVolume with volName "([^"]*)" fsType "([^"]*)" am "([^"]*)" size "([^"]*)" storagePool "([^"]*)" protocol "([^"]*)" nasServer "([^"]*)" thinProvision "([^"]*)" dataReduction "([^"]*)"$`, f.whenICallEphemeralNodePublishVolume)
 	s.Step(`^when I call NodeUnPublishVolume$`, f.whenICallNodeUnPublishVolume)
 	s.Step(`^when I call NodeUnPublishVolume targetpath "([^"]*)"$`, f.whenICallNodeUnPublishVolumeWithTargetPath)
 	s.Step(`^when I call NodeStageVolume fsType "([^"]*)"$`, f.whenICallNodeStageVolume)
