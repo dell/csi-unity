@@ -1268,7 +1268,7 @@ func FeatureContext(s *godog.Suite) {
 	s.Step(`^I call Controller Get Volume "([^"]*)" with volume "([^"]*)"$`, f.iCallControllerGetVolumeWithVolume)
 	s.Step(`^when I call NodePublishVolume fsType "([^"]*)" readonly "([^"]*)"$`, f.whenICallNodePublishVolume)
 	s.Step(`^when I call NodePublishVolume targetpath "([^"]*)" fsType "([^"]*)"$`, f.whenICallNodePublishVolumeWithTargetPath)
-	s.Step(`^when I call EphemeralNodePublishVolume with volName "([^"]*)" fsType "([^"]*)" am "([^"]*)" size "([^"]*)" storagePool "([^"]*)" protocol "([^"]*)" nasServer "([^"]*)" thinProvision "([^"]*)" dataReduction "([^"]*)"$`, f.whenICallEphemeralNodePublishVolume)
+	s.Step(`^when I call EphemeralNodePublishVolume with volName "([^"]*)" volName  "([^"]*)" fsType "([^"]*)" am "([^"]*)" size "([^"]*)" storagePool "([^"]*)" protocol "([^"]*)" nasServer "([^"]*)" thinProvision "([^"]*)" dataReduction "([^"]*)"$`, f.whenICallEphemeralNodePublishVolume)
 	s.Step(`^when I call NodeUnPublishVolume$`, f.whenICallNodeUnPublishVolume)
 	s.Step(`^when I call NodeUnPublishVolume targetpath "([^"]*)"$`, f.whenICallNodeUnPublishVolumeWithTargetPath)
 	s.Step(`^when I call NodeStageVolume fsType "([^"]*)"$`, f.whenICallNodeStageVolume)
