@@ -395,8 +395,8 @@ helm --help >&/dev/null || {
 OPENSHIFT=$(isOpenShift)
 
 # Get the kubernetes major and minor version numbers.
-kMajorVersion=$(run_command kubectl version | grep 'Server Version' | sed -e 's/^.*Major:"//' -e 's/[^0-9].*//g')
-kMinorVersion=$(run_command kubectl version | grep 'Server Version' | sed -e 's/^.*Minor:"//' -e 's/[^0-9].*//g')
+kMajorVersion=$(run_command kubectl version -o="yaml" | grep -A8 'serverVersion:' | grep 'major'| egrep -o '[0-9]+')
+kMinorVersion=$(run_command kubectl version -o="yaml" | grep -A8 'serverVersion:' | grep 'minor'| egrep -o '[0-9]+')
 
 # validate the parameters passed in
 validate_params "${MODE}"
