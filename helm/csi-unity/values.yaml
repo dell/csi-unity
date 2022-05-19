@@ -149,7 +149,7 @@ podmon:
   # allowed values - string
   # default value : None
   # Example : "podman:latest", "pod:latest"
-  image: dellemc/podmon:v1.1.0
+  image: dellemc/podmon:v1.2.0
 #  controller:
 #    args:
 #      - "--csisock=unix:/var/run/csi/csi.sock"
@@ -158,6 +158,7 @@ podmon:
 #      - "--mode=controller"
 #      - "--skipArrayConnectionValidation=false"
 #      - "--driver-config-params=/unity-config/driver-config-params.yaml"
+#      - "--driverPodLabelValue=dell-storage"
 #  node:
 #    args:
 #      - "--csisock=unix:/var/lib/kubelet/plugins/unity.emc.dell.com/csi_sock"
@@ -166,6 +167,7 @@ podmon:
 #      - "--mode=node"
 #      - "--leaderelection=false"
 #      - "--driver-config-params=/unity-config/driver-config-params.yaml"
+#      - "--driverPodLabelValue=dell-storage"
 
 ### The below parameters have been discontinued for configuration from secret.yaml and will have to be configured only in values.yaml
 
