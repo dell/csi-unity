@@ -86,6 +86,7 @@ require (
 
 replace (
 	github.com/dell/gounity v1.9.1 => github.com/dell/gounity v1.9.2-0.20220411083213-e3550ec5fec1
+	github.com/dell/gocsi v1.5.1 => github.com/dell/gocsi v1.5.2-0.20220523053849-2bf3d53bf42f
 	k8s.io/api => k8s.io/api v0.20.2
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.2
 	k8s.io/apimachinery => k8s.io/apimachinery v0.20.2
