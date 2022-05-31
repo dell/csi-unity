@@ -136,7 +136,26 @@ node:
   #  - key: "node.kubernetes.io/network-unavailable"
   #    operator: "Exists"
   #    effect: "NoExecute"
-
+  # Uncomment if CSM for Resiliency and CSI Driver pods monitor are enabled 
+  tolerations:
+  #  - key: "offline.vxflexos.storage.dell.com"
+  #    operator: "Exists"
+  #    effect: "NoSchedule"
+  # - key: "vxflexos.podmon.storage.dell.com"
+  #    operator: "Exists"
+  #    effect: "NoSchedule"
+  #  - key: "offline.unity.storage.dell.com"
+  #    operator: "Exists"
+  #    effect: "NoSchedule"
+  #  - key: "unity.podmon.storage.dell.com"
+  #    operator: "Exists"
+  #    effect: "NoSchedule"
+  #  - key: "offline.isilon.storage.dell.com"
+  #    operator: "Exists"
+  #    effect: "NoSchedule"
+  #  - key: "isilon.podmon.storage.dell.com"
+  #    operator: "Exists"
+  #    effect: "NoSchedule"
 # CSM module attributes
 # service to monitor failing jobs and notify
 podmon:
