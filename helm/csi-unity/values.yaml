@@ -71,11 +71,6 @@ controller:
   # Leave as blank to consider all nodes
   # Allowed values: map of key-value pairs
   # Default value: None
-  # Examples:
-  # Uncomment if nodes you wish to use have the node-role.kubernetes.io/master taint
-  #  node-role.kubernetes.io/master
-  # Uncomment if nodes you wish to use have the node-role.kubernetes.io/control-plane taint
-  #  node-role.kubernetes.io/control-plane
   nodeSelector:
   # Uncomment if nodes you wish to use have the node-role.kubernetes.io/master taint
   #  node-role.kubernetes.io/master: ""
@@ -129,11 +124,6 @@ node:
   # Leave as blank to consider all nodes
   # Allowed values: map of key-value pairs
   # Default value: None
-  # Examples:
-  # Uncomment if nodes you wish to use have the node-role.kubernetes.io/master taint
-  #  node-role.kubernetes.io/master
-  # Uncomment if nodes you wish to use have the node-role.kubernetes.io/control-plane taint
-  #  node-role.kubernetes.io/control-plane
   nodeSelector:
   # Uncomment if nodes you wish to use have the node-role.kubernetes.io/master taint
   #  node-role.kubernetes.io/master: ""
@@ -156,7 +146,7 @@ node:
   #  - key: "offline.vxflexos.storage.dell.com"
   #    operator: "Exists"
   #    effect: "NoSchedule"
-  # -  key: "vxflexos.podmon.storage.dell.com"
+  #  - key: "vxflexos.podmon.storage.dell.com"
   #    operator: "Exists"
   #    effect: "NoSchedule"
   #  - key: "offline.unity.storage.dell.com"
