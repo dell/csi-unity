@@ -20,7 +20,7 @@ Return the appropriate sidecar images based on k8s version
 {{- define "csi-unity.snapshotterImage" -}}
   {{- if eq .Capabilities.KubeVersion.Major "1" }}
     {{- if and (ge (trimSuffix "+" .Capabilities.KubeVersion.Minor) "21") (le (trimSuffix "+" .Capabilities.KubeVersion.Minor) "24") -}}
-      {{- print "k8s.gcr.io/sig-storage/csi-snapshotter:v6.0.1" -}}
+      {{- print "k8s.gcr.io/sig-storage/csi-snapshotter:v5.0.1" -}}
     {{- end -}}
   {{- end -}}
 {{- end -}}
