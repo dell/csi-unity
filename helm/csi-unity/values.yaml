@@ -133,6 +133,10 @@ node:
   # tolerations: Define tolerations for the node daemonset, if required.
   # Default value: None
   tolerations:
+  # Uncomment if nodes you wish to use have the node-role.kubernetes.io/master taint
+  #  - key: "node-role.kubernetes.io/master"
+  # Uncomment if nodes you wish to use have the node-role.kubernetes.io/control-plane taint
+  #  - key: "node-role.kubernetes.io/control-plane"
   #  - key: "node.kubernetes.io/memory-pressure"
   #    operator: "Exists"
   #    effect: "NoExecute"
