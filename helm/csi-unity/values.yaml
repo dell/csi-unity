@@ -83,6 +83,8 @@ controller:
   tolerations:
   # Uncomment if nodes you wish to use have the node-role.kubernetes.io/master taint
   #  - key: "node-role.kubernetes.io/master"
+  #    operator: "Exists"
+  #    effect: "NoExecute"
   # Uncomment if nodes you wish to use have the node-role.kubernetes.io/control-plane taint
   #  - key: "node-role.kubernetes.io/control-plane"
   #    operator: "Exists"
@@ -135,8 +137,12 @@ node:
   tolerations:
   # Uncomment if nodes you wish to use have the node-role.kubernetes.io/master taint
   #  - key: "node-role.kubernetes.io/master"
+  #    operator: "Exists"
+  #    effect: "NoExecute"
   # Uncomment if nodes you wish to use have the node-role.kubernetes.io/control-plane taint
   #  - key: "node-role.kubernetes.io/control-plane"
+  #    operator: "Exists"
+  #    effect: "NoExecute"
   #  - key: "node.kubernetes.io/memory-pressure"
   #    operator: "Exists"
   #    effect: "NoExecute"
