@@ -101,8 +101,8 @@ github.com/dell/gocsi v1.5.2-0.20220523053849-2bf3d53bf42f h1:cPR/93yvvyyYjUbIoV
 github.com/dell/gocsi v1.5.2-0.20220523053849-2bf3d53bf42f/go.mod h1:cGd8QtRfAWgyyZcf59VMADoXLfGNkJuhUqSdyW/XNQ0=
 github.com/dell/gofsutil v1.8.0 h1:YqsTQF3n6GAlCLVjxLkD6GmHG4mKX2SLpD64mpsAdY8=
 github.com/dell/gofsutil v1.8.0/go.mod h1:oWLiV7FmBurEie3An11SNqQ1ReyOiqjSZaXDRhm7tMc=
-github.com/dell/goiscsi v1.3.0 h1:fcJIOK8HbpPpHAOSQUHzvgix9ZROCB6xNvpIlI/ZIsg=
-github.com/dell/goiscsi v1.3.0/go.mod h1:4H4vlwEh9ujB+4kgAMNzRT8w17Gsen/BusH49k99bPE=
+github.com/dell/goiscsi v1.3.1-0.20220602105959-3ba7fba52ffd h1:HKxrHDZA+YWuejFvCL+2L58+HL/1XbLC4HV5FFsDgUY=
+github.com/dell/goiscsi v1.3.1-0.20220602105959-3ba7fba52ffd/go.mod h1:oDkUXDPAYqSOc0t6PpU+BpOqF45mzv+9eLFRkAoQYKs=
 github.com/dell/gonvme v1.0.0 h1:gd6afy0Hb/HaszG1d6R/nCSShn0TslNkcu8gAeJPDaM=
 github.com/dell/gonvme v1.0.0/go.mod h1:JXLmgxE/2dsiXqW5E+kH5Zo11lOjCuHyiHu92xqR9O0=
 github.com/dell/gounity v1.9.2-0.20220525151620-808f73cec60f h1:UtFGdT3rbvhJzndZRMk2N+YjV4KSWIpTjEywaBBTVvU=
