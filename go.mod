@@ -10,7 +10,7 @@ require (
 	github.com/dell/gocsi v1.5.1
 	github.com/dell/gofsutil v1.8.0
 	github.com/dell/goiscsi v1.3.1-0.20220602105959-3ba7fba52ffd
-	github.com/dell/gounity v1.9.1
+	github.com/dell/gounity v1.10.0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/golang/protobuf v1.5.2
 	github.com/kubernetes-csi/csi-lib-utils v0.7.0
@@ -86,7 +86,6 @@ require (
 
 replace (
 	github.com/dell/gocsi v1.5.1 => github.com/dell/gocsi v1.5.2-0.20220523053849-2bf3d53bf42f
-	github.com/dell/gounity v1.9.1 => github.com/dell/gounity v1.9.2-0.20220525151620-808f73cec60f
 	k8s.io/api => k8s.io/api v0.20.2
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.20.2
 	k8s.io/apimachinery => k8s.io/apimachinery v0.20.2
