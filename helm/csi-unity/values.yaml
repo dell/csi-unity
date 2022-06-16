@@ -75,7 +75,7 @@ controller:
     # Default value: None
     enabled: true
 
-  /////////////////////////////////////
+
   # replication: allows to configure replication
   # Replication CRDs must be installed before installing driver
   replication:
@@ -100,7 +100,7 @@ controller:
     # Allowed values: string
     # Default value: replication.storage.dell.com
     replicationPrefix: "replication.storage.dell.com"
-/////////////////////////////////
+
 
   # nodeSelector: Define node selection constraints for controller pods.
   # For the pod to be eligible to run on a node, the node must have each
