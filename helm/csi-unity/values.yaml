@@ -98,15 +98,22 @@ controller:
   # Leave as blank to consider all nodes
   # Allowed values: map of key-value pairs
   # Default value: None
-  # Examples:
-  #   node-role.kubernetes.io/master: ""
   nodeSelector:
+  # Uncomment if nodes you wish to use have the node-role.kubernetes.io/master taint
+  #  node-role.kubernetes.io/master: ""
+  # Uncomment if nodes you wish to use have the node-role.kubernetes.io/control-plane taint
+  #  node-role.kubernetes.io/control-plane: ""
 
   # tolerations: Define tolerations for the controllers, if required.
   # Leave as blank to install controller on worker nodes
   # Default value: None
   tolerations:
+  # Uncomment if nodes you wish to use have the node-role.kubernetes.io/master taint
   #  - key: "node-role.kubernetes.io/master"
+  #    operator: "Exists"
+  #    effect: "NoExecute"
+  # Uncomment if nodes you wish to use have the node-role.kubernetes.io/control-plane taint
+  #  - key: "node-role.kubernetes.io/control-plane"
   #    operator: "Exists"
   #    effect: "NoSchedule"
 
@@ -146,14 +153,23 @@ node:
   # Leave as blank to consider all nodes
   # Allowed values: map of key-value pairs
   # Default value: None
-  # Examples:
-  #   node-role.kubernetes.io/master: ""
   nodeSelector:
-  #   node-role.kubernetes.io/master: ""
+  # Uncomment if nodes you wish to use have the node-role.kubernetes.io/master taint
+  #  node-role.kubernetes.io/master: ""
+  # Uncomment if nodes you wish to use have the node-role.kubernetes.io/control-plane taint
+  #  node-role.kubernetes.io/control-plane: ""
 
   # tolerations: Define tolerations for the node daemonset, if required.
   # Default value: None
   tolerations:
+  # Uncomment if nodes you wish to use have the node-role.kubernetes.io/master taint
+  #  - key: "node-role.kubernetes.io/master"
+  #    operator: "Exists"
+  #    effect: "NoExecute"
+  # Uncomment if nodes you wish to use have the node-role.kubernetes.io/control-plane taint
+  #  - key: "node-role.kubernetes.io/control-plane"
+  #    operator: "Exists"
+  #    effect: "NoExecute"
   #  - key: "node.kubernetes.io/memory-pressure"
   #    operator: "Exists"
   #    effect: "NoExecute"
@@ -163,7 +179,25 @@ node:
   #  - key: "node.kubernetes.io/network-unavailable"
   #    operator: "Exists"
   #    effect: "NoExecute"
-
+  # Uncomment if CSM for Resiliency and CSI Driver pods monitor are enabled 
+  #  - key: "offline.vxflexos.storage.dell.com"
+  #    operator: "Exists"
+  #    effect: "NoSchedule"
+  #  - key: "vxflexos.podmon.storage.dell.com"
+  #    operator: "Exists"
+  #    effect: "NoSchedule"
+  #  - key: "offline.unity.storage.dell.com"
+  #    operator: "Exists"
+  #    effect: "NoSchedule"
+  #  - key: "unity.podmon.storage.dell.com"
+  #    operator: "Exists"
+  #    effect: "NoSchedule"
+  #  - key: "offline.isilon.storage.dell.com"
+  #    operator: "Exists"
+  #    effect: "NoSchedule"
+  #  - key: "isilon.podmon.storage.dell.com"
+  #    operator: "Exists"
+  #    effect: "NoSchedule"
 # CSM module attributes
 # service to monitor failing jobs and notify
 podmon:
