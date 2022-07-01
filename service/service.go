@@ -4,10 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	csiext "github.com/dell/dell-csi-extensions/replication"
-	commonext "github.com/dell/dell-csi-extensions/common"
-	"github.com/golang/protobuf/ptypes/wrappers"
-	"github.com/prometheus/common/log"
 	"io/ioutil"
 	"net"
 	"os"
@@ -18,6 +14,11 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	commonext "github.com/dell/dell-csi-extensions/common"
+	csiext "github.com/dell/dell-csi-extensions/replication"
+	"github.com/golang/protobuf/ptypes/wrappers"
+	"github.com/prometheus/common/log"
 
 	"github.com/dell/dell-csi-extensions/podmon"
 	"google.golang.org/grpc"
@@ -121,6 +122,7 @@ type Opts struct {
 	LogLevel                      string
 	TenantName                    string
 	IsVolumeHealthMonitorEnabled  bool
+	replicationPrefix             string
 }
 
 type service struct {
@@ -180,6 +182,9 @@ func (s *service) BeforeServe(
 	opts := Opts{}
 	if name, ok := csictx.LookupEnv(ctx, gocsi.EnvVarDebug); ok {
 		opts.Debug, _ = strconv.ParseBool(name)
+	}
+	if replicationPrefix, ok := csictx.LookupEnv(ctx, EnvReplicationPrefix); ok {
+		opts.replicationPrefix = replicationPrefix
 	}
 
 	if name, ok := csictx.LookupEnv(ctx, EnvNodeName); ok {
@@ -294,7 +299,7 @@ func (s *service) RegisterAdditionalServers(server *grpc.Server) {
 
 //Get storage array from sync Map
 func (s *service) getStorageArray(arrayID string) *StorageArrayConfig {
-	if a, ok := s.arrays.Load(arrayID); ok {
+	if a, ok := s.arrays.Load(strings.ToLower(arrayID)); ok {
 		return a.(*StorageArrayConfig)
 	}
 	return nil
