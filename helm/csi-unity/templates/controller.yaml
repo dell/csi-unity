@@ -255,8 +255,8 @@ spec:
             - "--retry-interval-start=1s"
             - "--retry-interval-max=300s"
             - "--timeout=300s"
-            - "--context-prefix={{ .Values.controller.replication.replicationContextPrefix}}"
-            - "--prefix={{ .Values.controller.replication.replicationPrefix}}"
+            - "--context-prefix={{ .Values.controller.replication.replicationContextPrefix }}"
+            - "--prefix={{ .Values.controller.replication.replicationPrefix }}"
           env:
             - name: ADDRESS
               value: /var/run/csi/csi.sock
@@ -293,7 +293,7 @@ spec:
         {{- end }}
         {{- end }}
         - name: driver
-          image: "{{ required "Must provide the driver image repository." .Values.images.driverRepository }}/{{ .Chart.Name }}:{{ .Values.version }}"
+          image: amaas-eos-drm1.cec.lab.emc.com:5017/csi-unity:alina
           args:
             - "--driver-name=csi-unity.dellemc.com"
             - "--driver-config=/unity-config/driver-config-params.yaml"
