@@ -185,6 +185,55 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 		}
 		log.WithFields(fields).Infof("Executing Create File System with following fields")
 
+		// Check if replication is enabled
+		replicationEnabled := params[s.WithRP(keyReplicationEnabled)]
+		log.Info("Replication enabled, replication key is ", replicationEnabled)
+		var remoteSystemName, rpoStr string
+		if replicationEnabled == "true" {
+			remoteSystemName, ok = params[s.WithRP(keyReplicationRemoteSystem)]
+			if !ok {
+				return nil, status.Errorf(codes.InvalidArgument, "replication enabled but no remote system specified in storage class")
+			}
+
+			if err := s.requireProbe(ctx, remoteSystemName); err != nil {
+				return nil, err
+			}
+
+			vgPrefix, ok := params[s.WithRP(keyReplicationVGPrefix)]
+			if !ok {
+				return nil, status.Errorf(codes.InvalidArgument, "replication enabled but no volume group prefix specified in storage class")
+			}
+
+			rpoStr, ok = params[s.WithRP(keyReplicationRPO)]
+			if !ok {
+				return nil, status.Errorf(codes.InvalidArgument, "replication enabled but no RPO specified in storage class")
+			}
+
+			rpo, err := strconv.ParseUint(rpoStr, 10, 32)
+			if err != nil || uint(rpo) < uint(0) || uint(rpo) > uint(1440) {
+				return nil, status.Errorf(codes.InvalidArgument, "invalid rpo value")
+			}
+
+			namespace := ""
+			if ignoreNS, ok := params[s.WithRP(keyReplicationIgnoreNamespaces)]; ok && ignoreNS == "false" {
+				pvcNS, ok := params[keyCSIPVCNamespace]
+				if ok {
+					pvcNS = strings.ReplaceAll(pvcNS, "-", "_")
+					namespace = pvcNS + "_"
+				}
+			}
+
+			vgName := vgPrefix + "_" + namespace + remoteSystemName + "_" + rpoStr
+			if len(vgName) > 128 {
+				vgName = vgName[:128]
+			}
+
+			log.Info("writing repl rapameters")
+			log.Info("vgPrefix: ", vgPrefix, " namespace: ", namespace, " remoteSystemName: ", remoteSystemName, " rpo: ", rpoStr)
+
+			volName = vgName + "=_=" + volName
+		}
+
 		//Idempotency check
 		fileAPI := gounity.NewFilesystem(unity)
 		filesystem, _ := fileAPI.FindFilesystemByName(ctx, volName)
@@ -213,59 +262,16 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 			log.Debugf("Find Filesystem response: %v Error: %v", resp, err)
 		}
 
-		// Check if replication is enabled
-		log.Info("trying to get replication key")
-		replicationEnabled := params[s.WithRP(keyReplicationEnabled)]
-		log.Info("replication key is ", replicationEnabled)
 		if replicationEnabled == "true" {
-			log.Info("replication enabled, trying to get remote array")
-			remoteSystemName, ok := params[s.WithRP(keyReplicationRemoteSystem)]
+			remoteNasServer, ok := params[s.WithRP(keyRemoteNasServer)]
 			if !ok {
-				return nil, status.Errorf(codes.InvalidArgument, "replication enabled but no remote system specified in storage class")
-			}
-
-			if err := s.requireProbe(ctx, remoteSystemName); err != nil {
-				return nil, err
+				return nil, status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "`%s` is a required parameter", keyRemoteNasServer))
 			}
 
 			remoteUnity, err := s.getUnityClient(ctx, remoteSystemName)
 			if err != nil {
 				return nil, err
 			}
-
-			vgPrefix, ok := params[s.WithRP(keyReplicationVGPrefix)]
-			if !ok {
-				return nil, status.Errorf(codes.InvalidArgument, "replication enabled but no volume group prefix specified in storage class")
-			}
-
-			rpoStr, ok := params[s.WithRP(keyReplicationRPO)]
-			if !ok {
-				return nil, status.Errorf(codes.InvalidArgument, "replication enabled but no RPO specified in storage class")
-			}
-
-			rpo, err := strconv.ParseUint(rpoStr, 10, 32)
-			if err != nil || uint(rpo) < uint(0) || uint(rpo) > uint(1440) {
-				return nil, status.Errorf(codes.InvalidArgument, "invalid rpo value")
-			}
-
-			namespace := ""
-			if ignoreNS, ok := params[s.WithRP(keyReplicationIgnoreNamespaces)]; ok && ignoreNS == "false" {
-				pvcNS, ok := params[keyCSIPVCNamespace]
-				if ok {
-					namespace = pvcNS + "-"
-				}
-			}
-
-			remoteNasServer, ok := params[s.WithRP(keyRemoteNasServer)]
-			if !ok {
-				return nil, status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "`%s` is a required parameter", keyRemoteNasServer))
-			}
-
-			vgName := vgPrefix + "-" + namespace + remoteSystemName + "-" + rpoStr
-			if len(vgName) > 128 {
-				vgName = vgName[:128]
-			}
-			log.Info(" vgprefix ", vgPrefix, " rpo ", rpo, " remotesystem ", remoteSystemName, " namespace ", namespace, " vgname ", vgName)
 
 			//check if remote fs is exist
 			remoteFileAPI := gounity.NewFilesystem(remoteUnity)
@@ -375,12 +381,13 @@ func (s *service) DeleteVolume(
 	req *csi.DeleteVolumeRequest) (
 	*csi.DeleteVolumeResponse, error) {
 	ctx, log, rid := GetRunidLog(ctx)
-	log.Debugf("Executing DeleteVolume with args: %+v", *req)
+	log.Info("Executing DeleteVolume with args: %+v", *req)
 	var snapErr error
 	volID, protocol, arrayID, unity, err := s.validateAndGetResourceDetails(ctx, req.GetVolumeId(), volumeType)
 	if err != nil {
 		return nil, err
 	}
+	log.Info("volId ", volID, " arrayId ", arrayID)
 	ctx, log = setArrayIDContext(ctx, arrayID)
 	if err := s.requireProbe(ctx, arrayID); err != nil {
 		return nil, err
@@ -397,6 +404,10 @@ func (s *service) DeleteVolume(
 		}
 
 	} else {
+
+		//check replication enabled
+		//if true delete replication session
+		//done
 
 		//Delete logic for Filesystem
 		var throwErr error
