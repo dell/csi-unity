@@ -161,7 +161,7 @@ type unityLog string
 // Constants which can be used across modules
 const (
 	UnityLogger unityLog = "unitylog"
-	LogFields            = "fields"
+	LogFields   unityLog = "fields"
 	RUNID                = "runid"
 	ARRAYID              = "arrayid"
 )
