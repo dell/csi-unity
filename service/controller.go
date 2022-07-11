@@ -228,9 +228,6 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 				vgName = vgName[:128]
 			}
 
-			log.Info("writing repl rapameters")
-			log.Info("vgPrefix: ", vgPrefix, " namespace: ", namespace, " remoteSystemName: ", remoteSystemName, " rpo: ", rpoStr)
-
 			volName = vgName + "=_=" + volName
 		}
 
@@ -275,8 +272,6 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 
 			//check if remote fs is exist
 			remoteFileAPI := gounity.NewFilesystem(remoteUnity)
-			//remoteFilesystem, _ := remoteFileAPI.FindFilesystemByName(ctx, vgName+"=_="+volName)
-			// TODO: make vgname
 			remoteFilesystem, _ := remoteFileAPI.FindFilesystemByName(ctx, volName)
 			if remoteFilesystem == nil {
 				log.Info("Remote filesystem does not exist, proceeding to create new filesystem")
@@ -294,20 +289,16 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 				return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Find Remote FileSystem error:%v", err))
 			}
 
-			log.Info("trying to find replication session")
 			replAPI := gounity.NewReplicationSession(unity)
-			session, err := replAPI.FindReplicationSessionIdBySrcResourceID(ctx, resp.FileContent.ID)
+			session, err := replAPI.FindReplicationSessionBySrcResourceID(ctx, resp.FileContent.StorageResource.ID)
 			if session == nil {
-				log.Info("trying to find system by name")
+				log.Debugf("Replication session does not exist, proceeding to create new replication session")
 				_, err := replAPI.FindRemoteSystemByName(ctx, remoteSystemName)
 				if err != nil {
 					return nil, err
 				}
 				// creating replication session between fs
-				log.Info("creating replication session")
-				//session, err = replAPI.CreateReplicationSession(ctx, "repl_sess_res_"+filesystem.FileContent.ID+"_res_"+remoteFilesystem.FileContent.ID,
-				//	filesystem.FileContent.ID, remoteFilesystem.FileContent.ID, remoteSystem.RemoteSystemContent.RemoteSystemId, int32(rpo))
-				session, err = replAPI.CreateReplicationSession(ctx, "repl_sess_res_"+resp.FileContent.StorageResource.ID+"_res_"+remoteFilesystem.FileContent.StorageResource.ID,
+				session, err = replAPI.CreateReplicationSession(ctx, "repl_sess_"+resp.FileContent.StorageResource.ID+"_"+remoteFilesystem.FileContent.StorageResource.ID,
 					resp.FileContent.StorageResource.ID, remoteFilesystem.FileContent.StorageResource.ID, remoteSystemName, rpoStr)
 				if err != nil {
 					log.Debugf("Error in creating replication session. Error:%v", err)
@@ -404,12 +395,35 @@ func (s *service) DeleteVolume(
 		}
 
 	} else {
+		log.Info("Protocol NFS,check if volume is replicated")
+		fileAPI := gounity.NewFilesystem(unity)
+		filesystem, _ := fileAPI.FindFilesystemByID(ctx, volID)
+		replAPI := gounity.NewReplicationSession(unity)
+		session, _ := replAPI.FindReplicationSessionBySrcResourceID(ctx, filesystem.FileContent.StorageResource.ID)
+		log.Debugf("Replication session: %v", session)
+		if session != nil {
+			log.Info("Replication enabled, found replication session")
+			//remoteUnity, err := s.getUnityClient(ctx, session.ReplicationSessionContent.RemoteSystem.Name)
+			//if err != nil {
+			//	return nil, err
+			//}
+			//remoteFileAPI := gounity.NewFilesystem(remoteUnity)
+			//remoteSystemId := session.ReplicationSessionContent.DstResourceId
 
-		//check replication enabled
-		//if true delete replication session
-		//done
+			log.Info("Delete replication session")
+			err = replAPI.DeleteReplicationSessionById(ctx, session.ReplicationSessionContent.ReplicationSessionId)
+			if err != nil {
+				return nil, err
+			}
 
-		//Delete logic for Filesystem
+			//log.Info("Change IsReplicationDestination parameter in remoteFileSystem")
+			//err = remoteFileAPI.UpdateReplicationDestinationParameter(ctx, remoteSystemId, false)
+			//if err != nil {
+			//	return nil, err
+			//}
+		}
+
+		log.Info("Deleting Filesystem")
 		var throwErr error
 		err, snapErr, throwErr = s.deleteFilesystem(ctx, volID, unity)
 		if throwErr != nil {
