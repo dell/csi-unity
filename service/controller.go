@@ -239,7 +239,6 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 			if int64(content.SizeTotal) == size && content.NASServer.ID == nasServer && content.Pool.ID == storagePool {
 				log.Info("Filesystem exists in the requested state with same size, NAS server and storage pool")
 				filesystem.FileContent.SizeTotal -= AdditionalFilesystemSize
-				//return utils.GetVolumeResponseFromFilesystem(filesystem, arrayID, protocol, preferredAccessibility), nil
 			} else {
 				log.Info("'Filesystem name' already exists and size/NAS server/storage pool is different")
 				return nil, status.Error(codes.AlreadyExists, utils.GetMessageWithRunID(rid, "'Filesystem name' already exists and size/NAS server/storage pool is different."))
@@ -403,24 +402,12 @@ func (s *service) DeleteVolume(
 		log.Debugf("Replication session: %v", session)
 		if session != nil {
 			log.Info("Replication enabled, found replication session")
-			//remoteUnity, err := s.getUnityClient(ctx, session.ReplicationSessionContent.RemoteSystem.Name)
-			//if err != nil {
-			//	return nil, err
-			//}
-			//remoteFileAPI := gounity.NewFilesystem(remoteUnity)
-			//remoteSystemId := session.ReplicationSessionContent.DstResourceId
 
 			log.Info("Delete replication session")
 			err = replAPI.DeleteReplicationSessionById(ctx, session.ReplicationSessionContent.ReplicationSessionId)
 			if err != nil {
 				return nil, err
 			}
-
-			//log.Info("Change IsReplicationDestination parameter in remoteFileSystem")
-			//err = remoteFileAPI.UpdateReplicationDestinationParameter(ctx, remoteSystemId, false)
-			//if err != nil {
-			//	return nil, err
-			//}
 		}
 
 		log.Info("Deleting Filesystem")
