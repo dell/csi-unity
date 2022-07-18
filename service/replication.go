@@ -139,7 +139,42 @@ func (s *service) CreateStorageProtectionGroup(ctx context.Context, req *csiext.
 	}
 }
 func (s *service) DeleteStorageProtectionGroup(ctx context.Context, req *csiext.DeleteStorageProtectionGroupRequest) (*csiext.DeleteStorageProtectionGroupResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "Not implemented")
+	ctx, log, _ := GetRunidLog(ctx)
+	localParams := req.GetProtectionGroupAttributes()
+	groupID := req.GetProtectionGroupId()
+	arrayID, ok := localParams[s.opts.replcationContextPrefix+"systemName"]
+	remoteArrayID := localParams[s.opts.replicationPrefix+"remoteSystemName"]
+	if !ok {
+		log.Error("Can't get systemName from PG params")
+	}
+	localUnity, err := getUnityClient(ctx, s, arrayID)
+	if err != nil {
+		return nil, err
+	}
+
+	fileds := map[string]interface{}{
+		"ProtectedStorageGroup": groupID,
+	}
+
+	log.WithFields(fileds).Info("Deleting storage protection group")
+	fsAPI := gounity.NewFilesystem(localUnity)
+	prefix := strings.ReplaceAll(groupID, strings.ToUpper(arrayID), strings.ToUpper(remoteArrayID))
+	fsGroup, err := fsAPI.FindFileSystemGroupByPrefix(ctx, prefix)
+	if err != nil {
+		return nil, err
+	}
+	prefixDst := groupID
+	fsGroupDst, err := fsAPI.FindFileSystemGroupByPrefix(ctx, prefixDst)
+	if err != nil {
+		return nil, err
+	}
+	log.Infof("QWEQWE")
+	if len(fsGroup) != 0 || len(fsGroupDst) != 0 {
+		return nil, status.Error(codes.Internal, "FS group is not empty")
+	}
+	//https://10.230.24.48/api/types/filesystem/instances?filter=name%20lk%20%22ms_prov_test_f19e74a8_APM00213404195_0%25%22&fields=name,id&per_page=2000&compact=true
+
+	return &csiext.DeleteStorageProtectionGroupResponse{}, nil
 }
 
 func (s *service) ExecuteAction(ctx context.Context, req *csiext.ExecuteActionRequest) (*csiext.ExecuteActionResponse, error) {
