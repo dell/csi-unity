@@ -12,7 +12,7 @@ import (
 
 func (s *service) CreateRemoteVolume(ctx context.Context, req *csiext.CreateRemoteVolumeRequest) (*csiext.CreateRemoteVolumeResponse, error) {
 	ctx, log, _ := GetRunidLog(ctx)
-	log.Debugf("Executing CreateRemoteVolume with args: %+v", *req)
+	log.Debugf("Executing CreateRemoteVolume with args: %s", req.String())
 	volID := req.GetVolumeHandle()
 	if volID == "" {
 		return nil, status.Error(codes.InvalidArgument, "volume ID is required")
@@ -40,11 +40,11 @@ func (s *service) CreateRemoteVolume(ctx context.Context, req *csiext.CreateRemo
 		}
 
 		var remoteVolumeID string
-		replSession, err := replAPI.FindReplicationSessionById(ctx, rs.ReplicationSessionContent.ReplicationSessionId)
+		replSession, err := replAPI.FindReplicationSessionByID(ctx, rs.ReplicationSessionContent.ReplicationSessionID)
 		if err != nil {
 			return nil, err
 		}
-		remoteVolumeID = replSession.ReplicationSessionContent.DstResourceId
+		remoteVolumeID = replSession.ReplicationSessionContent.DstResourceID
 		if remoteVolumeID == "" {
 			return nil, status.Errorf(codes.Internal, "couldn't find volume id in replication session")
 		}
@@ -74,14 +74,13 @@ func (s *service) CreateRemoteVolume(ctx context.Context, req *csiext.CreateRemo
 		return &csiext.CreateRemoteVolumeResponse{
 			RemoteVolume: remoteVolume,
 		}, nil
-	} else {
-		return nil, status.Error(codes.Unimplemented, "Block replication is not implemented")
 	}
+	return nil, status.Error(codes.Unimplemented, "Block replication is not implemented")
 }
 
 func (s *service) CreateStorageProtectionGroup(ctx context.Context, req *csiext.CreateStorageProtectionGroupRequest) (*csiext.CreateStorageProtectionGroupResponse, error) {
 	ctx, log, _ := GetRunidLog(ctx)
-	log.Debugf("Executing CreateRemoteVolume with args: %+v", *req)
+	log.Debugf("Executing CreateRemoteVolume with args: %s", req.String())
 	volID := req.GetVolumeHandle()
 	if volID == "" {
 		return nil, status.Error(codes.InvalidArgument, "volume ID is required")
@@ -108,12 +107,12 @@ func (s *service) CreateStorageProtectionGroup(ctx context.Context, req *csiext.
 		if err != nil {
 			return nil, err
 		}
-		replSession, err := replAPI.FindReplicationSessionById(ctx, rs.ReplicationSessionContent.ReplicationSessionId)
+		replSession, err := replAPI.FindReplicationSessionByID(ctx, rs.ReplicationSessionContent.ReplicationSessionID)
 		if err != nil {
 			return nil, err
 		}
-		remoteProtectionGroupId := strings.Split(req.VolumeHandle, "=_=")[0]
-		localProtectionGroupId := strings.ReplaceAll(remoteProtectionGroupId, strings.ToUpper(req.Parameters[s.WithRP(keyReplicationRemoteSystem)]), strings.ToUpper(req.Parameters[(keyArrayID)]))
+		remoteProtectionGroupID := strings.Split(req.VolumeHandle, "=_=")[0]
+		localProtectionGroupID := strings.ReplaceAll(remoteProtectionGroupID, strings.ToUpper(req.Parameters[s.WithRP(keyReplicationRemoteSystem)]), strings.ToUpper(req.Parameters[(keyArrayID)]))
 		localParams := map[string]string{
 			s.opts.replicationContextPrefix + "systemName":       arrayID,
 			s.opts.replicationContextPrefix + "remoteSystemName": replSession.ReplicationSessionContent.RemoteSystem.Name,
@@ -125,15 +124,15 @@ func (s *service) CreateStorageProtectionGroup(ctx context.Context, req *csiext.
 			s.opts.replicationContextPrefix + "VolumeGroupName":  fileSystems.FileContent.Name,
 		}
 		return &csiext.CreateStorageProtectionGroupResponse{
-			LocalProtectionGroupId:          localProtectionGroupId,
-			RemoteProtectionGroupId:         remoteProtectionGroupId,
+			LocalProtectionGroupId:          localProtectionGroupID,
+			RemoteProtectionGroupId:         remoteProtectionGroupID,
 			LocalProtectionGroupAttributes:  localParams,
 			RemoteProtectionGroupAttributes: remoteParams,
 		}, nil
-	} else {
-		return nil, status.Error(codes.Unimplemented, "Block replication is not implemented")
 	}
+	return nil, status.Error(codes.Unimplemented, "Block replication is not implemented")
 }
+
 func (s *service) DeleteStorageProtectionGroup(ctx context.Context, req *csiext.DeleteStorageProtectionGroupRequest) (*csiext.DeleteStorageProtectionGroupResponse, error) {
 	ctx, log, _ := GetRunidLog(ctx)
 	localParams := req.GetProtectionGroupAttributes()
@@ -179,7 +178,11 @@ func (s *service) ExecuteAction(ctx context.Context, req *csiext.ExecuteActionRe
 }
 
 func (s *service) GetStorageProtectionGroupStatus(ctx context.Context, req *csiext.GetStorageProtectionGroupStatusRequest) (*csiext.GetStorageProtectionGroupStatusResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "Not implemented")
+	// no SPG, volume groups
+	// check replication session status of all volumes in volume group
+	// if one is bad then all SPG status bad
+
+	return nil, nil
 }
 
 // WithRP appends Replication Prefix to provided string
