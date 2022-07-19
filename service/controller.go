@@ -371,7 +371,7 @@ func (s *service) DeleteVolume(
 	req *csi.DeleteVolumeRequest) (
 	*csi.DeleteVolumeResponse, error) {
 	ctx, log, rid := GetRunidLog(ctx)
-	log.Info("Executing DeleteVolume with args: %+v", *req)
+	log.Debugf("Executing DeleteVolume with args: %+v", *req)
 	var snapErr error
 	volID, protocol, arrayID, unity, err := s.validateAndGetResourceDetails(ctx, req.GetVolumeId(), volumeType)
 	if err != nil {
@@ -404,7 +404,7 @@ func (s *service) DeleteVolume(
 			log.Info("Replication enabled, found replication session")
 
 			log.Info("Delete replication session")
-			err = replAPI.DeleteReplicationSessionById(ctx, session.ReplicationSessionContent.ReplicationSessionId)
+			err = replAPI.DeleteReplicationSessionByID(ctx, session.ReplicationSessionContent.ReplicationSessionID)
 			if err != nil {
 				return nil, err
 			}
