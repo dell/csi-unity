@@ -123,7 +123,7 @@ type Opts struct {
 	TenantName                    string
 	IsVolumeHealthMonitorEnabled  bool
 	replicationPrefix             string
-	replcationContextPrefix       string
+	replicationContextPrefix      string
 }
 
 type service struct {
