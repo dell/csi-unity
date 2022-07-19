@@ -115,14 +115,14 @@ func (s *service) CreateStorageProtectionGroup(ctx context.Context, req *csiext.
 		remoteProtectionGroupId := strings.Split(req.VolumeHandle, "=_=")[0]
 		localProtectionGroupId := strings.ReplaceAll(remoteProtectionGroupId, strings.ToUpper(req.Parameters[s.WithRP(keyReplicationRemoteSystem)]), strings.ToUpper(req.Parameters[(keyArrayID)]))
 		localParams := map[string]string{
-			s.opts.replcationContextPrefix + "systemName":       arrayID,
-			s.opts.replcationContextPrefix + "remoteSystemName": replSession.ReplicationSessionContent.RemoteSystem.Id,
-			s.opts.replcationContextPrefix + "VolumeGroupName":  fileSystems.FileContent.Name,
+			s.opts.replicationContextPrefix + "systemName":       arrayID,
+			s.opts.replicationContextPrefix + "remoteSystemName": replSession.ReplicationSessionContent.RemoteSystem.Name,
+			s.opts.replicationContextPrefix + "VolumeGroupName":  fileSystems.FileContent.Name,
 		}
 		remoteParams := map[string]string{
-			s.opts.replicationPrefix + "systemName":             replSession.ReplicationSessionContent.RemoteSystem.Id,
-			s.opts.replcationContextPrefix + "remoteSystemName": arrayID,
-			s.opts.replcationContextPrefix + "VolumeGroupName":  fileSystems.FileContent.Name,
+			s.opts.replicationContextPrefix + "systemName":       replSession.ReplicationSessionContent.RemoteSystem.Name,
+			s.opts.replicationContextPrefix + "remoteSystemName": arrayID,
+			s.opts.replicationContextPrefix + "VolumeGroupName":  fileSystems.FileContent.Name,
 		}
 		return &csiext.CreateStorageProtectionGroupResponse{
 			LocalProtectionGroupId:          localProtectionGroupId,
@@ -138,10 +138,17 @@ func (s *service) DeleteStorageProtectionGroup(ctx context.Context, req *csiext.
 	ctx, log, _ := GetRunidLog(ctx)
 	localParams := req.GetProtectionGroupAttributes()
 	groupID := req.GetProtectionGroupId()
-	arrayID, ok := localParams[s.opts.replcationContextPrefix+"systemName"]
-	remoteArrayID := localParams[s.opts.replicationPrefix+"remoteSystemName"]
+	arrayID, ok := localParams[s.opts.replicationContextPrefix+"systemName"]
 	if !ok {
 		log.Error("Can't get systemName from PG params")
+	}
+	remoteArrayID, ok := localParams[s.opts.replicationContextPrefix+"remoteSystemName"]
+	if !ok {
+		log.Error("Can't get systemName from PG params")
+	}
+
+	if err := s.requireProbe(ctx, arrayID); err != nil {
+		return nil, err
 	}
 	localUnity, err := getUnityClient(ctx, s, arrayID)
 	if err != nil {
@@ -159,13 +166,8 @@ func (s *service) DeleteStorageProtectionGroup(ctx context.Context, req *csiext.
 	if err != nil {
 		return nil, err
 	}
-	prefixDst := groupID
-	fsGroupDst, err := fsAPI.FindFileSystemGroupByPrefix(ctx, prefixDst)
-	if err != nil {
-		return nil, err
-	}
 
-	if len(fsGroup.Filesystems) != 0 || len(fsGroupDst.Filesystems) != 0 {
+	if len(fsGroup.Filesystems) != 0 {
 		return nil, status.Error(codes.Internal, "FS group is not empty")
 	}
 
