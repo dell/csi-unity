@@ -187,7 +187,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 
 		// Check if replication is enabled
 		replicationEnabled := params[s.WithRP(keyReplicationEnabled)]
-		log.Info("Replication enabled, replication key is ", replicationEnabled)
+		log.Info("Replication enabled value: ", replicationEnabled)
 		var remoteSystemName, rpoStr string
 		if replicationEnabled == "true" {
 			remoteSystemName, ok = params[s.WithRP(keyReplicationRemoteSystem)]
@@ -277,7 +277,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 				remoteFilesystem, err = remoteFileAPI.CreateFilesystem(ctx, volName, params[s.WithRP(keyRemoteStoragePool)], desc, remoteNasServer, uint64(size), int(tieringPolicy), int(hostIoSize), ProtocolNFS, thin, dataReduction, true)
 
 				if err != nil {
-					log.Infof("Remote filesystem create response:%v Error:%v", resp, err)
+					log.Debugf("Remote filesystem create response:%v Error:%v", resp, err)
 					return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Create Filesystem %s failed with error: %v", volName, err))
 				}
 			}
@@ -377,7 +377,6 @@ func (s *service) DeleteVolume(
 	if err != nil {
 		return nil, err
 	}
-	log.Info("volId ", volID, " arrayId ", arrayID)
 	ctx, log = setArrayIDContext(ctx, arrayID)
 	if err := s.requireProbe(ctx, arrayID); err != nil {
 		return nil, err
@@ -401,9 +400,7 @@ func (s *service) DeleteVolume(
 		session, _ := replAPI.FindReplicationSessionBySrcResourceID(ctx, filesystem.FileContent.StorageResource.ID)
 		log.Debugf("Replication session: %v", session)
 		if session != nil {
-			log.Info("Replication enabled, found replication session")
-
-			log.Info("Delete replication session")
+			log.Info("Replication enabled, delete replication session")
 			err = replAPI.DeleteReplicationSessionByID(ctx, session.ReplicationSessionContent.ReplicationSessionID)
 			if err != nil {
 				return nil, err
