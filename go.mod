@@ -2,7 +2,7 @@ module github.com/dell/csi-unity
 
 go 1.18
 
-replace github.com/dell/gounity => github.com/dell/gounity v0.0.0-20220721085832-92e753f99175
+replace github.com/dell/gounity => github.com/dell/gounity v0.0.0-20220728102712-3a98eea85677
 
 require (
 	github.com/container-storage-interface/spec v1.5.0
