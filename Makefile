@@ -23,10 +23,16 @@ integration-test:
 	( cd test/integration-test; sh run.sh )
 
 # Unit tests using Godog. Populate env.sh with the hardware parameters
-unit-test:
-	( cd test/unit-test; sh run.sh )
+# unit-test:
+# 	( cd test/unit-test; sh run.sh )
 
-#
+unit-test:
+	( cd service;  go test -v -coverprofile=coverage.out -timeout 30m -coverpkg=./ *unit_test.go )
+
+coverage:
+	cd service; go tool cover -html=coverage.out -o coverage.html
+
+# #
 # Docker-related tasks
 #
 # Generates the docker container (but does not push)

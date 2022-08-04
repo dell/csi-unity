@@ -73,6 +73,16 @@ var (
 )
 
 // CRParams - defines placeholder for all create volume parameters
+var RequireProbeController = requireProbeController
+var GetUnityClientController = getUnityClientController
+var Transport = transport
+var TransportFs = transportFs
+var CallVolAPI = callVolumeAPI
+var CallFSAPI = callFilesystemAPI
+var VolumeWrap *gounity.VolumeWrapper
+var FilesystemWrap *gounity.FilesystemWrapper
+
+// CRParams - defines placeholder for all create volume parameters
 type CRParams struct {
 	VolumeName      string
 	Protocol        string
@@ -88,6 +98,9 @@ type CRParams struct {
 
 type resourceType string
 
+var VolInterface gounity.VolumeInterface
+var FSInterface gounity.FilesystemInterface
+
 const volumeType resourceType = "volume"
 const snapshotType resourceType = "snapshot"
 
@@ -95,20 +108,23 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 	ctx, log, rid := GetRunidLog(ctx)
 	log.Debugf("Executing CreateVolume with args: %+v", *req)
 	params := req.GetParameters()
+
 	arrayID := strings.ToLower(strings.TrimSpace(params[keyArrayID]))
 	if arrayID == "" {
 		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "ArrayId cannot be empty"))
 	}
 	ctx, log = setArrayIDContext(ctx, arrayID)
+	fmt.Printf("ID Context set \n")
 
-	if err := s.requireProbe(ctx, arrayID); err != nil {
+	if err := RequireProbeController(ctx, s, arrayID); err != nil {
 		return nil, err
 	}
 
-	unity, err := s.getUnityClient(ctx, arrayID)
+	unity, err := GetUnityClientController(ctx, s, arrayID)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("get unity client set \n")
 
 	protocol, storagePool, size, tieringPolicy, hostIoSize, thin, dataReduction, err := ValidateCreateVolumeRequest(ctx, req)
 	if err != nil {
@@ -186,15 +202,78 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 		}
 		log.WithFields(fields).Infof("Executing Create File System with following fields")
 
+		// Check if replication is enabled
+		replicationEnabled := params[s.WithRP(keyReplicationEnabled)]
+		log.Info("Replication enabled value: ", replicationEnabled)
+		var remoteSystemName, rpoStr string
+		if replicationEnabled == "true" {
+			remoteSystemName, ok = params[s.WithRP(keyReplicationRemoteSystem)]
+			if !ok {
+				return nil, status.Errorf(codes.InvalidArgument, "replication enabled but no remote system specified in storage class")
+			}
+
+			if err := s.requireProbe(ctx, remoteSystemName); err != nil {
+				return nil, err
+			}
+
+			vgPrefix, ok := params[s.WithRP(keyReplicationVGPrefix)]
+			if !ok {
+				return nil, status.Errorf(codes.InvalidArgument, "replication enabled but no volume group prefix specified in storage class")
+			}
+
+			rpoStr, ok = params[s.WithRP(keyReplicationRPO)]
+			if !ok {
+				return nil, status.Errorf(codes.InvalidArgument, "replication enabled but no RPO specified in storage class")
+			}
+
+			rpo, err := strconv.ParseUint(rpoStr, 10, 32)
+			if err != nil || uint(rpo) < uint(0) || uint(rpo) > uint(1440) {
+				return nil, status.Errorf(codes.InvalidArgument, "invalid rpo value")
+			}
+
+			namespace := ""
+			if ignoreNS, ok := params[s.WithRP(keyReplicationIgnoreNamespaces)]; ok && ignoreNS == "false" {
+				pvcNS, ok := params[keyCSIPVCNamespace]
+				if ok {
+					pvcNS = strings.ReplaceAll(pvcNS, "-", "_")
+					namespace = pvcNS + "_"
+				}
+			}
+
+			vgName := vgPrefix + "_" + namespace + remoteSystemName + "_" + rpoStr
+			if len(vgName) > 128 {
+				vgName = vgName[:128]
+			}
+
+			volName = vgName + "=_=" + volName
+		}
+		fileAPI := CallFSAPI(unity)
+
+		FilesystemWrap = new(gounity.FilesystemWrapper)
+		FilesystemWrap.Filesystem = fileAPI
+
+		FSInterface = TransportFs(FilesystemWrap)
+
 		//Idempotency check
-		fileAPI := gounity.NewFilesystem(unity)
-		filesystem, _ := fileAPI.FindFilesystemByName(ctx, volName)
+		filesystem, _ := FSInterface.FindFilesystemByName(ctx, volName)
 		if filesystem != nil {
 			content := filesystem.FileContent
 			if int64(content.SizeTotal) == size && content.NASServer.ID == nasServer && content.Pool.ID == storagePool {
 				log.Info("Filesystem exists in the requested state with same size, NAS server and storage pool")
 				filesystem.FileContent.SizeTotal -= AdditionalFilesystemSize
 				return utils.GetVolumeResponseFromFilesystem(filesystem, arrayID, protocol, preferredAccessibility), nil
+			} else {
+				log.Info("'Filesystem name' already exists and size/NAS server/storage pool is different")
+				return nil, status.Error(codes.AlreadyExists, utils.GetMessageWithRunID(rid, "'Filesystem name' already exists and size/NAS server/storage pool is different."))
+			}
+		} else {
+			log.Debug("Filesystem does not exist, proceeding to create new filesystem")
+			//Hardcoded ProtocolNFS to 0 in order to support only NFS
+			resp, err := FSInterface.CreateFilesystem(ctx, volName, storagePool, desc, nasServer, uint64(size), int(tieringPolicy), int(hostIoSize), ProtocolNFS, thin, dataReduction, false)
+			//Add method to create filesystem
+			if err != nil {
+				log.Debugf("Filesystem create response:%v Error:%v", resp, err)
+				return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Create Filesystem %s failed with error: %v", volName, err))
 			}
 			log.Info("'Filesystem name' already exists and size/NAS server/storage pool is different")
 			return nil, status.Error(codes.AlreadyExists, utils.GetMessageWithRunID(rid, "'Filesystem name' already exists and size/NAS server/storage pool is different."))
@@ -205,6 +284,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 		//Hardcoded ProtocolNFS to 0 in order to support only NFS
 		resp, err := fileAPI.CreateFilesystem(ctx, volName, storagePool, desc, nasServer, uint64(size), int(tieringPolicy), int(hostIoSize), ProtocolNFS, thin, dataReduction)
 		//Add method to create filesystem
+		resp, err = FSInterface.FindFilesystemByName(ctx, volName)
 		if err != nil {
 			log.Debugf("Filesystem create response:%v Error:%v", resp, err)
 			return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Create Filesystem %s failed with error: %v", volName, err))
@@ -233,12 +313,17 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 			"hostIOLimitName": hostIOLimitName,
 		}
 		log.WithFields(fields).Infof("Executing CreateVolume with following fields")
-		volumeAPI := gounity.NewVolume(unity)
+		volumeAPI := CallVolAPI(unity)
+
+		VolumeWrap = new(gounity.VolumeWrapper)
+		VolumeWrap.Volume = volumeAPI
+		// Set VolumeAPI
+		VolInterface = Transport(VolumeWrap)
 
 		var hostIOLimit *types.IoLimitPolicy
 		var hostIOLimitID string
 		if hostIOLimitName != "" {
-			hostIOLimit, err = volumeAPI.FindHostIOLimitByName(ctx, hostIOLimitName)
+			hostIOLimit, err = VolInterface.FindHostIOLimitByName(ctx, hostIOLimitName)
 			if err != nil {
 				return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "HostIOLimitName %s not found. Error: %v", hostIOLimitName, err))
 			}
@@ -247,7 +332,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 		}
 
 		//Idempotency check
-		vol, _ := volumeAPI.FindVolumeByName(ctx, volName)
+		vol, _ := VolInterface.FindVolumeByName(ctx, volName)
 		if vol != nil {
 			content := vol.VolumeContent
 			if int64(content.SizeTotal) == size {
@@ -259,12 +344,12 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 		}
 
 		log.Debug("Volume does not exist, proceeding to create new volume")
-		resp, err := volumeAPI.CreateLun(ctx, volName, storagePool, desc, uint64(size), int(tieringPolicy), hostIOLimitID, thin, dataReduction)
+		resp, err := VolInterface.CreateLun(ctx, volName, storagePool, desc, uint64(size), int(tieringPolicy), hostIOLimitID, thin, dataReduction)
 		if err != nil {
 			return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Create Volume %s failed with error: %v", volName, err))
 		}
 
-		resp, err = volumeAPI.FindVolumeByName(ctx, volName)
+		resp, err = VolInterface.FindVolumeByName(ctx, volName)
 		if resp != nil {
 			volumeResp := utils.GetVolumeResponseFromVolume(resp, arrayID, protocol, preferredAccessibility)
 			log.Debugf("CreateVolume successful for volid: [%s]", volumeResp.Volume.VolumeId)
@@ -1923,4 +2008,30 @@ func (s *service) ControllerGetVolume(ctx context.Context,
 		},
 	}
 	return resp, nil
+}
+
+func requireProbeController(ctx context.Context, s *service, arrayID string) error {
+	return s.requireProbe(ctx, arrayID)
+}
+
+func getUnityClientController(ctx context.Context, s *service, arrayID string) (*gounity.Client, error) {
+	return s.getUnityClient(ctx, arrayID)
+}
+
+func callVolumeAPI(client *gounity.Client) *gounity.Volume {
+	return gounity.NewVolume(client)
+}
+func callFilesystemAPI(client *gounity.Client) *gounity.Filesystem {
+	return gounity.NewFilesystem(client)
+}
+
+func transport(vol gounity.VolumeAssign) gounity.VolumeInterface {
+	//set VolumeAPI
+	VolumeAPI := vol.InterfaceAssignment()
+	return VolumeAPI
+}
+func transportFs(f gounity.FilesystemAssign) gounity.FilesystemInterface {
+	//set FilesystemAPI
+	FsAPI := f.InterfaceAssignment()
+	return FsAPI
 }
