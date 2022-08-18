@@ -85,7 +85,7 @@ func (s *service) GetPluginCapabilities(
 
 func (s *service) GetReplicationCapabilities(ctx context.Context, req *csiext.GetReplicationCapabilityRequest) (*csiext.GetReplicationCapabilityResponse, error) {
 	ctx, log, _ := GetRunidLog(ctx)
-	log.Infof("Executing GetReplicationCapabilities with args: %s", req.String())
+	log.Infof("Executing GetReplicationCapabilities with args: %+v", *req)
 	return &csiext.GetReplicationCapabilityResponse{
 		Capabilities: []*csiext.ReplicationCapability{
 			{
