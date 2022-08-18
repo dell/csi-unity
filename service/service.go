@@ -4,10 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	csiext "github.com/dell/dell-csi-extensions/replication"
-	commonext "github.com/dell/dell-csi-extensions/common"
-	"github.com/golang/protobuf/ptypes/wrappers"
-	"github.com/prometheus/common/log"
 	"io/ioutil"
 	"net"
 	"os"
@@ -289,7 +285,6 @@ func (s *service) RegisterAdditionalServers(server *grpc.Server) {
 	_, log := setRunIDContext(context.Background(), "RegisterAdditionalServers")
 	log.Info("Registering additional GRPC servers")
 	podmon.RegisterPodmonServer(server, s)
-	csiext.RegisterReplicationServer(server, s)
 }
 
 //Get storage array from sync Map
@@ -860,17 +855,4 @@ func (s *service) GetNodeLabels(ctx context.Context) (map[string]string, error) 
 	}
 	log.Debugf("Node labels: %v\n", node.Labels)
 	return node.Labels, nil
-}
-
-func (s *service) ProbeController(ctx context.Context, req *commonext.ProbeControllerRequest) (*commonext.ProbeControllerResponse, error) {
-	ready := new(wrappers.BoolValue)
-	ready.Value = true
-	rep := new(commonext.ProbeControllerResponse)
-	rep.Ready = ready
-	rep.Name = Name
-	rep.VendorVersion = core.SemVer
-	rep.Manifest = Manifest
-
-	log.Debug(fmt.Sprintf("ProbeController returning: %v", rep.Ready.GetValue()))
-	return rep, nil
 }

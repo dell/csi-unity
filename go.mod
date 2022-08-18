@@ -5,9 +5,7 @@ go 1.18
 require (
 	github.com/container-storage-interface/spec v1.5.0
 	github.com/cucumber/godog v0.10.0
-	github.com/dell/dell-csi-extensions/common v1.1.0
 	github.com/dell/dell-csi-extensions/podmon v1.0.0
-	github.com/dell/dell-csi-extensions/replication v1.2.1
 	github.com/dell/gobrick v1.4.0
 	github.com/dell/gocsi v1.6.0
 	github.com/dell/gofsutil v1.9.0
@@ -16,7 +14,6 @@ require (
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/golang/protobuf v1.5.2
 	github.com/kubernetes-csi/csi-lib-utils v0.7.0
-	github.com/prometheus/common v0.26.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
@@ -31,8 +28,6 @@ require (
 
 require (
 	github.com/akutz/gosync v0.1.0 // indirect
-	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751 // indirect
-	github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d // indirect
 	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
 	github.com/cucumber/gherkin-go/v11 v11.0.0 // indirect
@@ -78,7 +73,6 @@ require (
 	google.golang.org/appengine v1.6.5 // indirect
 	google.golang.org/genproto v0.0.0-20210602131652-f16073e35f0c // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
-	gopkg.in/alecthomas/kingpin.v2 v2.2.6 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.51.0 // indirect
 	k8s.io/api v0.22.2 // indirect
