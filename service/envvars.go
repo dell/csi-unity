@@ -42,7 +42,4 @@ const (
 
 	// EnvIsVolumeHealthMonitorEnabled - Environment variable to enable/disable health monitor of CSI volumes
 	EnvIsVolumeHealthMonitorEnabled = "X_CSI_HEALTH_MONITOR_ENABLED"
-
-	// EnvReplicationPrefix is used as a prefix to find out if replication is enabled
-	EnvReplicationPrefix = "X_CSI_REPLICATION_PREFIX"
 )
