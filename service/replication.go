@@ -33,12 +33,13 @@ func (s *service) CreateRemoteVolume(ctx context.Context, req *csiext.CreateRemo
 	//remoteVolumeResp := &csiext.CreateRemoteVolumeResponse{}
 	if protocol == NFS {
 		fsAPI := gounity.NewFilesystem(unity)
+
 		fileSystems, err := fsAPI.FindFilesystemByID(ctx, volID)
 		if err != nil {
 			return nil, err
 		}
 		replAPI := gounity.NewReplicationSession(unity)
-		rs, err := replAPI.FindReplicationSessionBySrcResourceID(ctx, fileSystems.FileContent.StorageResource.ID)
+		rs, err := replAPI.FindReplicationSessionIdBySrcResourceID(ctx, fileSystems.FileContent.StorageResource.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -108,7 +109,7 @@ func (s *service) CreateStorageProtectionGroup(ctx context.Context, req *csiext.
 			return nil, err
 		}
 		replAPI := gounity.NewReplicationSession(unity)
-		rs, err := replAPI.FindReplicationSessionBySrcResourceID(ctx, fileSystems.FileContent.StorageResource.ID)
+		rs, err := replAPI.FindReplicationSessionIdBySrcResourceID(ctx, fileSystems.FileContent.StorageResource.ID)
 		if err != nil {
 			return nil, err
 		}
