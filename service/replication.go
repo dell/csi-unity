@@ -8,6 +8,10 @@ import (
 	"github.com/dell/gounity"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	//"github.com/dell/gounity/api"
+	//"github.com/dell/gounity/util"
+	//"github.com/dell/gounity/api"
+	//"github.com/dell/gounity/types"
 )
 
 func (s *service) CreateRemoteVolume(ctx context.Context, req *csiext.CreateRemoteVolumeRequest) (*csiext.CreateRemoteVolumeResponse, error) {
@@ -164,10 +168,11 @@ func (s *service) DeleteStorageProtectionGroup(ctx context.Context, req *csiext.
 	if err != nil {
 		return nil, err
 	}
-
-	if len(fsGroup.Filesystems) != 0 || len(fsGroupDst.Filesystems) != 0 {
+	log.Infof("QWEQWE")
+	if len(fsGroup) != 0 || len(fsGroupDst) != 0 {
 		return nil, status.Error(codes.Internal, "FS group is not empty")
 	}
+	//https://10.230.24.48/api/types/filesystem/instances?filter=name%20lk%20%22ms_prov_test_f19e74a8_APM00213404195_0%25%22&fields=name,id&per_page=2000&compact=true
 
 	return &csiext.DeleteStorageProtectionGroupResponse{}, nil
 }

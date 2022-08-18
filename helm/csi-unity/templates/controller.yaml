@@ -294,7 +294,7 @@ spec:
         {{- end }}
         {{- end }}
         - name: driver
-          image: "{{ required "Must provide the driver image repository." .Values.images.driverRepository }}/{{ .Chart.Name }}:{{ .Values.version }}"
+          image: amaas-eos-drm1.cec.lab.emc.com:5017/csi-unity:alina
           args:
             - "--driver-name=csi-unity.dellemc.com"
             - "--driver-config=/unity-config/driver-config-params.yaml"
