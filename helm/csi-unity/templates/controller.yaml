@@ -202,7 +202,6 @@ spec:
             - "--leader-election"
             - "--leader-election-namespace={{ .Release.Namespace }}"
             - "--default-fstype={{ .Values.defaultFsType | default "ext4" }}"
-            - "--extra-create-metadata"
           env:
             - name: ADDRESS
               value: /var/run/csi/csi.sock
