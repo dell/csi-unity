@@ -395,21 +395,15 @@ func (s *service) DeleteVolume(
 	} else {
 		log.Info("Protocol NFS,check if volume is replicated")
 		fileAPI := gounity.NewFilesystem(unity)
-		// ignoring error cause of idempotency
 		filesystem, _ := fileAPI.FindFilesystemByID(ctx, volID)
-		if filesystem != nil {
-			replAPI := gounity.NewReplicationSession(unity)
-			session, err := replAPI.FindReplicationSessionBySrcResourceID(ctx, filesystem.FileContent.StorageResource.ID)
+		replAPI := gounity.NewReplicationSession(unity)
+		session, _ := replAPI.FindReplicationSessionBySrcResourceID(ctx, filesystem.FileContent.StorageResource.ID)
+		log.Debugf("Replication session: %v", session)
+		if session != nil {
+			log.Info("Replication enabled, delete replication session")
+			err = replAPI.DeleteReplicationSessionByID(ctx, session.ReplicationSessionContent.ReplicationSessionID)
 			if err != nil {
 				return nil, err
-			}
-			log.Debugf("Replication session: %v", session)
-			if session != nil {
-				log.Info("Replication enabled, delete replication session")
-				err = replAPI.DeleteReplicationSessionByID(ctx, session.ReplicationSessionContent.ReplicationSessionID)
-				if err != nil {
-					return nil, err
-				}
 			}
 		}
 
