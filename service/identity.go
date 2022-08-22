@@ -1,7 +1,6 @@
 package service
 
 import (
-	csiext "github.com/dell/dell-csi-extensions/replication"
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -77,82 +76,6 @@ func (s *service) GetPluginCapabilities(
 					Service: &csi.PluginCapability_Service{
 						Type: csi.PluginCapability_Service_VOLUME_ACCESSIBILITY_CONSTRAINTS,
 					},
-				},
-			},
-		},
-	}, nil
-}
-
-func (s *service) GetReplicationCapabilities(ctx context.Context, req *csiext.GetReplicationCapabilityRequest) (*csiext.GetReplicationCapabilityResponse, error) {
-	ctx, log, _ := GetRunidLog(ctx)
-	log.Infof("Executing GetReplicationCapabilities with args: %s", req.String())
-	return &csiext.GetReplicationCapabilityResponse{
-		Capabilities: []*csiext.ReplicationCapability{
-			{
-				Type: &csiext.ReplicationCapability_Rpc{
-					Rpc: &csiext.ReplicationCapability_RPC{
-						Type: csiext.ReplicationCapability_RPC_CREATE_REMOTE_VOLUME,
-					},
-				},
-			},
-			{
-				Type: &csiext.ReplicationCapability_Rpc{
-					Rpc: &csiext.ReplicationCapability_RPC{
-						Type: csiext.ReplicationCapability_RPC_CREATE_PROTECTION_GROUP,
-					},
-				},
-			},
-			{
-				Type: &csiext.ReplicationCapability_Rpc{
-					Rpc: &csiext.ReplicationCapability_RPC{
-						Type: csiext.ReplicationCapability_RPC_DELETE_PROTECTION_GROUP,
-					},
-				},
-			},
-			{
-				Type: &csiext.ReplicationCapability_Rpc{
-					Rpc: &csiext.ReplicationCapability_RPC{
-						Type: csiext.ReplicationCapability_RPC_REPLICATION_ACTION_EXECUTION,
-					},
-				},
-			},
-			{
-				Type: &csiext.ReplicationCapability_Rpc{
-					Rpc: &csiext.ReplicationCapability_RPC{
-						Type: csiext.ReplicationCapability_RPC_MONITOR_PROTECTION_GROUP,
-					},
-				},
-			},
-		},
-		Actions: []*csiext.SupportedActions{
-			{
-				Actions: &csiext.SupportedActions_Type{
-					Type: csiext.ActionTypes_FAILOVER_REMOTE,
-				},
-			},
-			{
-				Actions: &csiext.SupportedActions_Type{
-					Type: csiext.ActionTypes_UNPLANNED_FAILOVER_LOCAL,
-				},
-			},
-			{
-				Actions: &csiext.SupportedActions_Type{
-					Type: csiext.ActionTypes_REPROTECT_LOCAL,
-				},
-			},
-			{
-				Actions: &csiext.SupportedActions_Type{
-					Type: csiext.ActionTypes_SUSPEND,
-				},
-			},
-			{
-				Actions: &csiext.SupportedActions_Type{
-					Type: csiext.ActionTypes_RESUME,
-				},
-			},
-			{
-				Actions: &csiext.SupportedActions_Type{
-					Type: csiext.ActionTypes_SYNC,
 				},
 			},
 		},

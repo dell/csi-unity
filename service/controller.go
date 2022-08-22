@@ -27,24 +27,16 @@ import (
 const (
 	// KeyStoragePool is the key used to get the storagePool name from the
 	// volume create parameters map
-	keyStoragePool                 = "storagePool"
-	keyThinProvisioned             = "thinProvisioned"
-	keyDescription                 = "description"
-	keyDataReductionEnabled        = "isDataReductionEnabled"
-	keyTieringPolicy               = "tieringPolicy"
-	keyHostIOLimitName             = "hostIOLimitName"
-	keyArrayID                     = "arrayId"
-	keyProtocol                    = "protocol"
-	keyNasServer                   = "nasServer"
-	keyHostIoSize                  = "hostIoSize"
-	keyReplicationEnabled          = "isReplicationEnabled"
-	keyReplicationVGPrefix         = "volumeGroupPrefix"
-	keyReplicationRPO              = "rpo"
-	keyReplicationRemoteSystem     = "remoteSystem"
-	keyReplicationIgnoreNamespaces = "ignoreNamespaces"
-	keyCSIPVCNamespace             = "csi.storage.k8s.io/pvc/namespace"
-	keyRemoteStoragePool           = "remoteStoragePool"
-	keyRemoteNasServer             = "remoteNasServer"
+	keyStoragePool          = "storagePool"
+	keyThinProvisioned      = "thinProvisioned"
+	keyDescription          = "description"
+	keyDataReductionEnabled = "isDataReductionEnabled"
+	keyTieringPolicy        = "tieringPolicy"
+	keyHostIOLimitName      = "hostIOLimitName"
+	keyArrayID              = "arrayId"
+	keyProtocol             = "protocol"
+	keyNasServer            = "nasServer"
+	keyHostIoSize           = "hostIoSize"
 )
 
 // Constants used across module
@@ -168,7 +160,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 			return nil, status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "`%s` is a required parameter", keyNasServer))
 		}
 
-		// Add AdditionalFilesystemSize in size as Unity XT use this much size for metadata in filesystem
+		//Add AdditionalFilesystemSize in size as Unity XT use this much size for metadata in filesystem
 		size += AdditionalFilesystemSize
 
 		// log all parameters used in Create File System call
@@ -185,52 +177,6 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 		}
 		log.WithFields(fields).Infof("Executing Create File System with following fields")
 
-		// Check if replication is enabled
-		replicationEnabled := params[s.WithRP(keyReplicationEnabled)]
-		log.Info("Replication enabled value: ", replicationEnabled)
-		var remoteSystemName, rpoStr string
-		if replicationEnabled == "true" {
-			remoteSystemName, ok = params[s.WithRP(keyReplicationRemoteSystem)]
-			if !ok {
-				return nil, status.Errorf(codes.InvalidArgument, "replication enabled but no remote system specified in storage class")
-			}
-
-			if err := s.requireProbe(ctx, remoteSystemName); err != nil {
-				return nil, err
-			}
-
-			vgPrefix, ok := params[s.WithRP(keyReplicationVGPrefix)]
-			if !ok {
-				return nil, status.Errorf(codes.InvalidArgument, "replication enabled but no volume group prefix specified in storage class")
-			}
-
-			rpoStr, ok = params[s.WithRP(keyReplicationRPO)]
-			if !ok {
-				return nil, status.Errorf(codes.InvalidArgument, "replication enabled but no RPO specified in storage class")
-			}
-
-			rpo, err := strconv.ParseUint(rpoStr, 10, 32)
-			if err != nil || uint(rpo) < uint(0) || uint(rpo) > uint(1440) {
-				return nil, status.Errorf(codes.InvalidArgument, "invalid rpo value")
-			}
-
-			namespace := ""
-			if ignoreNS, ok := params[s.WithRP(keyReplicationIgnoreNamespaces)]; ok && ignoreNS == "false" {
-				pvcNS, ok := params[keyCSIPVCNamespace]
-				if ok {
-					pvcNS = strings.ReplaceAll(pvcNS, "-", "_")
-					namespace = pvcNS + "_"
-				}
-			}
-
-			vgName := vgPrefix + "_" + namespace + remoteSystemName + "_" + rpoStr
-			if len(vgName) > 128 {
-				vgName = vgName[:128]
-			}
-
-			volName = vgName + "=_=" + volName
-		}
-
 		//Idempotency check
 		fileAPI := gounity.NewFilesystem(unity)
 		filesystem, _ := fileAPI.FindFilesystemByName(ctx, volName)
@@ -239,71 +185,25 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 			if int64(content.SizeTotal) == size && content.NASServer.ID == nasServer && content.Pool.ID == storagePool {
 				log.Info("Filesystem exists in the requested state with same size, NAS server and storage pool")
 				filesystem.FileContent.SizeTotal -= AdditionalFilesystemSize
-			} else {
-				log.Info("'Filesystem name' already exists and size/NAS server/storage pool is different")
-				return nil, status.Error(codes.AlreadyExists, utils.GetMessageWithRunID(rid, "'Filesystem name' already exists and size/NAS server/storage pool is different."))
+				return utils.GetVolumeResponseFromFilesystem(filesystem, arrayID, protocol, preferredAccessibility), nil
 			}
-		} else {
-			log.Debug("Filesystem does not exist, proceeding to create new filesystem")
-			//Hardcoded ProtocolNFS to 0 in order to support only NFS
-			resp, err := fileAPI.CreateFilesystem(ctx, volName, storagePool, desc, nasServer, uint64(size), int(tieringPolicy), int(hostIoSize), ProtocolNFS, thin, dataReduction, false)
-			//Add method to create filesystem
-			if err != nil {
-				log.Debugf("Filesystem create response:%v Error:%v", resp, err)
-				return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Create Filesystem %s failed with error: %v", volName, err))
-			}
+			log.Info("'Filesystem name' already exists and size/NAS server/storage pool is different")
+			return nil, status.Error(codes.AlreadyExists, utils.GetMessageWithRunID(rid, "'Filesystem name' already exists and size/NAS server/storage pool is different."))
+
 		}
-		resp, err := fileAPI.FindFilesystemByName(ctx, volName)
+
+		log.Debug("Filesystem does not exist, proceeding to create new filesystem")
+		//Hardcoded ProtocolNFS to 0 in order to support only NFS
+		resp, err := fileAPI.CreateFilesystem(ctx, volName, storagePool, desc, nasServer, uint64(size), int(tieringPolicy), int(hostIoSize), ProtocolNFS, thin, dataReduction)
+		//Add method to create filesystem
+		if err != nil {
+			log.Debugf("Filesystem create response:%v Error:%v", resp, err)
+			return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Create Filesystem %s failed with error: %v", volName, err))
+		}
+
+		resp, err = fileAPI.FindFilesystemByName(ctx, volName)
 		if err != nil {
 			log.Debugf("Find Filesystem response: %v Error: %v", resp, err)
-		}
-
-		if replicationEnabled == "true" {
-			remoteNasServer, ok := params[s.WithRP(keyRemoteNasServer)]
-			if !ok {
-				return nil, status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "`%s` is a required parameter", keyRemoteNasServer))
-			}
-
-			remoteUnity, err := s.getUnityClient(ctx, remoteSystemName)
-			if err != nil {
-				return nil, err
-			}
-
-			//check if remote fs is exist
-			remoteFileAPI := gounity.NewFilesystem(remoteUnity)
-			remoteFilesystem, _ := remoteFileAPI.FindFilesystemByName(ctx, volName)
-			if remoteFilesystem == nil {
-				log.Info("Remote filesystem does not exist, proceeding to create new filesystem")
-				remoteFilesystem, err = remoteFileAPI.CreateFilesystem(ctx, volName, params[s.WithRP(keyRemoteStoragePool)], desc, remoteNasServer, uint64(size), int(tieringPolicy), int(hostIoSize), ProtocolNFS, thin, dataReduction, true)
-
-				if err != nil {
-					log.Debugf("Remote filesystem create response:%v Error:%v", resp, err)
-					return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Create Filesystem %s failed with error: %v", volName, err))
-				}
-			}
-
-			remoteFilesystem, err = remoteFileAPI.FindFilesystemByName(ctx, volName)
-			if err != nil {
-				log.Debugf("Find Remote Filesystem response: %v Error: %v", resp, err)
-				return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Find Remote FileSystem error:%v", err))
-			}
-
-			replAPI := gounity.NewReplicationSession(unity)
-			session, err := replAPI.FindReplicationSessionBySrcResourceID(ctx, resp.FileContent.StorageResource.ID)
-			if session == nil {
-				log.Debugf("Replication session does not exist, proceeding to create new replication session")
-				_, err := replAPI.FindRemoteSystemByName(ctx, remoteSystemName)
-				if err != nil {
-					return nil, err
-				}
-				// creating replication session between fs
-				session, err = replAPI.CreateReplicationSession(ctx, "repl_sess_"+resp.FileContent.StorageResource.ID+"_"+remoteFilesystem.FileContent.StorageResource.ID,
-					resp.FileContent.StorageResource.ID, remoteFilesystem.FileContent.StorageResource.ID, remoteSystemName, rpoStr)
-				if err != nil {
-					log.Debugf("Error in creating replication session. Error:%v", err)
-					return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "replication session Error:%v", err))
-				}
-			}
 		}
 
 		if resp != nil {
@@ -393,27 +293,8 @@ func (s *service) DeleteVolume(
 		}
 
 	} else {
-		log.Info("Protocol NFS,check if volume is replicated")
-		fileAPI := gounity.NewFilesystem(unity)
-		// ignoring error cause of idempotency
-		filesystem, _ := fileAPI.FindFilesystemByID(ctx, volID)
-		if filesystem != nil {
-			replAPI := gounity.NewReplicationSession(unity)
-			session, err := replAPI.FindReplicationSessionBySrcResourceID(ctx, filesystem.FileContent.StorageResource.ID)
-			if err != nil {
-				return nil, err
-			}
-			log.Debugf("Replication session: %v", session)
-			if session != nil {
-				log.Info("Replication enabled, delete replication session")
-				err = replAPI.DeleteReplicationSessionByID(ctx, session.ReplicationSessionContent.ReplicationSessionID)
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
 
-		log.Info("Deleting Filesystem")
+		//Delete logic for Filesystem
 		var throwErr error
 		err, snapErr, throwErr = s.deleteFilesystem(ctx, volID, unity)
 		if throwErr != nil {

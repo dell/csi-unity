@@ -15,11 +15,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	commonext "github.com/dell/dell-csi-extensions/common"
-	csiext "github.com/dell/dell-csi-extensions/replication"
-	"github.com/golang/protobuf/ptypes/wrappers"
-	"github.com/prometheus/common/log"
-
 	"github.com/dell/dell-csi-extensions/podmon"
 	"google.golang.org/grpc"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -122,8 +117,6 @@ type Opts struct {
 	LogLevel                      string
 	TenantName                    string
 	IsVolumeHealthMonitorEnabled  bool
-	replicationPrefix             string
-	replicationContextPrefix      string
 }
 
 type service struct {
@@ -183,9 +176,6 @@ func (s *service) BeforeServe(
 	opts := Opts{}
 	if name, ok := csictx.LookupEnv(ctx, gocsi.EnvVarDebug); ok {
 		opts.Debug, _ = strconv.ParseBool(name)
-	}
-	if replicationPrefix, ok := csictx.LookupEnv(ctx, EnvReplicationPrefix); ok {
-		opts.replicationPrefix = replicationPrefix
 	}
 
 	if name, ok := csictx.LookupEnv(ctx, EnvNodeName); ok {
@@ -295,12 +285,11 @@ func (s *service) RegisterAdditionalServers(server *grpc.Server) {
 	_, log := setRunIDContext(context.Background(), "RegisterAdditionalServers")
 	log.Info("Registering additional GRPC servers")
 	podmon.RegisterPodmonServer(server, s)
-	csiext.RegisterReplicationServer(server, s)
 }
 
 //Get storage array from sync Map
 func (s *service) getStorageArray(arrayID string) *StorageArrayConfig {
-	if a, ok := s.arrays.Load(strings.ToLower(arrayID)); ok {
+	if a, ok := s.arrays.Load(arrayID); ok {
 		return a.(*StorageArrayConfig)
 	}
 	return nil
@@ -866,17 +855,4 @@ func (s *service) GetNodeLabels(ctx context.Context) (map[string]string, error) 
 	}
 	log.Debugf("Node labels: %v\n", node.Labels)
 	return node.Labels, nil
-}
-
-func (s *service) ProbeController(ctx context.Context, req *commonext.ProbeControllerRequest) (*commonext.ProbeControllerResponse, error) {
-	ready := new(wrappers.BoolValue)
-	ready.Value = true
-	rep := new(commonext.ProbeControllerResponse)
-	rep.Ready = ready
-	rep.Name = Name
-	rep.VendorVersion = core.SemVer
-	rep.Manifest = Manifest
-
-	log.Debug(fmt.Sprintf("ProbeController returning: %v", rep.Ready.GetValue()))
-	return rep, nil
 }
