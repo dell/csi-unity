@@ -11,7 +11,7 @@ RUN GOOS=linux CGO_ENABLED=0 GOARCH=amd64 go build -ldflags '-extldflags "-stati
 RUN go run core/semver/semver.go -f mk
 
 # Dockerfile to build Unity CSI Driver
-FROM registry.access.redhat.com/ubi8/ubi-minimal@sha256:9a81cce19ae2a962269d4a7fecd38aec60b852118ad798a265c3f6c4be0df610 as driver
+FROM registry.access.redhat.com/ubi8/ubi-minimal@sha256:6e79406e33049907e875cb65a31ee2f0575f47afa0f06e3a2a9316b01ee379eb as driver
 # dependencies, following by cleaning the cache
 RUN microdnf update -y \
 	&& \
