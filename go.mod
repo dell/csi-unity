@@ -6,11 +6,11 @@ require (
 	github.com/container-storage-interface/spec v1.5.0
 	github.com/cucumber/godog v0.10.0
 	github.com/dell/dell-csi-extensions/podmon v1.0.0
-	github.com/dell/gobrick v1.4.1-0.20220704095946-b521c024c35e
+	github.com/dell/gobrick v1.4.1-0.20220830073454-aa4b5fdf0c0f
 	github.com/dell/gocsi v1.6.0
-	github.com/dell/gofsutil v1.9.1-0.20220804050348-2b1cbfd2b12e
+	github.com/dell/gofsutil v1.9.1-0.20220826112338-7e76776fb6cb
 	github.com/dell/goiscsi v1.4.1-0.20220720190720-020b17e67961
-	github.com/dell/gounity v1.10.0
+	github.com/dell/gounity v1.10.1-0.20220822091954-e4b57c84a187
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/golang/protobuf v1.5.2
 	github.com/kubernetes-csi/csi-lib-utils v0.7.0
