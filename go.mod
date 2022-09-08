@@ -6,10 +6,10 @@ require (
 	github.com/container-storage-interface/spec v1.5.0
 	github.com/cucumber/godog v0.10.0
 	github.com/dell/dell-csi-extensions/podmon v1.0.0
-	github.com/dell/gobrick v1.4.1-0.20220830073454-aa4b5fdf0c0f
+	github.com/dell/gobrick v1.5.1
 	github.com/dell/gocsi v1.6.0
-	github.com/dell/gofsutil v1.9.1-0.20220826112338-7e76776fb6cb
-	github.com/dell/goiscsi v1.4.1-0.20220720190720-020b17e67961
+	github.com/dell/gofsutil v1.10.0
+	github.com/dell/goiscsi v1.5.0
 	github.com/dell/gounity v1.11.0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/golang/protobuf v1.5.2
@@ -33,7 +33,7 @@ require (
 	github.com/cucumber/gherkin-go/v11 v11.0.0 // indirect
 	github.com/cucumber/messages-go/v10 v10.0.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dell/gonvme v1.1.1-0.20220704070618-c22e60197ee5 // indirect
+	github.com/dell/gonvme v1.2.0 // indirect
 	github.com/go-logr/logr v0.4.0 // indirect
 	github.com/gofrs/uuid v3.2.0+incompatible // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
