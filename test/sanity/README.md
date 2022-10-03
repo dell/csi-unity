@@ -1,7 +1,7 @@
 # Kubernetes Sanity Script Test
 
 This test runs the Kubernetes sanity test at https://github.com/kubernetes-csi/csi-test.
-The test last qualified was v2.4.0.
+The test last qualified was v2.5.0.
 
 To run the test, follow these steps:
 
