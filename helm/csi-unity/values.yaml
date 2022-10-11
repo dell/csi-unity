@@ -203,6 +203,7 @@ podmon:
 #      - "--skipArrayConnectionValidation=false"
 #      - "--driver-config-params=/unity-config/driver-config-params.yaml"
 #      - "--driverPodLabelValue=dell-storage"
+#      - "--ignoreVolumelessPods=false"
 #  node:
 #    args:
 #      - "--csisock=unix:/var/lib/kubelet/plugins/unity.emc.dell.com/csi_sock"
@@ -212,6 +213,7 @@ podmon:
 #      - "--leaderelection=false"
 #      - "--driver-config-params=/unity-config/driver-config-params.yaml"
 #      - "--driverPodLabelValue=dell-storage"
+#      - "--ignoreVolumelessPods=false"
 
 ### The below parameters have been discontinued for configuration from secret.yaml and will have to be configured only in values.yaml
 
