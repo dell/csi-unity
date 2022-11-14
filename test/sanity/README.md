@@ -1,3 +1,16 @@
+<!--
+ Copyright © 2019 Dell Inc. or its subsidiaries. All Rights Reserved.
+ 
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+      http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
 # Kubernetes Sanity Script Test
 
 This test runs the Kubernetes sanity test at https://github.com/kubernetes-csi/csi-test.
@@ -5,7 +18,7 @@ The test last qualified was v2.5.0.
 
 To run the test, follow these steps:
 
-1. "go get github.com/kubernetees-csi/csi-test"
+1. "go get github.com/kubernetes-csi/csi-test"
 2. Build and install the executable, csi-sanity,  in a directory in your $PATH.
 3. Make sure your env.sh is up to date so the CSI driver can be run.
 4. Edit the secrets.yaml to have the correct SYMID, ServiceLevel, SRP, and ApplicationPrefix.
