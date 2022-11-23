@@ -1,9 +1,18 @@
-package service
-
 /*
-Copyright (c) 2019 Dell Corporation
-All Rights Reserved
+ Copyright © 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+      http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
 */
+
+package service
 
 import (
 	"fmt"
@@ -63,7 +72,7 @@ var (
 	errBlockNFS               = "Block Volume Capability is not supported for NFS"
 )
 
-//CRParams - defines placeholder for all create volume parameters
+// CRParams - defines placeholder for all create volume parameters
 type CRParams struct {
 	VolumeName      string
 	Protocol        string
@@ -880,7 +889,7 @@ func (s *service) getCSISnapshots(snaps []types.Snapshot, volID, protocol, array
 	return entries, nil
 }
 
-//@TODO: Check if arrayID can be changed to unity client
+// @TODO: Check if arrayID can be changed to unity client
 func (s *service) getFilesystemByResourceID(ctx context.Context, resourceID, arrayID string) (*types.Filesystem, error) {
 	ctx, _, rid := GetRunidLog(ctx)
 	unity, err := s.getUnityClient(ctx, arrayID)
@@ -900,7 +909,7 @@ func (s *service) getFilesystemByResourceID(ctx context.Context, resourceID, arr
 	return sourceFilesystemResp, nil
 }
 
-//Create Volume from Snapshot(Copy snapshot on array)
+// Create Volume from Snapshot(Copy snapshot on array)
 func (s *service) createFilesystemFromSnapshot(ctx context.Context, snapID, volumeName, arrayID string) (*types.Snapshot, error) {
 	ctx, _, rid := GetRunidLog(ctx)
 	unity, err := s.getUnityClient(ctx, arrayID)
@@ -1033,7 +1042,7 @@ func (s *service) getHostID(ctx context.Context, arrayID, shortHostname, longHos
 	return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find Host Id Failed."))
 }
 
-//createVolumeClone - Method to create a volume clone with idempotency for all protocols
+// createVolumeClone - Method to create a volume clone with idempotency for all protocols
 func (s *service) createVolumeClone(ctx context.Context, crParams *CRParams, sourceVolID, arrayID string, contentSource *csi.VolumeContentSource, unity *gounity.Client, preferredAccessibility []*csi.Topology) (*csi.CreateVolumeResponse, error) {
 
 	ctx, log, rid := GetRunidLog(ctx)
@@ -1168,7 +1177,7 @@ func (s *service) createVolumeClone(ctx context.Context, crParams *CRParams, sou
 	return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Volume not found after create. %v", err))
 }
 
-//createVolumeFromSnap - Method to create a volume from snapshot with idempotency for all protocols
+// createVolumeFromSnap - Method to create a volume from snapshot with idempotency for all protocols
 func (s *service) createVolumeFromSnap(ctx context.Context, crParams *CRParams, snapshotID, arrayID string, contentSource *csi.VolumeContentSource, unity *gounity.Client, preferredAccessibility []*csi.Topology) (*csi.CreateVolumeResponse, error) {
 
 	ctx, log, rid := GetRunidLog(ctx)
@@ -1299,7 +1308,7 @@ func (s *service) createVolumeFromSnap(ctx context.Context, crParams *CRParams, 
 	return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Volume not found after create. %v", err))
 }
 
-//deleteFilesystem - Method to handle delete filesystem logic
+// deleteFilesystem - Method to handle delete filesystem logic
 func (s *service) deleteFilesystem(ctx context.Context, volID string, unity *gounity.Client) (error, error, error) {
 	ctx, _, rid := GetRunidLog(ctx)
 	fileAPI := gounity.NewFilesystem(unity)
@@ -1349,7 +1358,7 @@ func (s *service) deleteFilesystem(ctx context.Context, volID string, unity *gou
 	return err, snapErr, nil
 }
 
-//deleteBlockVolume - Method to handle delete FC and iSCSI volumes
+// deleteBlockVolume - Method to handle delete FC and iSCSI volumes
 func (s *service) deleteBlockVolume(ctx context.Context, volID string, unity *gounity.Client) (error, error) {
 
 	ctx, _, rid := GetRunidLog(ctx)
@@ -1381,7 +1390,7 @@ func (s *service) deleteBlockVolume(ctx context.Context, volID string, unity *go
 	return err, nil
 }
 
-//exportFilesystem - Method to export filesystem with idempotency
+// exportFilesystem - Method to export filesystem with idempotency
 func (s *service) exportFilesystem(ctx context.Context, volID, hostID, nodeID, arrayID string, unity *gounity.Client, pinfo map[string]string, am *csi.VolumeCapability_AccessMode) (*csi.ControllerPublishVolumeResponse, error) {
 
 	ctx, log, rid := GetRunidLog(ctx)
@@ -1537,7 +1546,7 @@ func (s *service) exportFilesystem(ctx context.Context, volID, hostID, nodeID, a
 
 }
 
-//exportVolume - Method to export volume with idempotency
+// exportVolume - Method to export volume with idempotency
 func (s *service) exportVolume(ctx context.Context, protocol, volID, hostID, nodeID, arrayID string, unity *gounity.Client, pinfo map[string]string, host *types.Host, vc *csi.VolumeCapability) (*csi.ControllerPublishVolumeResponse, error) {
 
 	ctx, log, rid := GetRunidLog(ctx)
@@ -1586,7 +1595,7 @@ func (s *service) exportVolume(ctx context.Context, protocol, volID, hostID, nod
 	return &csi.ControllerPublishVolumeResponse{PublishContext: pinfo}, nil
 }
 
-//unexportFilesystem - Method to handle unexport filesystem logic with idempotency
+// unexportFilesystem - Method to handle unexport filesystem logic with idempotency
 func (s *service) unexportFilesystem(ctx context.Context, volID, hostID, nodeID, volumeContextID, arrayID string, unity *gounity.Client) error {
 
 	ctx, log, rid := GetRunidLog(ctx)
@@ -1744,7 +1753,7 @@ func (s *service) unexportFilesystem(ctx context.Context, volID, hostID, nodeID,
 	return nil
 }
 
-//createMetricsCollection creates a RealTimeMetrics collection with the specified metric paths on an array
+// createMetricsCollection creates a RealTimeMetrics collection with the specified metric paths on an array
 func (s *service) createMetricsCollection(ctx context.Context, arrayID string, metricPaths []string, interval int) (*types.MetricQueryCreateResponse, error) {
 	ctx, _, rid := GetRunidLog(ctx)
 	unity, err := s.getUnityClient(ctx, arrayID)
@@ -1761,7 +1770,7 @@ func (s *service) createMetricsCollection(ctx context.Context, arrayID string, m
 	return query, nil
 }
 
-//getMetricsCollection retrieves MetricsCollection data on an array given the collection 'id'
+// getMetricsCollection retrieves MetricsCollection data on an array given the collection 'id'
 func (s *service) getMetricsCollection(ctx context.Context, arrayID string, id int) (*types.MetricQueryResult, error) {
 	ctx, _, rid := GetRunidLog(ctx)
 	unity, err := s.getUnityClient(ctx, arrayID)

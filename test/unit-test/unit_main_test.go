@@ -11,6 +11,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 */
+
 package unit_test
 
 import (
@@ -35,7 +36,7 @@ import (
 var grpcClient *grpc.ClientConn
 var stop func()
 
-//To parse the secret json file
+// To parse the secret json file
 type StorageArrayList struct {
 	StorageArrayList []StorageArrayConfig `yaml:"storageArrayList"`
 }

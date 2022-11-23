@@ -1,7 +1,17 @@
 /*
-Copyright (c) 2019 Dell Corporation
-All Rights Reserved
+ Copyright © 2019 Dell Inc. or its subsidiaries. All Rights Reserved.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+      http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
 */
+
 package integration_test
 
 import (
@@ -45,12 +55,12 @@ type feature struct {
 	volumeContext                     map[string]string
 }
 
-//addError method appends an error to the error list
+// addError method appends an error to the error list
 func (f *feature) addError(err error) {
 	f.errs = append(make([]error, 0), err)
 }
 
-//thereAreNoErrors method verifies if there are is any error that has been added to the error list during scenario execution
+// thereAreNoErrors method verifies if there are is any error that has been added to the error list during scenario execution
 func (f *feature) thereAreNoErrors() error {
 	if len(f.errs) == 0 {
 		return nil
@@ -58,7 +68,7 @@ func (f *feature) thereAreNoErrors() error {
 	return f.errs[0]
 }
 
-//aCSIService method is used to initialize/reset variables and errors before a test scenario begins
+// aCSIService method is used to initialize/reset variables and errors before a test scenario begins
 func (f *feature) aCSIService() error {
 	f.errs = make([]error, 0)
 	f.createVolumeRequest = nil
@@ -78,7 +88,7 @@ func (f *feature) aCSIService() error {
 	return nil
 }
 
-//aBasicBlockVolumeRequest method to buils a Create volume request
+// aBasicBlockVolumeRequest method to buils a Create volume request
 func (f *feature) aBasicBlockVolumeRequest(volumeName, arrayId, protocol string, size int) error {
 	f.createVolumeRequest = nil
 	req := new(csi.CreateVolumeRequest)
@@ -112,7 +122,7 @@ func (f *feature) aBasicBlockVolumeRequest(volumeName, arrayId, protocol string,
 	return nil
 }
 
-//aBasicBlockVolumeRequest method with volume content source
+// aBasicBlockVolumeRequest method with volume content source
 func (f *feature) aBasicBlockVolumeRequestWithVolumeContentSource(volumeName, arrayId, protocol string, size int) error {
 	f.createVolumeRequest = nil
 	req := new(csi.CreateVolumeRequest)
@@ -148,7 +158,7 @@ func (f *feature) aBasicBlockVolumeRequestWithVolumeContentSource(volumeName, ar
 	return nil
 }
 
-//iCallCreateVolume - Test case to create volume
+// iCallCreateVolume - Test case to create volume
 func (f *feature) iCallCreateVolume() error {
 	volResp, err := f.createVolume(f.createVolumeRequest)
 	if err != nil {
@@ -165,7 +175,7 @@ func (f *feature) iCallCreateVolume() error {
 	return nil
 }
 
-//createVolume is utility method that creates volume
+// createVolume is utility method that creates volume
 func (f *feature) createVolume(req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	ctx := context.Background()
 	client := csi.NewControllerClient(grpcClient)
@@ -173,7 +183,7 @@ func (f *feature) createVolume(req *csi.CreateVolumeRequest) (*csi.CreateVolumeR
 	return volResp, err
 }
 
-//whenICallDeleteVolume - Test case to delete volume
+// whenICallDeleteVolume - Test case to delete volume
 func (f *feature) whenICallDeleteVolume() error {
 	ctx := context.Background()
 	client := csi.NewControllerClient(grpcClient)
@@ -192,7 +202,7 @@ func (f *feature) whenICallDeleteVolume() error {
 	return nil
 }
 
-//whenICallDeleteAllCreatedVolumes - Test case to delete all created volumes in a scenario
+// whenICallDeleteAllCreatedVolumes - Test case to delete all created volumes in a scenario
 func (f *feature) whenICallDeleteAllCreatedVolumes() error {
 	for i := 0; i < len(f.volIDList); i++ {
 		err := f.deleteVolume(f.volIDList[i])
@@ -207,7 +217,7 @@ func (f *feature) whenICallDeleteAllCreatedVolumes() error {
 	return nil
 }
 
-//deleteVolume is utility method that deletes volume
+// deleteVolume is utility method that deletes volume
 func (f *feature) deleteVolume(volID string) error {
 	ctx := context.Background()
 	client := csi.NewControllerClient(grpcClient)
@@ -226,7 +236,7 @@ func (f *feature) deleteVolume(volID string) error {
 	return nil
 }
 
-//whenICallPublishVolume - Test case to Publish volume to the given host
+// whenICallPublishVolume - Test case to Publish volume to the given host
 func (f *feature) whenICallPublishVolume() error {
 	err := f.controllerPublishVolume(f.volID, os.Getenv("X_CSI_UNITY_NODENAME"))
 	if err != nil {
@@ -239,7 +249,7 @@ func (f *feature) whenICallPublishVolume() error {
 	return nil
 }
 
-//controllerPublishVolume is utility method that calls controller publish volume
+// controllerPublishVolume is utility method that calls controller publish volume
 func (f *feature) controllerPublishVolume(volID, hostName string) error {
 	req := new(csi.ControllerPublishVolumeRequest)
 	req.VolumeId = volID
@@ -255,7 +265,7 @@ func (f *feature) controllerPublishVolume(volID, hostName string) error {
 	return err
 }
 
-//whenICallUnpublishVolume - Test case to unpublish volume
+// whenICallUnpublishVolume - Test case to unpublish volume
 func (f *feature) whenICallUnpublishVolume() error {
 	err := f.controllerUnpublishVolume(f.volID, os.Getenv("X_CSI_UNITY_NODENAME"))
 	if err != nil {
@@ -268,7 +278,7 @@ func (f *feature) whenICallUnpublishVolume() error {
 	return nil
 }
 
-//controllerUnpublishVolume is utility method that calls controller unpublish volume
+// controllerUnpublishVolume is utility method that calls controller unpublish volume
 func (f *feature) controllerUnpublishVolume(volID, hostName string) error {
 	req := new(csi.ControllerUnpublishVolumeRequest)
 	req.VolumeId = volID
@@ -279,7 +289,7 @@ func (f *feature) controllerUnpublishVolume(volID, hostName string) error {
 	return err
 }
 
-//theErrorMessageShouldContain is verification method to evaluate expected errors
+// theErrorMessageShouldContain is verification method to evaluate expected errors
 func (f *feature) theErrorMessageShouldContain(expected string) error {
 	// If expected is none, we expect no error, any error received is unexpected
 	if expected == "none" {
@@ -303,7 +313,7 @@ func (f *feature) theErrorMessageShouldContain(expected string) error {
 	return nil
 }
 
-//aCreateSnapshotRequest method is used to build a Create Snapshot request
+// aCreateSnapshotRequest method is used to build a Create Snapshot request
 func (f *feature) aCreateSnapshotRequest(name string) error {
 	f.createSnapshotRequest = nil
 	req := new(csi.CreateSnapshotRequest)
@@ -322,7 +332,7 @@ func (f *feature) aCreateSnapshotRequest(name string) error {
 	return nil
 }
 
-//iCallCreateSnapshot - Test case to create snapshot
+// iCallCreateSnapshot - Test case to create snapshot
 func (f *feature) iCallCreateSnapshot() error {
 	ctx := context.Background()
 	client := csi.NewControllerClient(grpcClient)
@@ -338,7 +348,7 @@ func (f *feature) iCallCreateSnapshot() error {
 	return nil
 }
 
-//aDeleteSnapshotRequest method is used to build a Delete Snapshot request
+// aDeleteSnapshotRequest method is used to build a Delete Snapshot request
 func (f *feature) aDeleteSnapshotRequest() error {
 	f.deleteSnapshotRequest = nil
 	req := new(csi.DeleteSnapshotRequest)
@@ -351,7 +361,7 @@ func (f *feature) aDeleteSnapshotRequest() error {
 	return nil
 }
 
-//aDeleteSnapshotRequestWithID method is used to build a Delete Snapshot request with ID
+// aDeleteSnapshotRequestWithID method is used to build a Delete Snapshot request with ID
 func (f *feature) aDeleteSnapshotRequestWithID(snap_id string) error {
 	f.deleteSnapshotRequest = nil
 	req := new(csi.DeleteSnapshotRequest)
@@ -360,7 +370,7 @@ func (f *feature) aDeleteSnapshotRequestWithID(snap_id string) error {
 	return nil
 }
 
-//iCallDeleteSnapshot - Test case to delete snapshot
+// iCallDeleteSnapshot - Test case to delete snapshot
 func (f *feature) iCallDeleteSnapshot() error {
 	ctx := context.Background()
 	client := csi.NewControllerClient(grpcClient)
@@ -373,7 +383,7 @@ func (f *feature) iCallDeleteSnapshot() error {
 	return nil
 }
 
-//iCallValidateVolumeCapabilitiesWithSameAccessMode - Test case to validate volume capabilities
+// iCallValidateVolumeCapabilitiesWithSameAccessMode - Test case to validate volume capabilities
 func (f *feature) iCallValidateVolumeCapabilitiesWithSameAccessMode(protocol string) error {
 	f.validateVolumeCapabilitiesRequest = nil
 	req := new(csi.ValidateVolumeCapabilitiesRequest)
@@ -407,7 +417,7 @@ func (f *feature) iCallValidateVolumeCapabilitiesWithSameAccessMode(protocol str
 	return nil
 }
 
-//iCallValidateVolumeCapabilitiesWithDifferentAccessMode - Test case to validate volume capabilities
+// iCallValidateVolumeCapabilitiesWithDifferentAccessMode - Test case to validate volume capabilities
 func (f *feature) iCallValidateVolumeCapabilitiesWithDifferentAccessMode(protocol string) error {
 	f.validateVolumeCapabilitiesRequest = nil
 	req := new(csi.ValidateVolumeCapabilitiesRequest)
@@ -441,7 +451,7 @@ func (f *feature) iCallValidateVolumeCapabilitiesWithDifferentAccessMode(protoco
 	return nil
 }
 
-//iCallValidateVolumeCapabilitiesWithVolumeID - Test case to validate volume capabilities with volume Id as parameter
+// iCallValidateVolumeCapabilitiesWithVolumeID - Test case to validate volume capabilities with volume Id as parameter
 func (f *feature) iCallValidateVolumeCapabilitiesWithVolumeID(protocol, volID string) error {
 	f.validateVolumeCapabilitiesRequest = nil
 	req := new(csi.ValidateVolumeCapabilitiesRequest)
@@ -475,7 +485,7 @@ func (f *feature) iCallValidateVolumeCapabilitiesWithVolumeID(protocol, volID st
 	return nil
 }
 
-//iCallControllerGetCapabilities - Test case for controller get capabilities
+// iCallControllerGetCapabilities - Test case for controller get capabilities
 func (f *feature) iCallControllerGetCapabilities() error {
 	f.controllerGetCapabilitiesRequest = nil
 	req := new(csi.ControllerGetCapabilitiesRequest)
@@ -493,7 +503,7 @@ func (f *feature) iCallControllerGetCapabilities() error {
 	return nil
 }
 
-//iCallControllerExpandVolume - Test case for controller expand volume
+// iCallControllerExpandVolume - Test case for controller expand volume
 func (f *feature) iCallControllerExpandVolume(new_size int) error {
 	f.controllerExpandVolumeRequest = nil
 	req := new(csi.ControllerExpandVolumeRequest)
@@ -516,7 +526,7 @@ func (f *feature) iCallControllerExpandVolume(new_size int) error {
 	return nil
 }
 
-//iCallControllerExpandVolume - Test case for controller expand volume with volume id as parameter
+// iCallControllerExpandVolume - Test case for controller expand volume with volume id as parameter
 func (f *feature) iCallControllerExpandVolumeWithVolume(new_size int, volID string) error {
 	f.controllerExpandVolumeRequest = nil
 	req := new(csi.ControllerExpandVolumeRequest)
@@ -539,7 +549,7 @@ func (f *feature) iCallControllerExpandVolumeWithVolume(new_size int, volID stri
 	return nil
 }
 
-//whenICallNodePublishVolume - Test case for node publish volume
+// whenICallNodePublishVolume - Test case for node publish volume
 func (f *feature) whenICallNodePublishVolume(fsType, readonly string) error {
 	f.nodePublishVolumeRequest = nil
 	req := new(csi.NodePublishVolumeRequest)
@@ -576,7 +586,7 @@ func (f *feature) whenICallNodePublishVolume(fsType, readonly string) error {
 	return nil
 }
 
-//whenICallNodeUnPublishVolume - Test case for node unpublish volume
+// whenICallNodeUnPublishVolume - Test case for node unpublish volume
 func (f *feature) whenICallNodeUnPublishVolume() error {
 	f.nodeUnpublishVolumeRequest = nil
 	req := new(csi.NodeUnpublishVolumeRequest)
@@ -604,7 +614,7 @@ func (f *feature) whenICallNodeUnPublishVolume() error {
 	return nil
 }
 
-//whenICallNodeStageVolume - Test case for node stage volume
+// whenICallNodeStageVolume - Test case for node stage volume
 func (f *feature) whenICallNodeStageVolume(fsType string) error {
 	f.nodeStageVolumeRequest = nil
 	req := new(csi.NodeStageVolumeRequest)
@@ -637,7 +647,7 @@ func (f *feature) whenICallNodeStageVolume(fsType string) error {
 	return nil
 }
 
-//whenICallNodeUnstageVolume - Test case for node unstage volume
+// whenICallNodeUnstageVolume - Test case for node unstage volume
 func (f *feature) whenICallNodeUnstageVolume() error {
 	f.nodeUnstageVolumeRequest = nil
 	req := new(csi.NodeUnstageVolumeRequest)
@@ -665,7 +675,7 @@ func (f *feature) whenICallNodeUnstageVolume() error {
 	return nil
 }
 
-//whenICallNodeGetInfo - Test case for node get info
+// whenICallNodeGetInfo - Test case for node get info
 func (f *feature) whenICallNodeGetInfo() error {
 	req := new(csi.NodeGetInfoRequest)
 
@@ -681,7 +691,7 @@ func (f *feature) whenICallNodeGetInfo() error {
 	return nil
 }
 
-//whenICallNodeGetCapabilities - Test case for node get capabilities
+// whenICallNodeGetCapabilities - Test case for node get capabilities
 func (f *feature) whenICallNodeGetCapabilities() error {
 	req := new(csi.NodeGetCapabilitiesRequest)
 

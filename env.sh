@@ -1,5 +1,6 @@
+#!/bin/sh
 #  Copyright © 2019 Dell Inc. or its subsidiaries. All Rights Reserved.
- 
+# 
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
 #  You may obtain a copy of the License at
@@ -10,7 +11,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-#!/bin/sh
 export X_CSI_UNITY_NODENAME=
 export X_CSI_UNITY_LONGNODENAME=
 export X_CSI_STAGING_TARGET_PATH=

@@ -1,5 +1,6 @@
+#!/bin/sh
 #  Copyright © 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
- 
+# 
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
 #  You may obtain a copy of the License at
@@ -9,9 +10,7 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
-#!/bin/sh
-
+#
 # rescaletest
 # This script will rescale helm deployments created as part of the scaletest
 # Finally delete all the pvc that were created

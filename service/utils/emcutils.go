@@ -1,9 +1,18 @@
-package utils
-
 /*
-Copyright (c) 2019 Dell Corporation
-All Rights Reserved
+ Copyright © 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+      http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
 */
+
+package utils
 
 import (
 	"bytes"
@@ -27,13 +36,13 @@ import (
 	"github.com/dell/gounity/types"
 )
 
-//GetVolumeResponseFromVolume Utility method to convert Unity XT Rest type Volume to CSI standard Volume Response
+// GetVolumeResponseFromVolume Utility method to convert Unity XT Rest type Volume to CSI standard Volume Response
 func GetVolumeResponseFromVolume(volume *types.Volume, arrayID, protocol string, preferredAccessibility []*csi.Topology) *csi.CreateVolumeResponse {
 	content := volume.VolumeContent
 	return getVolumeResponse(content.Name, protocol, arrayID, content.ResourceID, content.SizeTotal, preferredAccessibility)
 }
 
-//GetVolumeResponseFromFilesystem Utility method to convert Unity XT rest Filesystem response to CSI standard Volume Response
+// GetVolumeResponseFromFilesystem Utility method to convert Unity XT rest Filesystem response to CSI standard Volume Response
 func GetVolumeResponseFromFilesystem(filesystem *types.Filesystem, arrayID, protocol string, preferredAccessibility []*csi.Topology) *csi.CreateVolumeResponse {
 	content := filesystem.FileContent
 	return getVolumeResponse(content.Name, protocol, arrayID, content.ID, content.SizeTotal, preferredAccessibility)
@@ -136,7 +145,7 @@ func GetFCInitiators(ctx context.Context) ([]string, error) {
 	return portWWNs, nil
 }
 
-//GetHostIP - Utility method to extract Host IP
+// GetHostIP - Utility method to extract Host IP
 func GetHostIP() ([]string, error) {
 	cmd := exec.Command("hostname", "-I")
 	cmdOutput := &bytes.Buffer{}
@@ -196,7 +205,7 @@ func GetSnapshotResponseFromSnapshot(snap *types.Snapshot, protocol, arrayID str
 	return snapResp
 }
 
-//ArrayContains method does contains check operation
+// ArrayContains method does contains check operation
 func ArrayContains(stringArray []string, value string) bool {
 
 	for _, arrayValue := range stringArray {
@@ -207,7 +216,7 @@ func ArrayContains(stringArray []string, value string) bool {
 	return false
 }
 
-//ArrayContainsAll method checks if all elements of stringArray1 is present in stringArray2
+// ArrayContainsAll method checks if all elements of stringArray1 is present in stringArray2
 func ArrayContainsAll(stringArray1 []string, stringArray2 []string) bool {
 
 	for _, arrayElement := range stringArray1 {
@@ -218,7 +227,7 @@ func ArrayContainsAll(stringArray1 []string, stringArray2 []string) bool {
 	return true
 }
 
-//FindAdditionalWwns returns the set difference stringArray2-stringArray1
+// FindAdditionalWwns returns the set difference stringArray2-stringArray1
 func FindAdditionalWwns(stringArray1 []string, stringArray2 []string) []string {
 	var differenceSet []string
 	for _, element := range stringArray2 {
@@ -229,7 +238,7 @@ func FindAdditionalWwns(stringArray1 []string, stringArray2 []string) []string {
 	return differenceSet
 }
 
-//IpsCompare checks if the given ip is present as IP or FQDN in the given list of host ips
+// IpsCompare checks if the given ip is present as IP or FQDN in the given list of host ips
 func IpsCompare(ctx context.Context, ip string, hostIps []string) (bool, []string) {
 	log := GetRunidLogger(ctx)
 	var result = false
@@ -257,7 +266,7 @@ func IpsCompare(ctx context.Context, ip string, hostIps []string) (bool, []strin
 	return result, additionalIps
 }
 
-//ipListContains method does contains check operation
+// ipListContains method does contains check operation
 func ipListContains(ipArray []net.IP, value string) bool {
 	for _, ip := range ipArray {
 		if value == ip.String() {
@@ -267,7 +276,7 @@ func ipListContains(ipArray []net.IP, value string) bool {
 	return false
 }
 
-//GetIPsFromInferfaces - Method to extract ip as string from ipInterface object
+// GetIPsFromInferfaces - Method to extract ip as string from ipInterface object
 func GetIPsFromInferfaces(ctx context.Context, ipInterfaces []types.IPInterfaceEntries) []string {
 	ips := make([]string, 0)
 
@@ -277,7 +286,7 @@ func GetIPsFromInferfaces(ctx context.Context, ipInterfaces []types.IPInterfaceE
 	return ips
 }
 
-//IPReachable checks if a given IP is reachable or not
+// IPReachable checks if a given IP is reachable or not
 func IPReachable(ctx context.Context, ip, port string, pingTimeout int) bool {
 	log := GetRunidLogger(ctx)
 	timeout := time.Duration(pingTimeout) * time.Millisecond
@@ -292,14 +301,14 @@ func IPReachable(ctx context.Context, ip, port string, pingTimeout int) bool {
 	return true
 }
 
-//GetWwnFromVolumeContentWwn - Method to process wwn content to extract device wwn of a volume
+// GetWwnFromVolumeContentWwn - Method to process wwn content to extract device wwn of a volume
 func GetWwnFromVolumeContentWwn(wwn string) string {
 	wwn = strings.ReplaceAll(wwn, ":", "")
 	deviceWWN := strings.ToLower(wwn)
 	return deviceWWN
 }
 
-//GetFcPortWwnFromVolumeContentWwn - Method to process wwn content to extract device wwn of a volume
+// GetFcPortWwnFromVolumeContentWwn - Method to process wwn content to extract device wwn of a volume
 func GetFcPortWwnFromVolumeContentWwn(wwn string) string {
 	wwn = GetWwnFromVolumeContentWwn(wwn)
 	return wwn[16:32]
