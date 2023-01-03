@@ -10,7 +10,7 @@
 
 # verify-csi-unity method
 function verify-csi-unity() {
-  verify_k8s_versions "1.24" "1.26"
+  verify_k8s_versions "1.21" "1.26"
   verify_openshift_versions "4.10" "4.11"
   verify_namespace "${NS}"
   verify_required_secrets "${RELEASE}-creds"
