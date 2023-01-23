@@ -9,7 +9,7 @@ require (
 	github.com/dell/gobrick v1.6.0
 	github.com/dell/gocsi v1.6.0
 	github.com/dell/gofsutil v1.11.0
-	github.com/dell/goiscsi v1.6.0
+	github.com/dell/goiscsi v1.6.1-0.20230120052643-7d7bb9515e01
 	github.com/dell/gounity v1.12.0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/golang/protobuf v1.5.2
