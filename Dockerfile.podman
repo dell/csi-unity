@@ -1,5 +1,5 @@
 # Stage to build the driver
-FROM golang:1.19 as builder
+FROM golang:1.20 as builder
 RUN mkdir -p /go/src
 COPY csi-unity/ /go/src/csi-unity
 

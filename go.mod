@@ -1,6 +1,6 @@
 module github.com/dell/csi-unity
 
-go 1.19
+go 1.20
 
 require (
 	github.com/container-storage-interface/spec v1.5.0
@@ -10,7 +10,7 @@ require (
 	github.com/dell/gocsi v1.6.0
 	github.com/dell/gofsutil v1.11.0
 	github.com/dell/goiscsi v1.6.1-0.20230120052643-7d7bb9515e01
-	github.com/dell/gounity v1.12.0
+	github.com/dell/gounity v1.12.1-0.20230214104438-5572f6f0453c
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/golang/protobuf v1.5.2
 	github.com/kubernetes-csi/csi-lib-utils v0.7.0
