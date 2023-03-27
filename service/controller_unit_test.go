@@ -141,7 +141,7 @@ var _ = Describe("Test CreateVolume()", func() {
 				mockVolume.On("FindVolumeByName", mock.Anything, volName).Return(volResponse, nil)
 				mockVolume.On("CreateLun", mock.Anything, volName, "pool_7", "new vol", size, 1, mock.Anything, true, true).Return(volResponse, nil)
 
-				resp, err := svc.CreateVolume(context.Background(), CreateVolumeRequest(volName, arrayID, protocol, size))
+				resp, err := svc.CreateVolume(context.Background(), CreateVolumeRequestForIscsiProtocol(volName, arrayID, protocol, size))
 				Expect(err).To(BeNil())
 				Expect(resp).To(Equal(&csi.CreateVolumeResponse{
 					Volume: &csi.Volume{
@@ -198,6 +198,28 @@ var _ = Describe("Test CreateVolume()", func() {
 				Expect(err.Error()).To(ContainSubstring(errResp))
 
 			})
+			It("should delete a volume", func() {
+				svc := service.New()
+				volID := "vol_1"
+				arrayID := "UNISPHERE123"
+				protocol := "NFS"
+
+				mockFilesystem := new(mocks.FilesystemInterface)
+				service.CallFSAPI = service.MockCallFsAPI
+				svc.BeforeServe(context.Background(), nil, nil)
+				service.MockFsAPIResp = mockFilesystem
+				service.TransportFs = service.MockTransportFs
+
+				mockFilesystem.On("InterfaceAssignment").Return(mockFilesystem)
+				mockFilesystem.On("CreateFilesystem", mock.Anything, volID, mock.Anything, "CSI Volume Unit Test", "nas_7", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(response, nil)
+				// mockFilesystem.On("FindFilesystemByName", mock.Anything, volID).Return(response, nil)
+
+				errResp := "'Filesystem name' already exists and size/NAS server/storage pool is different."
+
+				_, err := svc.DeleteVolume(context.Background(), DeleteVolumeRequest(volID))
+				Expect(err.Error()).To(ContainSubstring(errResp))
+
+			})
 		})
 	})
 })
@@ -207,12 +229,46 @@ func CreateVolumeRequest(volumeName, arrayId, protocol string, size int) *csi.Cr
 	params := make(map[string]string)
 	params["storagePool"] = "pool_7"
 	params["thinProvisioned"] = "true"
+	params["isDataReductionEnabled"] = "true"
+	params["tieringPolicy"] = "1"
+	params["description"] = "CSI Volume Unit Test"
+	params["arrayId"] = "UNISPHERE123"
+	params["protocol"] = protocol
+	params["nasServer"] = "nas_7"
+	params["hostIOLimitName"] = "Autotier"
+
+	req.Parameters = params
+	req.Name = volumeName
+	capacityRange := new(csi.CapacityRange)
+	capacityRange.RequiredBytes = int64(size)
+	capacityRange.LimitBytes = int64(size) * 2
+	req.CapacityRange = capacityRange
+	capability := new(csi.VolumeCapability)
+	mount := new(csi.VolumeCapability_MountVolume)
+	mountType := new(csi.VolumeCapability_Mount)
+	mountType.Mount = mount
+	capability.AccessType = mountType
+	accessMode := new(csi.VolumeCapability_AccessMode)
+	accessMode.Mode = csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER
+	capability.AccessMode = accessMode
+	capabilities := make([]*csi.VolumeCapability, 0)
+	capabilities = append(capabilities, capability)
+	req.VolumeCapabilities = capabilities
+
+	fmt.Printf("Requested parameters to Create Volume = %s", req)
+	return req
+}
+
+func CreateVolumeRequestForIscsiProtocol(volumeName, arrayId, protocol string, size int) *csi.CreateVolumeRequest {
+	req := new(csi.CreateVolumeRequest)
+	params := make(map[string]string)
+	params["storagePool"] = "pool_7"
+	params["thinProvisioned"] = "true"
 	params["isDataReductionEnabled"] = "false"
 	params["tieringPolicy"] = "0"
 	params["description"] = "CSI Volume Unit Test"
 	params["arrayId"] = "UNISPHERE123"
 	params["protocol"] = protocol
-	params["nasServer"] = "nas_7"
 	params["hostIOLimitName"] = "Autotier"
 	params["hostIoSize"] = "10987"
 
@@ -235,6 +291,12 @@ func CreateVolumeRequest(volumeName, arrayId, protocol string, size int) *csi.Cr
 	req.VolumeCapabilities = capabilities
 
 	fmt.Printf("Requested parameters to Create Volume = %s", req)
+	return req
+}
+
+func DeleteVolumeRequest(volID string) *csi.DeleteVolumeRequest {
+	req := new(csi.DeleteVolumeRequest)
+	req.VolumeId = volID
 	return req
 }
 

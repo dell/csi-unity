@@ -179,6 +179,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 
 	//Create Fresh Volume
 	if protocol == NFS {
+		fmt.Println("------------------I am in NFS Block---------------------------")
 
 		nasServer, ok := params[keyNasServer]
 		if !ok {
@@ -203,50 +204,50 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 		log.WithFields(fields).Infof("Executing Create File System with following fields")
 
 		// Check if replication is enabled
-		replicationEnabled := params[s.WithRP(keyReplicationEnabled)]
-		log.Info("Replication enabled value: ", replicationEnabled)
-		var remoteSystemName, rpoStr string
-		if replicationEnabled == "true" {
-			remoteSystemName, ok = params[s.WithRP(keyReplicationRemoteSystem)]
-			if !ok {
-				return nil, status.Errorf(codes.InvalidArgument, "replication enabled but no remote system specified in storage class")
-			}
+		// replicationEnabled := params[s.WithRP(keyReplicationEnabled)]
+		// log.Info("Replication enabled value: ", replicationEnabled)
+		// var remoteSystemName, rpoStr string
+		// if replicationEnabled == "true" {
+		// 	remoteSystemName, ok = params[s.WithRP(keyReplicationRemoteSystem)]
+		// 	if !ok {
+		// 		return nil, status.Errorf(codes.InvalidArgument, "replication enabled but no remote system specified in storage class")
+		// 	}
 
-			if err := s.requireProbe(ctx, remoteSystemName); err != nil {
-				return nil, err
-			}
+		// 	if err := s.requireProbe(ctx, remoteSystemName); err != nil {
+		// 		return nil, err
+		// 	}
 
-			vgPrefix, ok := params[s.WithRP(keyReplicationVGPrefix)]
-			if !ok {
-				return nil, status.Errorf(codes.InvalidArgument, "replication enabled but no volume group prefix specified in storage class")
-			}
+		// 	vgPrefix, ok := params[s.WithRP(keyReplicationVGPrefix)]
+		// 	if !ok {
+		// 		return nil, status.Errorf(codes.InvalidArgument, "replication enabled but no volume group prefix specified in storage class")
+		// 	}
 
-			rpoStr, ok = params[s.WithRP(keyReplicationRPO)]
-			if !ok {
-				return nil, status.Errorf(codes.InvalidArgument, "replication enabled but no RPO specified in storage class")
-			}
+		// 	rpoStr, ok = params[s.WithRP(keyReplicationRPO)]
+		// 	if !ok {
+		// 		return nil, status.Errorf(codes.InvalidArgument, "replication enabled but no RPO specified in storage class")
+		// 	}
 
-			rpo, err := strconv.ParseUint(rpoStr, 10, 32)
-			if err != nil || uint(rpo) < uint(0) || uint(rpo) > uint(1440) {
-				return nil, status.Errorf(codes.InvalidArgument, "invalid rpo value")
-			}
+		// 	rpo, err := strconv.ParseUint(rpoStr, 10, 32)
+		// 	if err != nil || uint(rpo) < uint(0) || uint(rpo) > uint(1440) {
+		// 		return nil, status.Errorf(codes.InvalidArgument, "invalid rpo value")
+		// 	}
 
-			namespace := ""
-			if ignoreNS, ok := params[s.WithRP(keyReplicationIgnoreNamespaces)]; ok && ignoreNS == "false" {
-				pvcNS, ok := params[keyCSIPVCNamespace]
-				if ok {
-					pvcNS = strings.ReplaceAll(pvcNS, "-", "_")
-					namespace = pvcNS + "_"
-				}
-			}
+		// 	namespace := ""
+		// 	if ignoreNS, ok := params[s.WithRP(keyReplicationIgnoreNamespaces)]; ok && ignoreNS == "false" {
+		// 		pvcNS, ok := params[keyCSIPVCNamespace]
+		// 		if ok {
+		// 			pvcNS = strings.ReplaceAll(pvcNS, "-", "_")
+		// 			namespace = pvcNS + "_"
+		// 		}
+		// 	}
 
-			vgName := vgPrefix + "_" + namespace + remoteSystemName + "_" + rpoStr
-			if len(vgName) > 128 {
-				vgName = vgName[:128]
-			}
+		// 	vgName := vgPrefix + "_" + namespace + remoteSystemName + "_" + rpoStr
+		// 	if len(vgName) > 128 {
+		// 		vgName = vgName[:128]
+		// 	}
 
-			volName = vgName + "=_=" + volName
-		}
+		// 	volName = vgName + "=_=" + volName
+		// }
 		fileAPI := CallFSAPI(unity)
 
 		FilesystemWrap = new(gounity.FilesystemWrapper)
@@ -269,7 +270,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 		} else {
 			log.Debug("Filesystem does not exist, proceeding to create new filesystem")
 			//Hardcoded ProtocolNFS to 0 in order to support only NFS
-			resp, err := FSInterface.CreateFilesystem(ctx, volName, storagePool, desc, nasServer, uint64(size), int(tieringPolicy), int(hostIoSize), ProtocolNFS, thin, dataReduction, false)
+			resp, err := FSInterface.CreateFilesystem(ctx, volName, storagePool, desc, nasServer, uint64(size), int(tieringPolicy), int(hostIoSize), ProtocolNFS, thin, dataReduction)
 			//Add method to create filesystem
 			if err != nil {
 				log.Debugf("Filesystem create response:%v Error:%v", resp, err)
@@ -301,6 +302,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 			return filesystemResp, nil
 		}
 	} else {
+		fmt.Println("------------------I am in ISCSI Block---------------------------")
 		// log all parameters used in CreateVolume call
 		fields := map[string]interface{}{
 			"storagePool":     storagePool,
@@ -312,6 +314,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 			"protocol":        protocol,
 			"hostIOLimitName": hostIOLimitName,
 		}
+		fmt.Println("fields ", fields)
 		log.WithFields(fields).Infof("Executing CreateVolume with following fields")
 		volumeAPI := CallVolAPI(unity)
 

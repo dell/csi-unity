@@ -96,6 +96,7 @@ func (s *service) NodeStageVolume(
 	isBlock := accTypeBlock(vc)
 
 	protocol, err = ValidateAndGetProtocol(ctx, protocol, req.GetVolumeContext()[keyProtocol])
+	log.Debug("protocol ", protocol)
 	if err != nil {
 		return nil, err
 	}
@@ -1169,7 +1170,7 @@ func (s *service) nodeProbe(ctx context.Context, arrayID string) error {
 	return s.probe(ctx, "Node", arrayID)
 }
 
-//Get NFS Share from Filesystem
+// Get NFS Share from Filesystem
 func (s *service) getNFSShare(ctx context.Context, filesystemID, arrayID string) (*types.NFSShare, bool, bool, error) {
 	ctx, _, rid := GetRunidLog(ctx)
 	ctx, _ = setArrayIDContext(ctx, arrayID)
@@ -1231,7 +1232,7 @@ func (s *service) getNFSShare(ctx context.Context, filesystemID, arrayID string)
 	return nfsShare, nasServer.NASServerContent.NFSServer.NFSv3Enabled, nasServer.NASServerContent.NFSServer.NFSv4Enabled, nil
 }
 
-//Check if the Filesystem has access to the node
+// Check if the Filesystem has access to the node
 func (s *service) checkFilesystemMapping(ctx context.Context, nfsShare *types.NFSShare, am *csi.VolumeCapability_AccessMode, arrayID string) error {
 	ctx, _, rid := GetRunidLog(ctx)
 	ctx, _ = setArrayIDContext(ctx, arrayID)
@@ -1743,7 +1744,7 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 	return nil
 }
 
-//Host idempotency check
+// Host idempotency check
 func (s *service) checkHostIdempotency(ctx context.Context, array *StorageArrayConfig, host *types.Host, iqns, wwns []string) (bool, bool, error) {
 	ctx, log, rid := GetRunidLog(ctx)
 	hostContent := host.HostContent
@@ -1767,7 +1768,7 @@ func (s *service) checkHostIdempotency(ctx context.Context, array *StorageArrayC
 	return false, true, nil
 }
 
-//Adding a new node to array
+// Adding a new node to array
 func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConfig, nodeIps, iqns, wwns []string) error {
 	ctx, log, rid := GetRunidLog(ctx)
 	ctx, log = setArrayIDContext(ctx, array.ArrayID)
@@ -1874,7 +1875,7 @@ func (s *service) syncNodeInfoRoutine(ctx context.Context) {
 	}
 }
 
-//Synchronize node information using addNodeInformationIntoArray
+// Synchronize node information using addNodeInformationIntoArray
 func (s *service) syncNodeInfo(ctx context.Context) {
 	nodeMutex.Lock()
 	defer nodeMutex.Unlock()
