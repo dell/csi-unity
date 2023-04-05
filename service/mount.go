@@ -511,7 +511,7 @@ func unpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) e
 	return nil
 }
 
-//unstage volume removes staging mount and makes sure no other mounts are left for the given device path
+// unstage volume removes staging mount and makes sure no other mounts are left for the given device path
 func unstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest, deviceWWN, chroot string) (bool, string, error) {
 	rid, log := utils.GetRunidAndLogger(ctx)
 	lastUnmounted := false

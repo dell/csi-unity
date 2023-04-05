@@ -35,6 +35,6 @@ LABEL vendor="Dell Inc." \
       name="csi-unity" \
       summary="CSI Driver for Dell Unity XT" \
       description="CSI Driver for provisioning persistent storage from Dell Unity XT" \
-      version="2.6.0" \
+      version="2.7.0" \
       license="Apache-2.0"
 COPY csi-unity/licenses /licenses
