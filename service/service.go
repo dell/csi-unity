@@ -75,7 +75,7 @@ var DriverConfig string
 // DriverSecret - Driver secret
 var DriverSecret string
 
-//To maintain runid for Non debug mode. Note: CSI will not generate runid if CSI_DEBUG=false
+// To maintain runid for Non debug mode. Note: CSI will not generate runid if CSI_DEBUG=false
 var runid int64
 
 // Manifest is the SP's manifest.
@@ -159,7 +159,7 @@ func New() Service {
 	return &service{}
 }
 
-//To display the StorageArrayConfig content
+// To display the StorageArrayConfig content
 func (s StorageArrayConfig) String() string {
 	return fmt.Sprintf("ArrayID: %s, Username: %s, Endpoint: %s, SkipCertificateValidation: %v, IsDefaultArray:%v, IsProbeSuccess:%v, IsHostAdded:%v",
 		s.ArrayID, s.Username, s.Endpoint, s.SkipCertificateValidation, s.IsDefaultArray, s.IsProbeSuccess, s.IsHostAdded)
@@ -301,7 +301,7 @@ func (s *service) RegisterAdditionalServers(server *grpc.Server) {
 	podmon.RegisterPodmonServer(server, s)
 }
 
-//Get storage array from sync Map
+// Get storage array from sync Map
 func (s *service) getStorageArray(arrayID string) *StorageArrayConfig {
 	if a, ok := s.arrays.Load(arrayID); ok {
 		return a.(*StorageArrayConfig)
@@ -309,7 +309,7 @@ func (s *service) getStorageArray(arrayID string) *StorageArrayConfig {
 	return nil
 }
 
-//Returns the size of arrays
+// Returns the size of arrays
 func (s *service) getStorageArrayLength() (length int) {
 	length = 0
 	s.arrays.Range(func(_, _ interface{}) bool {
@@ -319,7 +319,7 @@ func (s *service) getStorageArrayLength() (length int) {
 	return
 }
 
-//Get storage array list from sync Map
+// Get storage array list from sync Map
 func (s *service) getStorageArrayList() []*StorageArrayConfig {
 	list := make([]*StorageArrayConfig, 0)
 	s.arrays.Range(func(key interface{}, value interface{}) bool {
@@ -343,7 +343,7 @@ func (s *service) getUnityClient(ctx context.Context, arrayID string) (*gounity.
 	return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("Unity client not found for array %s", arrayID))
 }
 
-//return volumeid from csi volume context
+// return volumeid from csi volume context
 func getVolumeIDFromVolumeContext(contextVolID string) string {
 	if contextVolID == "" {
 		return ""
@@ -358,7 +358,7 @@ func getVolumeIDFromVolumeContext(contextVolID string) string {
 	return ""
 }
 
-//@Below method is unused. So remove.
+// @Below method is unused. So remove.
 func (s *service) getArrayIDFromVolumeContext(contextVolID string) (string, error) {
 	if contextVolID == "" {
 		return "", errors.New("volume context id should not be empty ")
@@ -450,7 +450,7 @@ func (s *service) loadDynamicConfig(ctx context.Context, secretFile, configFile 
 	return nil
 }
 
-//return protocol from csi volume context
+// return protocol from csi volume context
 func (s *service) getProtocolFromVolumeContext(contextVolID string) (string, error) {
 	if contextVolID == "" {
 		return "", errors.New("volume context id should not be empty ")
@@ -614,19 +614,19 @@ func (s *service) syncDriverConfig(ctx context.Context, v *viper.Viper) {
 	}
 }
 
-//Set arraysId in log messages and re-initialize the context
+// Set arraysId in log messages and re-initialize the context
 func setArrayIDContext(ctx context.Context, arrayID string) (context.Context, *logrus.Entry) {
 	return setLogFieldsInContext(ctx, arrayID, utils.ARRAYID)
 }
 
-//Set arraysId in log messages and re-initialize the context
+// Set arraysId in log messages and re-initialize the context
 func setRunIDContext(ctx context.Context, runID string) (context.Context, *logrus.Entry) {
 	return setLogFieldsInContext(ctx, runID, utils.RUNID)
 }
 
 var logMutex sync.Mutex
 
-//Common method to get log and context
+// Common method to get log and context
 func setLogFieldsInContext(ctx context.Context, logID string, logType string) (context.Context, *logrus.Entry) {
 	logMutex.Lock()
 	defer logMutex.Unlock()
@@ -653,7 +653,7 @@ func setLogFieldsInContext(ctx context.Context, logID string, logType string) (c
 var syncNodeLogCount int32
 var syncConfigLogCount int32
 
-//Increment run id log
+// Increment run id log
 func incrementLogID(ctx context.Context, runidPrefix string) (context.Context, *logrus.Entry) {
 	if runidPrefix == "node" {
 		runid := fmt.Sprintf("%s-%d", runidPrefix, syncNodeLogCount)

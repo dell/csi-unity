@@ -133,7 +133,7 @@ func valVolumeCaps(vcs []*csi.VolumeCapability, protocol string) (bool, string) 
 	return supported, reason
 }
 
-//validateCreateFsFromSnapshot - Validates idempotency of an existing snapshot created from a filesystem
+// validateCreateFsFromSnapshot - Validates idempotency of an existing snapshot created from a filesystem
 func validateCreateFsFromSnapshot(ctx context.Context, sourceFilesystemResp *types.Filesystem, storagePool string, tieringPolicy, hostIoSize int64, thin, dataReduction bool) error {
 
 	rid, _ := utils.GetRunidAndLogger(ctx)
@@ -171,7 +171,7 @@ func validateCreateFsFromSnapshot(ctx context.Context, sourceFilesystemResp *typ
 	return nil
 }
 
-//validateCreateVolumeFromSource - Validates idempotency of an existing volume created from a volume
+// validateCreateVolumeFromSource - Validates idempotency of an existing volume created from a volume
 func validateCreateVolumeFromSource(ctx context.Context, sourceVolResp *types.Volume, storagePool string, tieringPolicy, size int64, thin, dataReduction, skipSizeValidation bool) error {
 
 	rid, _ := utils.GetRunidAndLogger(ctx)
@@ -210,7 +210,7 @@ func validateCreateVolumeFromSource(ctx context.Context, sourceVolResp *types.Vo
 	return nil
 }
 
-//ValidateCreateVolumeRequest - Validates all mandatory parameters in create volume request
+// ValidateCreateVolumeRequest - Validates all mandatory parameters in create volume request
 func ValidateCreateVolumeRequest(ctx context.Context, req *csi.CreateVolumeRequest) (protocol, storagePool string, size, tieringPolicy, hostIoSize int64, thin, dataReduction bool, err error) {
 
 	ctx, log, rid := GetRunidLog(ctx)
@@ -295,7 +295,7 @@ func ValidateCreateVolumeRequest(ctx context.Context, req *csi.CreateVolumeReque
 	return
 }
 
-//ValidateControllerPublishRequest - method to validate Controller publish volume request
+// ValidateControllerPublishRequest - method to validate Controller publish volume request
 func ValidateControllerPublishRequest(ctx context.Context, req *csi.ControllerPublishVolumeRequest, contextProtocol string) (protocol, nodeID string, err error) {
 
 	ctx, _, rid := GetRunidLog(ctx)
@@ -347,7 +347,7 @@ func ValidateAndGetProtocol(ctx context.Context, protocol, scProtocol string) (s
 	return protocol, nil
 }
 
-//SingleAccessMode returns true if only a single access is allowed SINGLE_NODE_WRITER or SINGLE_NODE_READER_ONLY
+// SingleAccessMode returns true if only a single access is allowed SINGLE_NODE_WRITER or SINGLE_NODE_READER_ONLY
 func SingleAccessMode(accMode *csi.VolumeCapability_AccessMode) bool {
 	switch accMode.GetMode() {
 	case csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER:

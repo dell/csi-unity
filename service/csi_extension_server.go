@@ -48,7 +48,7 @@ var GetMetricsCollection = getMetricsCollection
 // CreateMetricsCollection - function reference for createMetricsCollection
 var CreateMetricsCollection = createMetricsCollection
 
-//MetricsCollectionInterval is used for interval to use in the creation of a Unity MetricsCollection
+// MetricsCollectionInterval is used for interval to use in the creation of a Unity MetricsCollection
 var MetricsCollectionInterval = 5 // seconds
 // CollectionWait - Collection wait time
 var CollectionWait = (MetricsCollectionInterval + 1) * 1000
@@ -339,7 +339,7 @@ func (s *service) checkIfNodeIsConnected(ctx context.Context, arrayID string, no
 	return nil
 }
 
-//doesAnyVolumeHaveIO will determine if any of the given volumes on array has IOs.
+// doesAnyVolumeHaveIO will determine if any of the given volumes on array has IOs.
 func (s *service) doesAnyVolumeHaveIO(ctx context.Context, rep *podmon.ValidateVolumeHostConnectivityResponse, arrayID string, volumeIds []string) (bool, error) {
 	ctx, log, _ := GetRunidLog(ctx)
 
@@ -383,7 +383,7 @@ func (s *service) doesAnyVolumeHaveIO(ctx context.Context, rep *podmon.ValidateV
 	return foundVolumeWithIO, nil
 }
 
-//doesAnyFileSystemHaveIO returns true if any of the file systems in 'fsIds' shows active IOs
+// doesAnyFileSystemHaveIO returns true if any of the file systems in 'fsIds' shows active IOs
 func (s *service) doesAnyFileSystemHaveIO(ctx context.Context, rep *podmon.ValidateVolumeHostConnectivityResponse, arrayID string, fsIds []string) (bool, error) {
 	ctx, log, _ := GetRunidLog(ctx)
 
@@ -442,7 +442,7 @@ func (s *service) doesAnyFileSystemHaveIO(ctx context.Context, rep *podmon.Valid
 	return foundVolumeWithIO, nil
 }
 
-//getMetrics retrieves the specified metrics from the array
+// getMetrics retrieves the specified metrics from the array
 func (s *service) getMetrics(ctx context.Context, arrayID string, metrics []string) (*types.MetricQueryResult, error) {
 	ctx, log, _ := GetRunidLog(ctx)
 
@@ -550,8 +550,8 @@ func (s *service) getMetrics(ctx context.Context, arrayID string, metrics []stri
 	return results, nil
 }
 
-//getMetricValues will return a mapping of the metric name to value for a object of the given 'id' on the array.
-//Assumes that the value is an integer.
+// getMetricValues will return a mapping of the metric name to value for a object of the given 'id' on the array.
+// Assumes that the value is an integer.
 func (s *service) getMetricValues(ctx context.Context, metrics *types.MetricQueryResult, arrayID, id string) (map[string]int, error) {
 	ctx, log, _ := GetRunidLog(ctx)
 
