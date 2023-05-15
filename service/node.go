@@ -47,7 +47,6 @@ var (
 	disconnectVolumeRetryTime   = 1 * time.Second
 	nodeStartTimeout            = 3 * time.Second
 	lunzMutex                   sync.Mutex
-	LUNZHLU                     = 0
 	nodeMutex                   sync.Mutex
 	sysBlock                    = "/sys/block"
 	syncNodeInfoChan            chan bool
