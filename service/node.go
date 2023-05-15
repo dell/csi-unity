@@ -21,7 +21,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -48,7 +47,6 @@ var (
 	disconnectVolumeRetryTime   = 1 * time.Second
 	nodeStartTimeout            = 3 * time.Second
 	lunzMutex                   sync.Mutex
-	LUNZHLU                     = 0
 	nodeMutex                   sync.Mutex
 	sysBlock                    = "/sys/block"
 	syncNodeInfoChan            chan bool
@@ -145,12 +143,6 @@ func (s *service) NodeStageVolume(
 	publishContextData := publishContextData{
 		deviceWWN:        "0x" + volumeWwn,
 		volumeLUNAddress: hlu,
-	}
-
-	if hlu == LUNZHLU {
-		if err := checkAndRemoveLunz(ctx); err != nil {
-			return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Error during removal of Lunz device: [%v]", err))
-		}
 	}
 
 	useFC := false
@@ -559,103 +551,6 @@ func (s *service) ephemeralNodePublishVolume(
 	}
 
 	return &csi.NodePublishVolumeResponse{}, nil
-}
-
-// checkAndRemoveLunz checks for LUNZ devices by scanning the entries in /proc/scsi/scsi,
-
-// identifying the model, vendor, host, channel and id of each entry, and then if an model entry is found named LUNZ with vendor
-
-// DGC, then call a SCSI "remove-single-device" command is sent to the associated device.
-func checkAndRemoveLunz(ctx context.Context) error {
-	lunzMutex.Lock()
-	defer lunzMutex.Unlock()
-	ctx, log, rid := GetRunidLog(ctx)
-	arg0 := "cat"
-	arg1 := "/proc/scsi/scsi"
-
-	log.Debugf("Obtained current ctx %v and rid %s", ctx, rid)
-
-	cmd := exec.Command(arg0, arg1)
-	stdout, err := cmd.Output()
-	if err != nil {
-		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Error during command execution: %v", err))
-	}
-
-	var modelString = regexp.MustCompile(`Model:\s+(\w*.*?)\s*Rev:`)
-	modelResult := modelString.FindAllStringSubmatch(string(stdout), -1)
-
-	var vendorString = regexp.MustCompile(`Vendor:\s+(\w*.*?)\s*Model:`)
-	vendorResult := vendorString.FindAllStringSubmatch(string(stdout), -1)
-
-	var hostString = regexp.MustCompile(`Host:\s+scsi(\w*.*?)\s*Channel:`)
-	hostResult := hostString.FindAllStringSubmatch(string(stdout), -1)
-
-	var idString = regexp.MustCompile(`Id:\s+(\w*.*?)\s*Lun:`)
-	idResult := idString.FindAllStringSubmatch(string(stdout), -1)
-
-	var channelString = regexp.MustCompile(`Channel:\s+(\w*.*?)\s*Id:`)
-	channelResult := channelString.FindAllStringSubmatch(string(stdout), -1)
-
-	resultID := []string{}
-	for i := 0; i < len(idResult); i++ {
-		resultID = append(resultID, idResult[i][1])
-	}
-
-	resultChannel := []string{}
-	for i := 0; i < len(channelResult); i++ {
-		resultChannel = append(resultChannel, channelResult[i][1])
-	}
-
-	resultModel := []string{}
-	for i := 0; i < len(modelResult); i++ {
-		resultModel = append(resultModel, modelResult[i][1])
-	}
-
-	resultVendor := []string{}
-	for i := 0; i < len(vendorResult); i++ {
-		resultVendor = append(resultVendor, vendorResult[i][1])
-	}
-
-	resultHost := []string{}
-	for i := 0; i < len(hostResult); i++ {
-		resultHost = append(resultHost, hostResult[i][1])
-	}
-
-	for index, element := range resultModel {
-		if element == "LUNZ" && resultVendor[index] == "DGC" {
-			// We invoke the scsi remove-single-device command
-			// only when the Vendor is DGC and LUN model is LUNZ
-			filePath := "/proc/scsi/scsi"
-
-			file, err := os.OpenFile(filePath, os.O_WRONLY, os.ModeDevice)
-			if err != nil {
-				log.Warnf("Error opening file %v", err)
-				continue
-			}
-			if file != nil {
-				command := fmt.Sprintf("scsi remove-single-device %s %s %s %d", resultHost[index],
-					resultChannel[index], resultID[index], 0)
-				log.Debugf("Attempting to remove LUNZ with command %s", command)
-
-				_, err = file.WriteString(command)
-				if err != nil {
-					log.Warnf("error while writing...%v", err)
-					err = file.Close()
-					if err != nil {
-						log.Infof("Error closing file: %v", err)
-					}
-					continue
-				}
-				err = file.Close()
-				if err != nil {
-					log.Infof("Error closing file: %v", err)
-				}
-			}
-			log.Debugf("LUNZ removal successful..")
-		}
-	}
-
-	return nil
 }
 
 // Node Unpublish Volume - Unmounts the volume from the target path and from private directory
