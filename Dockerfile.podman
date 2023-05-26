@@ -14,19 +14,15 @@ RUN go run core/semver/semver.go -f mk
 # Tag corresponding to digest ca61d14ebfdeaad344862694570a574adb2181f4339d3d2a2db93f20b6ccfe0e is 8.8-1
 FROM registry.access.redhat.com/ubi8-micro@sha256:ca61d14ebfdeaad344862694570a574adb2181f4339d3d2a2db93f20b6ccfe0e as driver
 # dependencies, following by cleaning the cache
-RUN microdnf update -y \
-	&& \
-	microdnf install -y e2fsprogs xfsprogs nfs-utils device-mapper-multipath hostname \
-    && \
-    microdnf clean all \
-    && \
-    rm -rf /var/cache/run
+COPY csi-unity/build_ubi_micro.sh /
+RUN chmod 777 /build_ubi_micro.sh
+RUN /build_ubi_micro.sh driver
 COPY --from=builder /go/src/csi-unity/bin/csi-unity /
 COPY csi-unity/scripts/run.sh /
 RUN chmod 777 /run.sh
 ENTRYPOINT ["/run.sh"]
 
-RUN microdnf install -y tar
+RUN dnf install -y tar
 
 # final stage
 FROM driver as final
