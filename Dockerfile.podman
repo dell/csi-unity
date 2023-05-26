@@ -10,13 +10,12 @@ RUN GOOS=linux CGO_ENABLED=0 GOARCH=amd64 go build -ldflags '-extldflags "-stati
 # Print the version
 RUN go run core/semver/semver.go -f mk
 
+
 # Dockerfile to build Unity CSI Driver
 # Tag corresponding to digest ca61d14ebfdeaad344862694570a574adb2181f4339d3d2a2db93f20b6ccfe0e is 8.8-1
-FROM registry.access.redhat.com/ubi8-micro@sha256:ca61d14ebfdeaad344862694570a574adb2181f4339d3d2a2db93f20b6ccfe0e as driver
+FROM localhost/csiunity-ubimicro as driver
 # dependencies, following by cleaning the cache
-COPY csi-unity/build_ubi_micro.sh /
-RUN chmod 777 /build_ubi_micro.sh
-RUN /build_ubi_micro.sh driver
+
 COPY --from=builder /go/src/csi-unity/bin/csi-unity /
 COPY csi-unity/scripts/run.sh /
 RUN chmod 777 /run.sh
