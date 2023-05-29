@@ -21,8 +21,6 @@ COPY csi-unity/scripts/run.sh /
 RUN chmod 777 /run.sh
 ENTRYPOINT ["/run.sh"]
 
-RUN dnf install -y tar
-
 # final stage
 FROM driver as final
 
