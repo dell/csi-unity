@@ -29,6 +29,7 @@ function git_version {
 }
 
 function build_image {
+   bash build_ubi_micro.sh registry.access.redhat.com/ubi8/ubi-micro
    echo $BUILDCMD build -t ${IMAGE_NAME}:${IMAGE_TAG} .
    (cd .. && $BUILDCMD build -t ${IMAGE_NAME}:${IMAGE_TAG} --build-arg GOPROXY=$GOPROXY -f csi-unity/Dockerfile.podman . --format=docker)
    echo $BUILDCMD tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_REPO}/${IMAGE_REPO_NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}
