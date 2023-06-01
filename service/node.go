@@ -1493,16 +1493,22 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 		}
 	}
 
-	//Get FC Initiator WWNs
+	// Get FC Initiator WWNs
 	wwns, errFc := utils.GetFCInitiators(ctx)
 	if errFc != nil {
 		log.Warn("'FC Initiators' cannot be retrieved.")
 	}
 
-	//Get iSCSI Initiator IQN
-	iqns, errIscsi := s.iscsiClient.GetInitiators("")
+	// Get iSCSI Initiator IQN
+	iqnsOrig, errIscsi := s.iscsiClient.GetInitiators("")
+	iqns := iqnsOrig
 	if errIscsi != nil {
 		log.Warn("'iSCSI Initiators' cannot be retrieved.")
+	} else if len(iqns) > 0 {
+		// converting iqn values to lowercase since they are registered to array in lowercase
+		for i := 0; i < len(iqns); i++ {
+			iqns[i] = strings.ToLower(iqns[i])
+		}
 	}
 
 	if errFc != nil && errIscsi != nil {
