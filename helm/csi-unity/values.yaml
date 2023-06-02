@@ -3,8 +3,8 @@
 
 # version: version of this values file
 # Note: Do not change this value
-# Examples : "v2.6.0" , "nightly"
-version: "v2.6.0"
+# Examples : "v2.7.0" , "nightly"
+version: "v2.7.0"
 
 # LogLevel is used to set the logging level of the driver.
 # Allowed values: "error", "warn"/"warning", "info", "debug"
