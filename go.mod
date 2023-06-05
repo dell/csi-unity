@@ -5,8 +5,8 @@ go 1.20
 require (
 	github.com/container-storage-interface/spec v1.5.0
 	github.com/cucumber/godog v0.10.0
-	github.com/dell/dell-csi-extensions/podmon v1.1.2
-	github.com/dell/gobrick v1.7.0
+	github.com/dell/dell-csi-extensions/podmon v1.1.3
+	github.com/dell/gobrick v1.8.0
 	github.com/dell/gocsi v1.7.0
 	github.com/dell/gofsutil v1.12.0
 	github.com/dell/goiscsi v1.7.0
