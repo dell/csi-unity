@@ -12,14 +12,14 @@ require (
 	github.com/dell/goiscsi v1.7.0
 	github.com/dell/gounity v1.14.0
 	github.com/fsnotify/fsnotify v1.4.9
-	github.com/golang/protobuf v1.5.2
+	github.com/golang/protobuf v1.5.3
 	github.com/kubernetes-csi/csi-lib-utils v0.7.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
 	go.uber.org/atomic v1.7.0
-	golang.org/x/net v0.7.0
-	google.golang.org/grpc v1.46.2
+	golang.org/x/net v0.10.0
+	google.golang.org/grpc v1.55.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/apimachinery v0.22.2
