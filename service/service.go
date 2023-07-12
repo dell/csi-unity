@@ -783,6 +783,7 @@ func singleArrayProbe(ctx context.Context, probeType string, array *StorageArray
 			Endpoint: array.Endpoint,
 			Username: array.Username,
 			Password: array.Password,
+			Insecure: *array.SkipCertificateValidation,
 		})
 		if err != nil {
 			log.Errorf("Unity authentication failed for array %s error: %v", array.ArrayID, err)
