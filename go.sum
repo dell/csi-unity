@@ -107,6 +107,10 @@ github.com/dell/gounity v1.14.1-0.20230519092830-2b5b5f2276eb h1:fBfl5w5HUEMqQDm
 github.com/dell/gounity v1.14.1-0.20230519092830-2b5b5f2276eb/go.mod h1:/HEDZZ+yKH/cWbEXvOrHqy+90eFuPZei+gUskZ9IvKk=
 github.com/dell/gounity v1.14.1-0.20230630050209-170fa6aff515 h1:vYUjVH0xrx3wEQZfO+XqRmwgSIpcOuXhhd4ZzE9A3kI=
 github.com/dell/gounity v1.14.1-0.20230630050209-170fa6aff515/go.mod h1:/HEDZZ+yKH/cWbEXvOrHqy+90eFuPZei+gUskZ9IvKk=
+github.com/dell/gounity v1.14.1-0.20230718115612-fe77c112bba1 h1:KB1aIvUmbPrpl0ryLZrmqM6Oj0ZcwjyWXwfpE0uIiow=
+github.com/dell/gounity v1.14.1-0.20230718115612-fe77c112bba1/go.mod h1:/HEDZZ+yKH/cWbEXvOrHqy+90eFuPZei+gUskZ9IvKk=
+github.com/dell/gounity v1.14.1-0.20230719100046-57750a8fe30b h1:phkzvXS/HTMr9irzEocCZGwa8afceiCldMaHHBAQe3Q=
+github.com/dell/gounity v1.14.1-0.20230719100046-57750a8fe30b/go.mod h1:/HEDZZ+yKH/cWbEXvOrHqy+90eFuPZei+gUskZ9IvKk=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
 github.com/dgryski/go-sip13 v0.0.0-20181026042036-e10d5fee7954/go.mod h1:vAd38F8PWV+bWy6jNmig1y/TA+kYO4g3RSRF0IAv0no=
 github.com/docker/spdystream v0.0.0-20160310174837-449fdfce4d96/go.mod h1:Qh8CwZgvJUkLughtfhJv5dyTYa91l1fOUCrgjqmcifM=

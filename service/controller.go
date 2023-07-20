@@ -497,7 +497,44 @@ func (s *service) GetCapacity(
 	ctx context.Context,
 	req *csi.GetCapacityRequest) (
 	*csi.GetCapacityResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "Not implemented")
+
+	ctx, log, rid := GetRunidLog(ctx)
+	log.Debugf("Executing GetCapacity with args: %+v", *req)
+
+	params := req.GetParameters()
+
+	// Get arrayId from params
+	arrayID := strings.ToLower(strings.TrimSpace(params[keyArrayID]))
+
+	if arrayID == "" {
+		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "ArrayId cannot be empty"))
+	}
+	ctx, log = setArrayIDContext(ctx, arrayID)
+
+	if err := s.requireProbe(ctx, arrayID); err != nil {
+		return nil, err
+	}
+
+	unity, err := s.getUnityClient(ctx, arrayID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	metricsAPI := gounity.NewMetrics(unity)
+
+	resp, err := metricsAPI.GetCapacity(ctx)
+
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	log.Infof("Available capacity from the Array: %d", resp.Entries[0].Content.SizeFree)
+
+	return &csi.GetCapacityResponse{
+		AvailableCapacity: int64(resp.Entries[0].Content.SizeFree),
+	}, nil
+
 }
 
 func (s *service) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
