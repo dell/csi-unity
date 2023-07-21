@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -477,7 +476,7 @@ func (s *service) syncDriverSecret(ctx context.Context) error {
 		s.arrays.Delete(key)
 		return true
 	})
-	secretBytes, err := ioutil.ReadFile(filepath.Clean(DriverSecret))
+	secretBytes, err := os.ReadFile(filepath.Clean(DriverSecret))
 	if err != nil {
 		return fmt.Errorf("File ('%s') error: %v", DriverSecret, err)
 	}

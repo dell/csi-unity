@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -568,7 +567,7 @@ func (s *service) NodeUnpublishVolume(
 	file := s.opts.EnvEphemeralStagingTargetPath + req.VolumeId + "/id"
 	if _, err := os.Stat(file); err == nil {
 		isEphemeralVolume = true
-		dat, err := ioutil.ReadFile(filepath.Clean(file))
+		dat, err := os.ReadFile(filepath.Clean(file))
 		if err != nil {
 			return nil, errors.New("Unable to get volume id for ephemeral volume")
 		}
@@ -891,7 +890,7 @@ func (s *service) NodeGetVolumeStats(
 	}
 
 	// check if volume path is accessible
-	_, err = ioutil.ReadDir(volumePath)
+	_, err = os.ReadDir(volumePath)
 	if err != nil {
 		resp := &csi.NodeGetVolumeStatsResponse{
 			VolumeCondition: &csi.VolumeCondition{
@@ -1446,7 +1445,7 @@ func (s *service) disconnectVolume(ctx context.Context, volumeWWN, protocol stri
 		time.Sleep(disconnectVolumeRetryTime)
 
 		// Check that the /sys/block/DeviceName actually exists
-		if _, err := ioutil.ReadDir(sysBlock + deviceName); err != nil {
+		if _, err := os.ReadDir(sysBlock + deviceName); err != nil {
 			// If not, make sure the symlink is removed
 			var err2 error
 			log.Debugf("Removing device %s", symlinkPath)
