@@ -20,7 +20,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -72,7 +71,7 @@ func main() {
 		format = "ver"
 	} else {
 		if fileExists(format) {
-			buf, err := ioutil.ReadFile(filepath.Clean(format))
+			buf, err := os.ReadFile(filepath.Clean(format))
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "error: read tpl failed: %v\n", err)
 				os.Exit(1)

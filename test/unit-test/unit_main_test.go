@@ -17,7 +17,6 @@ package unit_test
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"testing"
@@ -48,7 +47,7 @@ type StorageArrayConfig struct {
 func TestMain(m *testing.M) {
 	os.Setenv("X_CSI_MODE", "")
 
-	file, err := ioutil.ReadFile(os.Getenv("DRIVER_SECRET"))
+	file, err := os.ReadFile(os.Getenv("DRIVER_SECRET"))
 	if err != nil {
 		panic("Driver Config missing")
 	}
