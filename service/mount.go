@@ -17,7 +17,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -666,7 +665,7 @@ func getDevMounts(ctx context.Context, sysDevice *Device) ([]gofsutil.Info, erro
 			//Find the multipath device mapper from the device obtained
 			mpDevName := strings.TrimPrefix(sysDevice.RealDev, "/dev/")
 			filename := fmt.Sprintf("/sys/devices/virtual/block/%s/dm/name", mpDevName)
-			if name, err := ioutil.ReadFile(filepath.Clean(filename)); err != nil {
+			if name, err := os.ReadFile(filepath.Clean(filename)); err != nil {
 				log.Warn("Could not read mp dev name file ", filename, err)
 			} else {
 				mpathDev := strings.TrimSpace(string(name))
@@ -694,7 +693,7 @@ func getMpathDevFromWwn(ctx context.Context, volumeWwn string) (string, error) {
 
 	mpDevName := strings.TrimPrefix(sysDevice.RealDev, "/dev/")
 	filename := fmt.Sprintf("/sys/devices/virtual/block/%s/dm/name", mpDevName)
-	name, err := ioutil.ReadFile(filepath.Clean(filename))
+	name, err := os.ReadFile(filepath.Clean(filename))
 	if err != nil {
 		log.Error("Could not read mp dev name file ", filename, err)
 		return "", err

@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"testing"
@@ -47,7 +46,7 @@ func TestMain(m *testing.M) {
 	var stop func()
 	os.Setenv("X_CSI_MODE", "")
 
-	file, err := ioutil.ReadFile(os.Getenv("DRIVER_CONFIG"))
+	file, err := os.ReadFile(os.Getenv("DRIVER_CONFIG"))
 	if err != nil {
 		panic("Driver Config missing")
 	}
