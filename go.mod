@@ -8,7 +8,7 @@ require (
 	github.com/dell/dell-csi-extensions/podmon v1.1.3
 	github.com/dell/gobrick v1.8.0
 	github.com/dell/gocsi v1.7.0
-	github.com/dell/gofsutil v1.12.0
+	github.com/dell/gofsutil v1.12.1-0.20230823120610-5d91385366c7
 	github.com/dell/goiscsi v1.7.0
 	github.com/dell/gounity v1.14.1-0.20230823121618-6f5d9b24032f
 	github.com/fsnotify/fsnotify v1.4.9
