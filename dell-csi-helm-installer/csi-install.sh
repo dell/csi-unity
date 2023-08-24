@@ -12,7 +12,39 @@ SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 
 DRIVERDIR="${SCRIPTDIR}/../"
 
+PROG="${0}"
+NODE_VERIFY=1
+VERIFY=1
+MODE="install"
+DEFAULT_DRIVER_VERSION="v2.8.0"
+WATCHLIST=""
+
 DRIVERVERSION="csi-unity-2.8.0"
+
+# usage will print command execution help and then exit
+function usage() {
+  echo
+  echo "Help for $PROG"
+  echo
+  echo "Usage: $PROG options..."
+  echo "Options:"
+  echo "  Required"
+  echo "  --namespace[=]<namespace>                Kubernetes namespace containing the CSI driver"
+  echo "  --values[=]<values.yaml>                 Values file, which defines configuration values"
+
+  echo "  Optional"
+  echo "  --release[=]<helm release>               Name to register with helm, default value will match the driver name"
+  echo "  --upgrade                                Perform an upgrade of the specified driver, default is false"
+  echo "  --version                                Use this version for CSI Driver Image"
+  echo "  --helm-charts-version                    Pass the helm chart version "
+  echo "  --node-verify-user[=]<username>          Username to SSH to worker nodes as, used to validate node requirements. Default is root"
+  echo "  --skip-verify                            Skip the kubernetes configuration verification to use the CSI driver, default will run verification"
+  echo "  --skip-verify-node                       Skip worker node verification checks"
+  echo "  -h                                       Help"
+  echo
+
+  exit 0
+}
 
 while getopts ":h-:" optchar; do
   case "${optchar}" in
@@ -76,8 +108,8 @@ while getopts ":h-:" optchar; do
       HODEUSER=${OPTARG#*=}
       ;;
     *)
-      decho "Unknown option --${OPTARG}"
-      decho "For help, run $PROG -h"
+      echo "Unknown option --${OPTARG}"
+      echo "For help, run $PROG -h"
       exit 1
       ;;
     esac
@@ -86,8 +118,8 @@ while getopts ":h-:" optchar; do
     usage
     ;;
   *)
-    decho "Unknown option -${OPTARG}"
-    decho "For help, run $PROG -h"
+    echo "Unknown option -${OPTARG}"
+    echo "For help, run $PROG -h"
     exit 1
     ;;
   esac
@@ -108,16 +140,11 @@ else
     rm -rf $SCRIPTDIR/helm-charts
   fi
 fi
+
 DRIVERDIR="${SCRIPTDIR}/../helm-charts/charts"
 DRIVER="csi-unity"
-
 VERIFYSCRIPT="${SCRIPTDIR}/verify.sh"
-PROG="${0}"
-NODE_VERIFY=1
-VERIFY=1
-MODE="install"
-DEFAULT_DRIVER_VERSION="v2.8.0"
-WATCHLIST=""
+
 
 # export the name of the debug log, so child processes will see it
 export DEBUGLOG="${SCRIPTDIR}/install-debug.log"
@@ -129,48 +156,22 @@ if [ -f "${DEBUGLOG}" ]; then
   rm -f "${DEBUGLOG}"
 fi
 
-#
-# usage will print command execution help and then exit
-function usage() {
-  decho
-  decho "Help for $PROG"
-  decho
-  decho "Usage: $PROG options..."
-  decho "Options:"
-  decho "  Required"
-  decho "  --namespace[=]<namespace>                Kubernetes namespace containing the CSI driver"
-  decho "  --values[=]<values.yaml>                 Values file, which defines configuration values"
-
-  decho "  Optional"
-  decho "  --release[=]<helm release>               Name to register with helm, default value will match the driver name"
-  decho "  --upgrade                                Perform an upgrade of the specified driver, default is false"
-  decho "  --version                                Use this version for CSI Driver Image"
-  decho "  --helm-charts-version                    Pass the helm chart version "
-  decho "  --node-verify-user[=]<username>          Username to SSH to worker nodes as, used to validate node requirements. Default is root"
-  decho "  --skip-verify                            Skip the kubernetes configuration verification to use the CSI driver, default will run verification"
-  decho "  --skip-verify-node                       Skip worker node verification checks"
-  decho "  -h                                       Help"
-  decho
-
-  exit 0
-}
-
 # warning, with an option for users to continue
 function warning() {
   log separator
   printf "${YELLOW}WARNING:${NC}\n"
   for N in "$@"; do
-    decho $N
+    echo $N
   done
-  decho
+  echo
   if [ "${ASSUMEYES}" == "true" ]; then
-    decho "Continuing as '-Y' argument was supplied"
+    echo "Continuing as '-Y' argument was supplied"
     return
   fi
   read -n 1 -p "Press 'y' to continue or any other key to exit: " CONT
-  decho
+  echo
   if [ "${CONT}" != "Y" -a "${CONT}" != "y" ]; then
-    decho "quitting at user request"
+    echo "quitting at user request"
     exit 2
   fi
 }
@@ -201,25 +202,26 @@ function check_for_driver() {
 function validate_params() {
   # make sure the driver was specified
   if [ -z "${DRIVER}" ]; then
-    decho "No driver specified"
+
+    echo "No driver specified"
     usage
     exit 1
   fi
 
   # the namespace is required
   if [ -z "${NS}" ]; then
-    decho "No namespace specified"
+    echo "No namespace specified"
     usage
     exit 1
   fi
   # values file
   if [ -z "${VALUES}" ]; then
-    decho "No values file was specified"
+    echo "No values file was specified"
     usage
     exit 1
   fi
   if [ ! -f "${VALUES}" ]; then
-    decho "Unable to read values file at: ${VALUES}"
+    echo "Unable to read values file at: ${VALUES}"
     usage
     exit 1
   fi
@@ -279,7 +281,7 @@ function summary() {
 # $2: required: helm release name
 function getWhatToWatch() {
   if [ -z "${2}" ]; then
-    decho "No namespace and/or helm release name were supplied These fields are required for getWhatToWatch"
+    echo "No namespace and/or helm release name were supplied These fields are required for getWhatToWatch"
     exit 1
   fi
 
@@ -311,7 +313,7 @@ function getWhatToWatch() {
 #  $3: optional: timeout value, 300 seconds is the default.
 function waitOnRunning() {
   if [ -z "${2}" ]; then
-    decho "No namespace and/or list of deployments was supplied. This field is required for waitOnRunning"
+    echo "No namespace and/or list of deployments was supplied. This field is required for waitOnRunning"
     return 1
   fi
   # namespace
@@ -347,9 +349,9 @@ function kubectl_safe() {
   eval "kubectl $1"
   exitcode=$?
   if [[ $exitcode != 0 ]]; then
-    decho "$2"
-    decho "Command was: kubectl $1"
-    decho "Output was:"
+    echo "$2"
+    echo "Command was: kubectl $1"
+    echo "Output was:"
     eval "kubectl $1"
     exit $exitcode
   fi
@@ -361,7 +363,7 @@ function kubectl_safe() {
 function verify_kubernetes() {
   EXTRA_OPTS=""
   if [ $VERIFY -eq 0 ]; then
-    decho "Skipping verification at user request"
+    echo "Skipping verification at user request"
   else
     if [ $NODE_VERIFY -eq 0 ]; then
       EXTRA_OPTS="$EXTRA_OPTS --skip-verify-node"
@@ -402,12 +404,12 @@ fi
 
 # make sure kubectl is available
 kubectl --help >&/dev/null || {
-  decho "kubectl required for installation... exiting"
+  echo "kubectl required for installation... exiting"
   exit 2
 }
 # make sure helm is available
 helm --help >&/dev/null || {
-  decho "helm required for installation... exiting"
+  echo "helm required for installation... exiting"
   exit 2
 }
 
