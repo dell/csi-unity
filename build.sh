@@ -29,7 +29,8 @@ function git_version {
 }
 
 function build_image {
-   bash build_ubi_micro.sh registry.access.redhat.com/ubi8/ubi-micro
+   # Tag corresponding to digest sha256:630cf7bdef807f048cadfe7180d6c27eb3aaa99323ffc3628811da230ed3322a for ubi9 micro is 9.2-13
+   bash build_ubi_micro.sh registry.access.redhat.com/ubi9/ubi-micro@sha256:630cf7bdef807f048cadfe7180d6c27eb3aaa99323ffc3628811da230ed3322a
    echo $BUILDCMD build -t ${IMAGE_NAME}:${IMAGE_TAG} .
    (cd .. && $BUILDCMD build -t ${IMAGE_NAME}:${IMAGE_TAG} --build-arg GOPROXY=$GOPROXY -f csi-unity/Dockerfile.podman . --format=docker)
    echo $BUILDCMD tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_REPO}/${IMAGE_REPO_NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}
