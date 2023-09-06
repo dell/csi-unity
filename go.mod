@@ -5,12 +5,12 @@ go 1.21
 require (
 	github.com/container-storage-interface/spec v1.5.0
 	github.com/cucumber/godog v0.10.0
-	github.com/dell/dell-csi-extensions/podmon v1.1.3
-	github.com/dell/gobrick v1.8.0
-	github.com/dell/gocsi v1.7.0
-	github.com/dell/gofsutil v1.12.1-0.20230825035253-f415b11a8bb6
-	github.com/dell/goiscsi v1.7.0
-	github.com/dell/gounity v1.14.1-0.20230823121618-6f5d9b24032f
+	github.com/dell/dell-csi-extensions/podmon v1.2.0
+	github.com/dell/gobrick v1.9.0
+	github.com/dell/gocsi v1.8.0
+	github.com/dell/gofsutil v1.13.0
+	github.com/dell/goiscsi v1.8.0
+	github.com/dell/gounity v1.15.0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/golang/protobuf v1.5.3
 	github.com/kubernetes-csi/csi-lib-utils v0.7.0
