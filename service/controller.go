@@ -31,6 +31,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 const (
@@ -523,18 +524,39 @@ func (s *service) GetCapacity(
 
 	metricsAPI := gounity.NewMetrics(unity)
 
-	resp, err := metricsAPI.GetCapacity(ctx)
+	capacity, err := metricsAPI.GetCapacity(ctx)
 
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	log.Infof("Available capacity from the Array: %d", resp.Entries[0].Content.SizeFree)
+	log.Infof("Available capacity from the Array: %d", capacity.Entries[0].Content.SizeFree)
+
+	maxVolSize := s.getMaximumVolumeSize(ctx, arrayID)
+
+	if maxVolSize == 0 {
+		return &csi.GetCapacityResponse{
+			AvailableCapacity: int64(capacity.Entries[0].Content.SizeFree),
+		}, nil
+	}
 
 	return &csi.GetCapacityResponse{
-		AvailableCapacity: int64(resp.Entries[0].Content.SizeFree),
+		AvailableCapacity: int64(capacity.Entries[0].Content.SizeFree),
+		MaximumVolumeSize: wrapperspb.Int64(maxVolSize),
 	}, nil
 
+}
+
+func (s *service) getMaximumVolumeSize(ctx context.Context, arrayID string) int64 {
+	ctx, log, _ := GetRunidLog(ctx)
+	unity, err := s.getUnityClient(ctx, arrayID)
+	volumeAPI := gounity.NewVolume(unity)
+	maxVolumeSize, err := volumeAPI.GetMaxVolumeSize(ctx, "Limit_MaxLUNSize")
+	if err != nil {
+		log.Debugf("GetMaxVolumeSize returning: %v for Array having GlobalId %s", err, arrayID)
+		return 0
+	}
+	return maxVolumeSize
 }
 
 func (s *service) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
