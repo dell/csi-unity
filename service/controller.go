@@ -532,9 +532,9 @@ func (s *service) GetCapacity(
 
 	log.Infof("Available capacity from the Array: %d", capacity.Entries[0].Content.SizeFree)
 
-	maxVolSize := s.getMaximumVolumeSize(ctx, arrayID)
+	maxVolSize, err := s.getMaximumVolumeSize(ctx, arrayID)
 
-	if maxVolSize == 0 {
+	if err != nil {
 		return &csi.GetCapacityResponse{
 			AvailableCapacity: int64(capacity.Entries[0].Content.SizeFree),
 		}, nil
@@ -547,16 +547,16 @@ func (s *service) GetCapacity(
 
 }
 
-func (s *service) getMaximumVolumeSize(ctx context.Context, arrayID string) int64 {
+func (s *service) getMaximumVolumeSize(ctx context.Context, arrayID string) (int64, error) {
 	ctx, log, _ := GetRunidLog(ctx)
 	unity, err := s.getUnityClient(ctx, arrayID)
 	volumeAPI := gounity.NewVolume(unity)
 	maxVolumeSize, err := volumeAPI.GetMaxVolumeSize(ctx, "Limit_MaxLUNSize")
 	if err != nil {
 		log.Debugf("GetMaxVolumeSize returning: %v for Array having GlobalId %s", err, arrayID)
-		return 0
+		return 0, err
 	}
-	return maxVolumeSize.MaxVolumSizeContent.Limit
+	return maxVolumeSize.MaxVolumSizeContent.Limit, nil
 }
 
 func (s *service) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
