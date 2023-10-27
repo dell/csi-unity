@@ -3,7 +3,7 @@ module github.com/dell/csi-unity
 go 1.21
 
 require (
-	github.com/container-storage-interface/spec v1.5.0
+	github.com/container-storage-interface/spec v1.6.0
 	github.com/cucumber/godog v0.10.0
 	github.com/dell/dell-csi-extensions/podmon v1.2.0
 	github.com/dell/gobrick v1.9.0

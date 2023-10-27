@@ -41,6 +41,8 @@ type feature struct {
 	createSnapshotResponse            *csi.CreateSnapshotResponse
 	deleteSnapshotRequest             *csi.DeleteSnapshotRequest
 	deleteSnapshotResponse            *csi.DeleteSnapshotResponse
+	getCapacityRequest                *csi.GetCapacityRequest
+	getCapacityResponse               *csi.GetCapacityResponse
 	capability                        *csi.VolumeCapability
 	capabilities                      []*csi.VolumeCapability
 	validateVolumeCapabilitiesRequest *csi.ValidateVolumeCapabilitiesRequest
@@ -1240,6 +1242,35 @@ func (f *feature) nodeExpandVolume(volID, volPath string) error {
 	client := csi.NewNodeClient(grpcClient)
 	_, err = client.NodeExpandVolume(ctx, req)
 	return err
+}
+
+func (f *feature) whenICallGetCapacity() {
+	ctx := context.Background()
+	client := csi.NewControllerClient(grpcClient)
+
+	capability := new(csi.VolumeCapability)
+	mount := new(csi.VolumeCapability_MountVolume)
+	mountType := new(csi.VolumeCapability_Mount)
+	mountType.Mount = mount
+	capability.AccessType = mountType
+	accessMode := new(csi.VolumeCapability_AccessMode)
+	accessMode.Mode = csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER
+	capability.AccessMode = accessMode
+	f.capability = capability
+	capabilities := make([]*csi.VolumeCapability, 0)
+	capabilities = append(capabilities, capability)
+
+	f.getCapacityRequest = &csi.GetCapacityRequest{VolumeCapabilities: capabilities}
+	response, err := client.GetCapacity(ctx, f.getCapacityRequest)
+	if err != nil {
+		fmt.Printf("GetCapacity %s:\n", err.Error())
+		f.addError(err)
+	}
+	if err == nil {
+		fmt.Printf("Snapshot ID: %d \n", response.MaximumVolumeSize)
+	}
+
+	f.getCapacityResponse = response
 }
 
 func FeatureContext(s *godog.Suite) {
