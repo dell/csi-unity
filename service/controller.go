@@ -556,7 +556,7 @@ func (s *service) getMaximumVolumeSize(ctx context.Context, arrayID string) (int
 		log.Debugf("GetMaxVolumeSize returning: %v for Array having GlobalId %s", err, arrayID)
 		return 0, err
 	}
-	return maxVolumeSize.MaxVolumSizeContent.Limit, nil
+	return int64(maxVolumeSize.MaxVolumSizeContent.Limit), nil
 }
 
 func (s *service) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
