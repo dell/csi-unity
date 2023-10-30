@@ -124,7 +124,7 @@ func GetFCInitiators(ctx context.Context) ([]string, error) {
 			continue
 		}
 		nodeNameStr := strings.TrimSpace(string(nodeName))
-		//Ignore first 2 digits
+		// Ignore first 2 digits
 		port := strings.Split(portNameStr, "x")[1]
 		node := strings.Split(nodeNameStr, "x")[1]
 
@@ -206,7 +206,6 @@ func GetSnapshotResponseFromSnapshot(snap *types.Snapshot, protocol, arrayID str
 
 // ArrayContains method does contains check operation
 func ArrayContains(stringArray []string, value string) bool {
-
 	for _, arrayValue := range stringArray {
 		if value == arrayValue {
 			return true
@@ -217,7 +216,6 @@ func ArrayContains(stringArray []string, value string) bool {
 
 // ArrayContainsAll method checks if all elements of stringArray1 is present in stringArray2
 func ArrayContainsAll(stringArray1 []string, stringArray2 []string) bool {
-
 	for _, arrayElement := range stringArray1 {
 		if !ArrayContains(stringArray2, arrayElement) {
 			return false
@@ -240,7 +238,7 @@ func FindAdditionalWwns(stringArray1 []string, stringArray2 []string) []string {
 // IpsCompare checks if the given ip is present as IP or FQDN in the given list of host ips
 func IpsCompare(ctx context.Context, ip string, hostIps []string) (bool, []string) {
 	log := GetRunidLogger(ctx)
-	var result = false
+	result := false
 	var additionalIps []string
 
 	for _, hostIP := range hostIps {
@@ -248,10 +246,10 @@ func IpsCompare(ctx context.Context, ip string, hostIps []string) (bool, []strin
 			log.Debug(fmt.Sprintf("Host Ip port %s matched Node IP", hostIP))
 			result = true
 		} else {
-			//If HostIpPort is contains fqdn
+			// If HostIpPort is contains fqdn
 			lookupIps, err := net.LookupIP(hostIP)
 			if err != nil {
-				//Lookup failed and hostIp is considered not to match Ip
+				// Lookup failed and hostIp is considered not to match Ip
 				log.Info("Ip Lookup failed: ", err)
 				additionalIps = append(additionalIps, hostIP)
 			} else if ipListContains(lookupIps, ip) {
@@ -292,7 +290,6 @@ func IPReachable(ctx context.Context, ip, port string, pingTimeout int) bool {
 	log.Debug("Tcp test on IP", ip)
 
 	_, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%s", ip, port), timeout)
-
 	if err != nil {
 		log.Debugf("Interface IP %s is not reachable %v", ip, err)
 		return false

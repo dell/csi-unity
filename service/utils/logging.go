@@ -27,8 +27,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var singletonLog *logrus.Logger
-var once sync.Once
+var (
+	singletonLog *logrus.Logger
+	once         sync.Once
+)
 
 const (
 	// Default log format will output [INFO]: 2006-01-02T15:04:05Z07:00 - Log message
@@ -38,7 +40,7 @@ const (
 
 // Formatter implements logrus.Formatter interface.
 type Formatter struct {
-	//logrus.TextFormatter
+	// logrus.TextFormatter
 	// Timestamp format
 	TimestampFormat string
 	// Available standard keys: time, msg, lvl
@@ -122,7 +124,7 @@ func GetLogger() *logrus.Logger {
 		singletonLog = logrus.New()
 		fmt.Println("csi-unity logger initiated. This should be called only once.")
 
-		//Setting default level to Info since the driver is yet to read secrect that has the debug level set
+		// Setting default level to Info since the driver is yet to read secrect that has the debug level set
 		singletonLog.Level = logrus.InfoLevel
 
 		singletonLog.SetReportCaller(true)
@@ -146,7 +148,6 @@ func GetLogger() *logrus.Logger {
 
 // ChangeLogLevel - change log level
 func ChangeLogLevel(logLevel string) {
-
 	switch strings.ToLower(logLevel) {
 
 	case "debug":
@@ -162,7 +163,7 @@ func ChangeLogLevel(logLevel string) {
 		break
 
 	case "info":
-		//Default level will be Info
+		// Default level will be Info
 		fallthrough
 
 	default:
@@ -201,7 +202,7 @@ func GetRunidAndLogger(ctx context.Context) (string, *logrus.Entry) {
 
 	tempLog := ctx.Value(UnityLogger)
 	if tempLog != nil && reflect.TypeOf(tempLog) == reflect.TypeOf(&logrus.Entry{}) {
-		//rid = fmt.Sprintf("%s", tempLog.(*logrus.Logger).Data[RUNID])
+		// rid = fmt.Sprintf("%s", tempLog.(*logrus.Logger).Data[RUNID])
 		return rid, tempLog.(*logrus.Entry)
 	}
 	return rid, nil

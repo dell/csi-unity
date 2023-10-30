@@ -29,11 +29,11 @@ const (
 	// violation of the CSI spec
 	EnvAutoProbe = "X_CSI_UNITY_AUTOPROBE"
 
-	//EnvPvtMountDir is required to Node Unstage volume where the volume has been mounted
-	//as a global mount via CSI-Unity v1.0 or v1.1
+	// EnvPvtMountDir is required to Node Unstage volume where the volume has been mounted
+	// as a global mount via CSI-Unity v1.0 or v1.1
 	EnvPvtMountDir = "X_CSI_PRIVATE_MOUNT_DIR"
 
-	//EnvEphemeralStagingPath - Ephemeral staging path
+	// EnvEphemeralStagingPath - Ephemeral staging path
 	EnvEphemeralStagingPath = "X_CSI_EPHEMERAL_STAGING_PATH"
 
 	// EnvISCSIChroot is the path to which the driver will chroot before
@@ -44,14 +44,14 @@ const (
 	// EnvKubeConfigPath indicates kubernetes configuration that has to be used by CSI Driver
 	EnvKubeConfigPath = "KUBECONFIG"
 
-	//SyncNodeInfoTimeInterval - Time interval to add node info to array. Default 60 minutes.
-	//X_CSI_UNITY_SYNC_NODEINFO_INTERVAL has been deprecated and will be removes in a future release
+	// SyncNodeInfoTimeInterval - Time interval to add node info to array. Default 60 minutes.
+	// X_CSI_UNITY_SYNC_NODEINFO_INTERVAL has been deprecated and will be removes in a future release
 	SyncNodeInfoTimeInterval = "X_CSI_UNITY_SYNC_NODEINFO_INTERVAL"
 
 	// EnvAllowRWOMultiPodAccess - Environment variable to configure sharing of a single volume across multiple pods within the same node
 	// Multi-node access is still not allowed for ReadWriteOnce Mount volumes.
 	// Enabling this option techincally violates the CSI 1.3 spec in the NodePublishVolume stating the required error returns.
-	//X_CSI_UNITY_ALLOW_MULTI_POD_ACCESS has been deprecated and will be removes in a future release
+	// X_CSI_UNITY_ALLOW_MULTI_POD_ACCESS has been deprecated and will be removes in a future release
 	EnvAllowRWOMultiPodAccess = "X_CSI_UNITY_ALLOW_MULTI_POD_ACCESS"
 
 	// EnvIsVolumeHealthMonitorEnabled - Environment variable to enable/disable health monitor of CSI volumes
