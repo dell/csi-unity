@@ -41,6 +41,8 @@ type feature struct {
 	createSnapshotResponse            *csi.CreateSnapshotResponse
 	deleteSnapshotRequest             *csi.DeleteSnapshotRequest
 	deleteSnapshotResponse            *csi.DeleteSnapshotResponse
+	getCapacityRequest                *csi.GetCapacityRequest
+	getCapacityResponse               *csi.GetCapacityResponse
 	capability                        *csi.VolumeCapability
 	capabilities                      []*csi.VolumeCapability
 	validateVolumeCapabilitiesRequest *csi.ValidateVolumeCapabilitiesRequest
@@ -1242,6 +1244,45 @@ func (f *feature) nodeExpandVolume(volID, volPath string) error {
 	return err
 }
 
+func (f *feature) whenICallGetCapacity() error {
+	ctx := context.Background()
+	client := csi.NewControllerClient(grpcClient)
+
+	params := make(map[string]string)
+	params["storagePool"] = os.Getenv("STORAGE_POOL")
+	params["thinProvisioned"] = "true"
+	params["isDataReductionEnabled"] = "false"
+	params["tieringPolicy"] = "0"
+	params["description"] = "CSI Volume Unit Test"
+	params["arrayId"] = os.Getenv("arrayId")
+	params["nasServer"] = os.Getenv("NAS_SERVER")
+
+	capability := new(csi.VolumeCapability)
+	mount := new(csi.VolumeCapability_MountVolume)
+	mountType := new(csi.VolumeCapability_Mount)
+	mountType.Mount = mount
+	capability.AccessType = mountType
+	accessMode := new(csi.VolumeCapability_AccessMode)
+	accessMode.Mode = csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER
+	capability.AccessMode = accessMode
+	f.capability = capability
+	capabilities := make([]*csi.VolumeCapability, 0)
+	capabilities = append(capabilities, capability)
+
+	f.getCapacityRequest = &csi.GetCapacityRequest{VolumeCapabilities: capabilities, Parameters: params}
+	response, err := client.GetCapacity(ctx, f.getCapacityRequest)
+	if err != nil {
+		fmt.Printf("GetCapacity %s:\n", err.Error())
+		f.addError(err)
+		return err
+	}
+	if err == nil {
+		fmt.Printf("Maximum Volume Size: %v \n", response.MaximumVolumeSize)
+	}
+	f.getCapacityResponse = response
+	return nil
+}
+
 func FeatureContext(s *godog.Suite) {
 	f := &feature{}
 	s.Step(`^a CSI service$`, f.aCSIService)
@@ -1290,5 +1331,5 @@ func FeatureContext(s *godog.Suite) {
 	s.Step(`^When I call GetPluginCapabilities$`, f.whenICallGetPluginCapabilities)
 	s.Step(`^When I call GetPluginInfo$`, f.whenICallGetPluginInfo)
 	s.Step(`^when I call Node Expand Volume$`, f.whenICallNodeExpandVolume)
-
+	s.Step(`^I Call GetCapacity$`, f.whenICallGetCapacity)
 }

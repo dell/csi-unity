@@ -111,7 +111,7 @@ func valVolumeCaps(vcs []*csi.VolumeCapability, protocol string) (bool, string) 
 			} else if protocol == FC || protocol == ISCSI {
 				supported = false
 				reason = errNoMultiNodeReader
-			} //else NFS case
+			} // else NFS case
 			break
 		case csi.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER:
 			fallthrough
@@ -135,7 +135,6 @@ func valVolumeCaps(vcs []*csi.VolumeCapability, protocol string) (bool, string) 
 
 // validateCreateFsFromSnapshot - Validates idempotency of an existing snapshot created from a filesystem
 func validateCreateFsFromSnapshot(ctx context.Context, sourceFilesystemResp *types.Filesystem, storagePool string, tieringPolicy, hostIoSize int64, thin, dataReduction bool) error {
-
 	rid, _ := utils.GetRunidAndLogger(ctx)
 
 	// Validate the storagePool parameter
@@ -144,25 +143,25 @@ func validateCreateFsFromSnapshot(ctx context.Context, sourceFilesystemResp *typ
 			sourceFilesystemResp.FileContent.Pool.ID, storagePool))
 	}
 
-	//Validate the thinProvisioned parameter
+	// Validate the thinProvisioned parameter
 	if sourceFilesystemResp.FileContent.IsThinEnabled != thin {
 		return status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Source filesystem thin provision %v is different than the requested thin provision %v",
 			sourceFilesystemResp.FileContent.IsThinEnabled, thin))
 	}
 
-	//Validate the dataReduction parameter
+	// Validate the dataReduction parameter
 	if sourceFilesystemResp.FileContent.IsDataReductionEnabled != dataReduction {
 		return status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Source filesystem data reduction %v is different than the requested data reduction %v",
 			sourceFilesystemResp.FileContent.IsDataReductionEnabled, dataReduction))
 	}
 
-	//Validate the tieringPolicy parameter
+	// Validate the tieringPolicy parameter
 	if int64(sourceFilesystemResp.FileContent.TieringPolicy) != tieringPolicy {
 		return status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Source filesystem tiering policy %v is different than the requested tiering policy %v",
 			sourceFilesystemResp.FileContent.TieringPolicy, tieringPolicy))
 	}
 
-	//Validate the hostIOSize parameter
+	// Validate the hostIOSize parameter
 	if sourceFilesystemResp.FileContent.HostIOSize != hostIoSize {
 		return status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Source filesystem host IO size %v is different than the requested host IO size %v",
 			sourceFilesystemResp.FileContent.HostIOSize, hostIoSize))
@@ -173,7 +172,6 @@ func validateCreateFsFromSnapshot(ctx context.Context, sourceFilesystemResp *typ
 
 // validateCreateVolumeFromSource - Validates idempotency of an existing volume created from a volume
 func validateCreateVolumeFromSource(ctx context.Context, sourceVolResp *types.Volume, storagePool string, tieringPolicy, size int64, thin, dataReduction, skipSizeValidation bool) error {
-
 	rid, _ := utils.GetRunidAndLogger(ctx)
 
 	// Validate the storagePool parameter
@@ -181,17 +179,17 @@ func validateCreateVolumeFromSource(ctx context.Context, sourceVolResp *types.Vo
 		return status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Source volume storage pool %s is different than the requested storage pool %s",
 			sourceVolResp.VolumeContent.Pool.ID, storagePool))
 	}
-	//Validate the tieringPolicy parameter
+	// Validate the tieringPolicy parameter
 	if int64(sourceVolResp.VolumeContent.TieringPolicy) != tieringPolicy {
 		return status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Source volume tiering policy %v is different than the requested tiering policy %v",
 			sourceVolResp.VolumeContent.TieringPolicy, tieringPolicy))
 	}
-	//Validate the thinProvisioned parameter
+	// Validate the thinProvisioned parameter
 	if sourceVolResp.VolumeContent.IsThinEnabled != thin {
 		return status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Source volume thin provision %v is different than the requested thin provision %v",
 			sourceVolResp.VolumeContent.IsThinEnabled, thin))
 	}
-	//Validate the dataReduction parameter
+	// Validate the dataReduction parameter
 	if sourceVolResp.VolumeContent.IsDataReductionEnabled != dataReduction {
 		return status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Source volume data reduction %v is different than the requested data reduction %v",
 			sourceVolResp.VolumeContent.IsDataReductionEnabled, dataReduction))
@@ -212,7 +210,6 @@ func validateCreateVolumeFromSource(ctx context.Context, sourceVolResp *types.Vo
 
 // ValidateCreateVolumeRequest - Validates all mandatory parameters in create volume request
 func ValidateCreateVolumeRequest(ctx context.Context, req *csi.CreateVolumeRequest) (protocol, storagePool string, size, tieringPolicy, hostIoSize int64, thin, dataReduction bool, err error) {
-
 	ctx, log, rid := GetRunidLog(ctx)
 
 	if req.GetName() == "" {
@@ -227,8 +224,8 @@ func ValidateCreateVolumeRequest(ctx context.Context, req *csi.CreateVolumeReque
 		protocol = FC
 	}
 
-	//We dont have protocol from volume context ID and hence considering protocol from storage class as the
-	//primary protocol
+	// We dont have protocol from volume context ID and hence considering protocol from storage class as the
+	// primary protocol
 	protocol, err = ValidateAndGetProtocol(ctx, protocol, "")
 	if err != nil {
 		return "", "", 0, 0, 0, false, false, err
@@ -297,7 +294,6 @@ func ValidateCreateVolumeRequest(ctx context.Context, req *csi.CreateVolumeReque
 
 // ValidateControllerPublishRequest - method to validate Controller publish volume request
 func ValidateControllerPublishRequest(ctx context.Context, req *csi.ControllerPublishVolumeRequest, contextProtocol string) (protocol, nodeID string, err error) {
-
 	ctx, _, rid := GetRunidLog(ctx)
 
 	vc := req.GetVolumeCapability()

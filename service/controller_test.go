@@ -26,7 +26,7 @@ import (
 func TestControllerProbe(t *testing.T) {
 	DriverConfig = testConf.unityConfig
 
-	//Dynamic update of config
+	// Dynamic update of config
 	err := testConf.service.BeforeServe(context.Background(), nil, nil)
 	if err != nil {
 		t.Fatalf("TestBeforeServe failed with error %v", err)

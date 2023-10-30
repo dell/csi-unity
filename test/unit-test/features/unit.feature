@@ -802,3 +802,7 @@ Feature: CSI interface
     And when I call DeleteVolume
     Then there are no errors
 
+  Scenario: GetCapacity successfully requested 
+    Given a CSI service
+    When I Call GetCapacity
+    Then there are no errors
