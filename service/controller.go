@@ -554,7 +554,7 @@ func (s *service) getMaximumVolumeSize(ctx context.Context, arrayID string) (int
 	volumeAPI := gounity.NewVolume(unity)
 	maxVolumeSize, err := volumeAPI.GetMaxVolumeSize(ctx, "Limit_MaxLUNSize")
 	if err != nil {
-		log.Debugf("GetMaxVolumeSize returning: %v for Array having GlobalId %s", err, arrayID)
+		log.Debugf("GetMaxVolumeSize returning: %v for Array having arrayId %s", err, arrayID)
 		return 0, err
 	}
 	return int64(maxVolumeSize.MaxVolumSizeContent.Limit), nil
