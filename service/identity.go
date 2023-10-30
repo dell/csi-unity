@@ -25,7 +25,8 @@ import (
 func (s *service) Probe(
 	ctx context.Context,
 	req *csi.ProbeRequest) (
-	*csi.ProbeResponse, error) {
+	*csi.ProbeResponse, error,
+) {
 	ctx, log, _ := GetRunidLog(ctx)
 	log.Infof("Executing Probe with args: %+v", *req)
 	if strings.EqualFold(s.mode, "controller") {
@@ -47,8 +48,8 @@ func (s *service) Probe(
 func (s *service) GetPluginInfo(
 	ctx context.Context,
 	req *csi.GetPluginInfoRequest) (
-	*csi.GetPluginInfoResponse, error) {
-
+	*csi.GetPluginInfoResponse, error,
+) {
 	return &csi.GetPluginInfoResponse{
 		Name:          Name,
 		VendorVersion: core.SemVer,
@@ -59,7 +60,8 @@ func (s *service) GetPluginInfo(
 func (s *service) GetPluginCapabilities(
 	ctx context.Context,
 	req *csi.GetPluginCapabilitiesRequest) (
-	*csi.GetPluginCapabilitiesResponse, error) {
+	*csi.GetPluginCapabilitiesResponse, error,
+) {
 	ctx, log, _ := GetRunidLog(ctx)
 	log.Infof("Executing GetPluginCapabilities with args: %+v", *req)
 	return &csi.GetPluginCapabilitiesResponse{

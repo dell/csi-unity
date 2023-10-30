@@ -221,7 +221,8 @@ func TestValidateVolumeHostConnectivityVolumeIds(t *testing.T) {
 				Connected: true,
 				Messages: []string{
 					"iSCSI Health is good for array:array1, Health:ALRT_COMPONENT_OK",
-					"sv_1 on array array1 has no IOs"},
+					"sv_1 on array array1 has no IOs",
+				},
 				IosInProgress: false,
 			},
 		},
@@ -247,7 +248,8 @@ func TestValidateVolumeHostConnectivityVolumeIds(t *testing.T) {
 				Connected: true,
 				Messages: []string{
 					"iSCSI Health is good for array:array1, Health:ALRT_COMPONENT_OK",
-					"sv_1 on array array1 has no IOs"},
+					"sv_1 on array array1 has no IOs",
+				},
 				IosInProgress: false,
 			},
 		},
@@ -270,7 +272,8 @@ func TestValidateVolumeHostConnectivityVolumeIds(t *testing.T) {
 				VolumeIds: []string{
 					"vol1-iscsi-array1-sv_1",
 					"vol1-iscsi-array2-sv_2",
-					"vol1-iscsi-array3-sv_3"},
+					"vol1-iscsi-array3-sv_3",
+				},
 			},
 			expectedResponse: &podmon.ValidateVolumeHostConnectivityResponse{
 				Connected: true,
@@ -453,7 +456,6 @@ func TestValidateVolumeHostConnectivityFC(t *testing.T) {
 
 	var testCases map[string]testCaseSpec
 	testCases = map[string]testCaseSpec{
-
 		"Default Array, Good FC HostConnections": {
 			setup: func() {
 				testConf.service.opts.AutoProbe = true
@@ -577,7 +579,8 @@ func TestVolumeIOCheck(t *testing.T) {
 				VolumeIds: []string{
 					"vol1-iscsi-array1-sv_1",
 					"vol1-iscsi-array2-sv_2",
-					"vol1-iscsi-array3-sv_3"},
+					"vol1-iscsi-array3-sv_3",
+				},
 			},
 			expectedResponse: &podmon.ValidateVolumeHostConnectivityResponse{
 				Connected: true,
@@ -609,7 +612,8 @@ func TestVolumeIOCheck(t *testing.T) {
 				VolumeIds: []string{
 					"vol1-iscsi-array1-sv_1",
 					"vol1-iscsi-array2-sv_2",
-					"vol1-iscsi-array3-sv_3"},
+					"vol1-iscsi-array3-sv_3",
+				},
 			},
 			expectedResponse: &podmon.ValidateVolumeHostConnectivityResponse{
 				Connected: true,
@@ -648,7 +652,8 @@ func TestVolumeIOCheck(t *testing.T) {
 				VolumeIds: []string{
 					"vol1-iscsi-array1-sv_1",
 					"vol1-iscsi-array2-sv_2",
-					"vol1-iscsi-array3-sv_3"},
+					"vol1-iscsi-array3-sv_3",
+				},
 			},
 			expectedResponse: &podmon.ValidateVolumeHostConnectivityResponse{
 				Connected: true,
@@ -688,7 +693,8 @@ func TestVolumeIOCheck(t *testing.T) {
 				VolumeIds: []string{
 					"vol1-iscsi-array1-sv_1",
 					"vol1-iscsi-array2-sv_2",
-					"vol1-iscsi-array3-sv_3"},
+					"vol1-iscsi-array3-sv_3",
+				},
 			},
 			expectedResponse: &podmon.ValidateVolumeHostConnectivityResponse{
 				Connected: true,
@@ -756,7 +762,8 @@ func TestVolumeIOCheck(t *testing.T) {
 				VolumeIds: []string{
 					"vol1-iscsi-array1-sv_1",
 					"vol1-iscsi-array2-sv_2",
-					"vol1-iscsi-array3-sv_3"},
+					"vol1-iscsi-array3-sv_3",
+				},
 			},
 			expectedResponse: &podmon.ValidateVolumeHostConnectivityResponse{
 				Connected: true,
@@ -803,7 +810,8 @@ func TestFileSystemIOCheck(t *testing.T) {
 				VolumeIds: []string{
 					"vol1-nfs-array1-fs_1",
 					"vol1-nfs-array2-fs_2",
-					"vol1-nfs-array3-fs_3"},
+					"vol1-nfs-array3-fs_3",
+				},
 			},
 			expectedResponse: &podmon.ValidateVolumeHostConnectivityResponse{
 				Connected: true,
@@ -835,7 +843,8 @@ func TestFileSystemIOCheck(t *testing.T) {
 				VolumeIds: []string{
 					"vol1-nfs-array1-fs_1",
 					"vol1-nfs-array2-fs_2",
-					"vol1-nfs-array3-fs_3"},
+					"vol1-nfs-array3-fs_3",
+				},
 			},
 			expectedResponse: &podmon.ValidateVolumeHostConnectivityResponse{
 				Connected: true,
@@ -884,7 +893,8 @@ func TestFileSystemIOCheck(t *testing.T) {
 				VolumeIds: []string{
 					"vol1-nfs-array1-fs_1",
 					"vol1-nfs-array2-fs_2",
-					"vol1-nfs-array3-fs_3"},
+					"vol1-nfs-array3-fs_3",
+				},
 			},
 			expectedResponse: &podmon.ValidateVolumeHostConnectivityResponse{
 				Connected: true,
@@ -962,7 +972,8 @@ func TestFileSystemIOCheck(t *testing.T) {
 				VolumeIds: []string{
 					"vol1-nfs-array1-fs_1",
 					"vol1-nfs-array2-fs_2",
-					"vol1-nfs-array3-fs_3"},
+					"vol1-nfs-array3-fs_3",
+				},
 			},
 			expectedResponse: &podmon.ValidateVolumeHostConnectivityResponse{
 				Connected: true,
@@ -1044,7 +1055,8 @@ func TestFileSystemIOCheck(t *testing.T) {
 				VolumeIds: []string{
 					"vol1-nfs-array1-fs_1",
 					"vol1-nfs-array2-fs_2",
-					"vol1-nfs-array3-fs_3"},
+					"vol1-nfs-array3-fs_3",
+				},
 			},
 			expectedResponse: &podmon.ValidateVolumeHostConnectivityResponse{
 				Connected: true,
@@ -1102,7 +1114,8 @@ func TestFileSystemIOCheck(t *testing.T) {
 				VolumeIds: []string{
 					"vol1-nfs-array1-fs_1",
 					"vol1-nfs-array2-fs_2",
-					"vol1-nfs-array3-fs_3"},
+					"vol1-nfs-array3-fs_3",
+				},
 			},
 			expectedResponse: &podmon.ValidateVolumeHostConnectivityResponse{
 				Connected: true,
@@ -1164,7 +1177,8 @@ func TestFileSystemIOCheck(t *testing.T) {
 				VolumeIds: []string{
 					"vol1-nfs-array1-fs_1",
 					"vol1-nfs-array2-fs_2",
-					"vol1-nfs-array3-fs_3"},
+					"vol1-nfs-array3-fs_3",
+				},
 			},
 			expectedResponse: &podmon.ValidateVolumeHostConnectivityResponse{
 				Connected: true,
@@ -1227,7 +1241,8 @@ func TestFileSystemIOCheck(t *testing.T) {
 				VolumeIds: []string{
 					"vol1-nfs-array1-fs_1",
 					"vol1-nfs-array2-fs_2",
-					"vol1-nfs-array3-fs_3"},
+					"vol1-nfs-array3-fs_3",
+				},
 			},
 			expectedResponse: &podmon.ValidateVolumeHostConnectivityResponse{
 				Connected: true,
@@ -1303,7 +1318,8 @@ func TestFileSystemIOCheck(t *testing.T) {
 				VolumeIds: []string{
 					"vol1-nfs-array1-fs_1",
 					"vol1-nfs-array2-fs_2",
-					"vol1-nfs-array3-fs_3"},
+					"vol1-nfs-array3-fs_3",
+				},
 			},
 			expectedResponse: &podmon.ValidateVolumeHostConnectivityResponse{
 				Connected: true,
@@ -1385,7 +1401,8 @@ func TestFileSystemIOCheck(t *testing.T) {
 				// <PV_NAME>-<PROTOCOL>-<ARRAYID>-<LUN_ID>
 				VolumeIds: []string{
 					"vol1-nfs-array1-fs_1",
-					"vol1-nfs-array2-fs_2"},
+					"vol1-nfs-array2-fs_2",
+				},
 			},
 			expectedResponse: &podmon.ValidateVolumeHostConnectivityResponse{
 				Connected: true,
@@ -1644,20 +1661,22 @@ func runTestCases(ctx context.Context, t *testing.T, testCases map[string]testCa
 	}
 }
 
-var mockGetArrayFromVolumeFail string
-var mockGetArrayIDErr error
-var mockRequireProbeErr error
-var mockGetHost *types.Host
-var mockGetHostErr error
-var mockGetUnity *gounity.Client
-var mockGetUnityErr error
-var mockFindHostInitiatorErr error
-var mockBadInitiator string
-var mockFindInitatorFail string
-var mockGetMetricsCollectionError error
-var mockCreateMetricsCollectionError error
-var mockMetricsCollectionID int
-var mockMetricValueMap map[string]interface{}
+var (
+	mockGetArrayFromVolumeFail       string
+	mockGetArrayIDErr                error
+	mockRequireProbeErr              error
+	mockGetHost                      *types.Host
+	mockGetHostErr                   error
+	mockGetUnity                     *gounity.Client
+	mockGetUnityErr                  error
+	mockFindHostInitiatorErr         error
+	mockBadInitiator                 string
+	mockFindInitatorFail             string
+	mockGetMetricsCollectionError    error
+	mockCreateMetricsCollectionError error
+	mockMetricsCollectionID          int
+	mockMetricValueMap               map[string]interface{}
+)
 
 func defaultMocks() {
 	GetHostID = mockGetHostID

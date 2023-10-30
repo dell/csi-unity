@@ -32,8 +32,10 @@ import (
 	"google.golang.org/grpc"
 )
 
-var grpcClient *grpc.ClientConn
-var stop func()
+var (
+	grpcClient *grpc.ClientConn
+	stop       func()
+)
 
 // To parse the secret json file
 type StorageArrayList struct {
