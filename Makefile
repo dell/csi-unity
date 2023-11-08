@@ -35,11 +35,11 @@ download-csm-common:
 #
 # Generates the docker container (but does not push)
 podman-build: download-csm-common go-build
-    $(eval include csm-common.mk)
+	$(eval include csm-common.mk)
 	sh build.sh --baseubi $(DEFAULT_BASEIMAGE)
 
 podman-push: download-csm-common go-build
-    $(eval include csm-common.mk)
+	$(eval include csm-common.mk)
 	sh build.sh --baseubi $(DEFAULT_BASEIMAGE) --push
 
 #
