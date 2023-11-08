@@ -26,15 +26,21 @@ integration-test:
 unit-test:
 	( cd test/unit-test; sh run.sh )
 
+.PHONY: download-csm-common
+download-csm-common:
+	curl -O -L https://raw.githubusercontent.com/dell/csm/main/config/csm-common.mk
+
 #
 # Docker-related tasks
 #
 # Generates the docker container (but does not push)
-podman-build: go-build
-	sh build.sh
+podman-build: download-csm-common go-build
+    $(eval include csm-common.mk)
+	sh build.sh --baseubi $(DEFAULT_BASEIMAGE)
 
-podman-push: go-build
-	sh build.sh -p
+podman-push: download-csm-common go-build
+    $(eval include csm-common.mk)
+	sh build.sh --baseubi $(DEFAULT_BASEIMAGE) --push
 
 #
 # Docker-related tasks

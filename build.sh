@@ -30,8 +30,8 @@ function git_version {
 
 
 function build_image {
-   # Tag corresponding to digest sha256:b7d8fd2840e92e8adc68414e13d859763ef33c3d4c4e27f910e939c00d642c29 for ubi9 micro is 9.3-6
-   bash build_ubi_micro.sh registry.access.redhat.com/ubi9/ubi-micro@sha256:b7d8fd2840e92e8adc68414e13d859763ef33c3d4c4e27f910e939c00d642c29
+   echo ${BASE_UBI_IMAGE}
+   bash build_ubi_micro.sh ${BASE_UBI_IMAGE}
    echo $BUILDCMD build -t ${IMAGE_NAME}:${IMAGE_TAG} .
    (cd .. && $BUILDCMD build -t ${IMAGE_NAME}:${IMAGE_TAG} --build-arg GOPROXY=$GOPROXY -f csi-unity/Dockerfile.podman . --format=docker)
    echo $BUILDCMD tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_REPO}/${IMAGE_REPO_NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}
@@ -53,13 +53,17 @@ IMAGE_REPO_NAMESPACE=csi-unity
 IMAGE_TAG=${VERSION}
 
 # Read options
-while getopts 'ph' flag; do
-  case "${flag}" in
-    p) PUSH_IMAGE='true' ;;
-    h) git_version
-       exit 0 ;;
-    *) git_version
-       exit 0 ;;
+for param in $*; do
+  case $param in
+  "--baseubi")
+    shift
+    BASE_UBI_IMAGE=$1
+    shift
+    ;;
+  "--push")
+    shift
+    PUSH_IMAGE='true'
+    ;;
   esac
 done
 
