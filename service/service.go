@@ -137,7 +137,7 @@ type service struct {
 	arrays         *sync.Map
 	mode           string
 	iscsiClient    goiscsi.ISCSIinterface
-	fcConnector    fcConnector //gobrick connectors
+	fcConnector    fcConnector // gobrick connectors
 	iscsiConnector iSCSIConnector
 }
 
@@ -170,7 +170,8 @@ func (s StorageArrayConfig) String() string {
 // modify the SP's interceptors, server options, or prevent the
 // server from starting by returning a non-nil error.
 func (s *service) BeforeServe(
-	ctx context.Context, sp *gocsi.StoragePlugin, lis net.Listener) error {
+	ctx context.Context, sp *gocsi.StoragePlugin, lis net.Listener,
+) error {
 	ctx, log := setRunIDContext(ctx, "start")
 	var err error
 	defer func() {
@@ -195,8 +196,8 @@ func (s *service) BeforeServe(
 		log.Infof("%s: %s", EnvNodeName, name)
 		opts.LongNodeName = name
 		var shortHostName string
-		//check its ip or not
-		var ipFormat = regexp.MustCompile(`(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}`)
+		// check its ip or not
+		ipFormat := regexp.MustCompile(`(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}`)
 		if ipFormat.MatchString(name) {
 			shortHostName = name
 		} else {
@@ -249,7 +250,7 @@ func (s *service) BeforeServe(
 		opts.IsVolumeHealthMonitorEnabled = false
 	}
 
-	//Global mount directory will be used to node unstage volumes mounted via CSI-Unity v1.0 or v1.1
+	// Global mount directory will be used to node unstage volumes mounted via CSI-Unity v1.0 or v1.1
 	if pvtmountDir, ok := csictx.LookupEnv(ctx, EnvPvtMountDir); ok {
 		opts.PvtMountDir = pvtmountDir
 	}
@@ -267,7 +268,7 @@ func (s *service) BeforeServe(
 	s.iscsiClient = goiscsi.NewLinuxISCSI(iscsiOpts)
 
 	s.opts = opts
-	//Update the storage array list
+	// Update the storage array list
 	runid := fmt.Sprintf("config-%d", 0)
 	ctx, log = setRunIDContext(ctx, runid)
 	s.arrays = new(sync.Map)
@@ -276,12 +277,12 @@ func (s *service) BeforeServe(
 		return err
 	}
 	syncNodeInfoChan = make(chan bool)
-	//Dynamically load the config
+	// Dynamically load the config
 	go s.loadDynamicConfig(ctx, DriverSecret, DriverConfig)
 
-	//Add node information to hosts
+	// Add node information to hosts
 	if s.mode == "node" {
-		//Get Host Name
+		// Get Host Name
 		if s.opts.NodeName == "" {
 			return status.Error(codes.InvalidArgument, "'Node Name' has not been configured. Set environment variable X_CSI_UNITY_NODENAME")
 		}
@@ -386,7 +387,7 @@ func (s *service) loadDynamicConfig(ctx context.Context, secretFile, configFile 
 
 	log.Info("Dynamic config load goroutine invoked")
 
-	//Dynamic update of config
+	// Dynamic update of config
 	vc := viper.New()
 	vc.AutomaticEnv()
 	vc.SetConfigFile(configFile)
@@ -403,7 +404,7 @@ func (s *service) loadDynamicConfig(ctx context.Context, secretFile, configFile 
 		s.syncDriverConfig(ctx, vc)
 	})
 
-	//Dynamic update of secret
+	// Dynamic update of secret
 	watcher, _ := fsnotify.NewWatcher()
 	defer watcher.Close()
 
@@ -423,7 +424,7 @@ func (s *service) loadDynamicConfig(ctx context.Context, secretFile, configFile 
 					if err != nil {
 						log.Debug("Driver configuration array length:", s.getStorageArrayLength())
 						log.Error("Invalid configuration in secret.yaml. Error:", err)
-						//return
+						// return
 					}
 					if s.mode == "node" {
 						syncNodeInfoChan <- true
@@ -576,16 +577,16 @@ func (s *service) syncDriverConfig(ctx context.Context, v *viper.Viper) {
 		inputLogLevel := v.GetString(constants.ParamCSILogLevel)
 
 		if inputLogLevel == "" {
-			//setting default log level to Info if input is invalid
+			// setting default log level to Info if input is invalid
 			s.opts.LogLevel = "Info"
 		}
 
 		if s.opts.LogLevel != inputLogLevel {
 			s.opts.LogLevel = inputLogLevel
 			utils.ChangeLogLevel(s.opts.LogLevel)
-			//Change log level on gounity
+			// Change log level on gounity
 			util.ChangeLogLevel(s.opts.LogLevel)
-			//Change log level on gocsi
+			// Change log level on gocsi
 			// set X_CSI_LOG_LEVEL so that gocsi doesn't overwrite the loglevel set by us
 			_ = os.Setenv(gocsi.EnvVarLogLevel, s.opts.LogLevel)
 			log.Warnf("Log level changed to: %s", s.opts.LogLevel)
@@ -609,7 +610,6 @@ func (s *service) syncDriverConfig(ctx context.Context, v *viper.Viper) {
 
 	if v.IsSet(constants.ParamSyncNodeInfoTimeInterval) {
 		s.opts.SyncNodeInfoTimeInterval = v.GetInt64(constants.ParamSyncNodeInfoTimeInterval)
-
 	}
 }
 
@@ -649,8 +649,10 @@ func setLogFieldsInContext(ctx context.Context, logID string, logType string) (c
 	return ctx, ulog
 }
 
-var syncNodeLogCount int32
-var syncConfigLogCount int32
+var (
+	syncNodeLogCount   int32
+	syncConfigLogCount int32
+)
 
 // Increment run id log
 func incrementLogID(ctx context.Context, runidPrefix string) (context.Context, *logrus.Entry) {
@@ -753,10 +755,12 @@ func (lg *customLogger) Info(ctx context.Context, format string, args ...interfa
 	log := utils.GetLogger()
 	log.WithFields(getLogFields(ctx)).Infof(format, args...)
 }
+
 func (lg *customLogger) Debug(ctx context.Context, format string, args ...interface{}) {
 	log := utils.GetLogger()
 	log.WithFields(getLogFields(ctx)).Debugf(format, args...)
 }
+
 func (lg *customLogger) Error(ctx context.Context, format string, args ...interface{}) {
 	log := utils.GetLogger()
 	log.WithFields(getLogFields(ctx)).Errorf(format, args...)

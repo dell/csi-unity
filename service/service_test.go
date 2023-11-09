@@ -44,7 +44,7 @@ func TestSetRunIdContext(t *testing.T) {
 }
 
 func TestGetVolumeIdFromVolumeContext(t *testing.T) {
-	//When old id
+	// When old id
 	id := getVolumeIDFromVolumeContext("id_1234")
 	assert.True(t, id == "id_1234", "Expected id_1234 but found [%s]", id)
 	id = getVolumeIDFromVolumeContext("name1234-arrid1234-id_1234")
@@ -56,7 +56,7 @@ func TestGetVolumeIdFromVolumeContext(t *testing.T) {
 }
 
 func TestGetArrayIdFromVolumeContext(t *testing.T) {
-	//When old id
+	// When old id
 	id, _ := testConf.service.getArrayIDFromVolumeContext("id_1234")
 	assert.True(t, id == testConf.defaultArray, "Expected [%s] but found [%s]", testConf.defaultArray, id)
 	id, _ = testConf.service.getArrayIDFromVolumeContext("name1234-arrid1234-id_1234")
@@ -79,7 +79,7 @@ func TestSetArrayIdContext(t *testing.T) {
 	fmt.Println(message)
 	assert.True(t, strings.Contains(message, `runid=1111 msg="Hi This is log test1"`), "Log message not found")
 
-	//ctx, log, _ := GetRunidLog(ctx)
+	// ctx, log, _ := GetRunidLog(ctx)
 	ctx, entry = setArrayIDContext(ctx, "arr1111")
 	entry.Message = "Hi this is TestSetArrayIdContext"
 	message, _ = entry.String()

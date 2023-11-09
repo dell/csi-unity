@@ -49,23 +49,29 @@ var GetMetricsCollection = getMetricsCollection
 var CreateMetricsCollection = createMetricsCollection
 
 // MetricsCollectionInterval is used for interval to use in the creation of a Unity MetricsCollection
-var MetricsCollectionInterval = 5 // seconds
-// CollectionWait - Collection wait time
-var CollectionWait = (MetricsCollectionInterval + 1) * 1000
+var (
+	MetricsCollectionInterval = 5 // seconds
+	// CollectionWait - Collection wait time
+	CollectionWait = (MetricsCollectionInterval + 1) * 1000
+)
 
-var metricsCollectionCache sync.Map
-var currentIOCount = []string{
-	"sp.*.storage.lun.*.currentIOCount",
-}
+var (
+	metricsCollectionCache sync.Map
+	currentIOCount         = []string{
+		"sp.*.storage.lun.*.currentIOCount",
+	}
+)
 var fileSystemRWs = []string{
 	"sp.*.storage.filesystem.*.clientReads",
 	"sp.*.storage.filesystem.*.clientWrites",
 }
 
-var cacheRWLock sync.RWMutex
-var kickoffOnce sync.Once
-var refreshCount atomic.Int32
-var refreshEnabled bool
+var (
+	cacheRWLock    sync.RWMutex
+	kickoffOnce    sync.Once
+	refreshCount   atomic.Int32
+	refreshEnabled bool
+)
 
 // Constants that can be used across module
 const (
