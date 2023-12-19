@@ -15,7 +15,7 @@
 
 ## Description
 
-The `csi-offline-bundle.sh` script can be used to create a package for offline installation of Dell CSI storage providers for deployment via Helm. 
+The `csi-offline-bundle.sh` script can be used to create a package for the offline installation of Dell CSI storage providers for deployment via Helm. 
 
 This includes the following drivers:
 * [PowerFlex](https://github.com/dell/csi-vxflexos)
@@ -24,7 +24,7 @@ This includes the following drivers:
 * [PowerStore](https://github.com/dell/csi-powerstore)
 * [Unity](https://github.com/dell/csi-unity)
 
-The `csm-offline-bundle.sh` script can be used to create a package for offline installation of Dell CSI storage providers for deployment via the CSM Operator.
+The `csm-offline-bundle.sh` script can be used to create a package for the offline installation of Dell CSI storage providers for deployment via the CSM Operator.
 * [Dell CSM Operator](https://github.com/dell/csm-operator)
 
 ## Dependencies
