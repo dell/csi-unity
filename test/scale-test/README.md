@@ -32,7 +32,7 @@
 
 
 ## Scale test prerequisites
-* Works only on helm v3
+* Works only on Helm v3
 * Make sure the driver is installed and running fine in the k8s cluster
 * The namespace that is to be used for the scale test should be pre-created in the k8s cluster and make sure no objects are present under the namespace.
 * The right storage class to be used for the test should be pre-created and specified as StorageClassName in values.yaml under the test folder that is to be run.
