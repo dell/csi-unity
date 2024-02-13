@@ -170,12 +170,16 @@ func GetHostIP() ([]string, error) {
 	var lookupIps []string
 	for _, ip := range ips {
 		lookupResp, err := net.LookupAddr(ip)
-		if err == nil && strings.Contains(lookupResp[0], hostname) {
-			lookupIps = append(lookupIps, ip)
+		if err == nil {
+			for _, resp := range lookupResp {
+				if strings.Contains(resp, hostname) {
+					lookupIps = append(lookupIps, ip)
+				}
+			}
 		}
 	}
 	if len(lookupIps) == 0 {
-		lookupIps = append(lookupIps, ips[0])
+		return nil, errors.New("host ip not found")
 	}
 	return lookupIps, nil
 }
