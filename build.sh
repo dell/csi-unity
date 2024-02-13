@@ -45,12 +45,11 @@ function push_image {
 
 NAME=csi-unity
 IMAGE_NAME=${NAME}-${USER}
-VERSION=$(date +%Y%m%d%H%M%S)
 BIN_DIR=bin
 BIN_NAME=${NAME}
 IMAGE_REPO=dellemc
 IMAGE_REPO_NAMESPACE=csi-unity
-IMAGE_TAG=${VERSION}
+IMAGE_TAG=${IMAGE_TAG:-$(date +%Y%m%d%H%M%S)}
 
 # Read options
 for param in $*; do
