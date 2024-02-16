@@ -172,7 +172,7 @@ func GetHostIP() ([]string, error) {
 		lookupResp, err := net.LookupAddr(ip)
 		if err == nil {
 			for _, resp := range lookupResp {
-				if strings.Contains(resp, hostname) {
+				if strings.Contains(resp, hostname) && !strings.Contains(resp, ":") {
 					lookupIps = append(lookupIps, ip)
 				}
 			}
