@@ -17,6 +17,6 @@
 
 rm -f unix_sock
 . ../../env.sh
-echo ENDPOINT $X_CSI_UNITY_ENDPOINT
+echo ENDPOINT $CSI_ENDPOINT
 echo "Starting the csi-unity driver. You should wait until the node setup is complete before running tests."
-../../csi-unity --driver-name=$DRIVER_NAME --driver-config=$DRIVER_CONFIG
+../../csi-unity --driver-name=$DRIVER_NAME --driver-config=$DRIVER_CONFIG --driver-secret=$DRIVER_SECRET
