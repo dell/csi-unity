@@ -833,10 +833,7 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 
 		// Idempotency check
 		if filesystem.FileContent.SizeTotal >= uint64(capacity) {
-			log.Infof("New Filesystem size (%d) is same as existing Filesystem size. Ignoring expand volume operation.", filesystem.FileContent.SizeTotal)
-			expandVolumeResp := &csi.ControllerExpandVolumeResponse{
-				CapacityBytes: 0,
-			}
+			log.Infof("New Filesystem size (%d) is lower or same as existing Filesystem size. Ignoring expand volume operation.", filesystem.FileContent.SizeTotal)
 			expandVolumeResp.NodeExpansionRequired = false
 			return expandVolumeResp, nil
 		}
@@ -869,9 +866,6 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 
 	if volume.VolumeContent.SizeTotal >= uint64(capacity) {
 		log.Infof("New Volume size (%d) is same as existing Volume size. Ignoring expand volume operation.", volume.VolumeContent.SizeTotal)
-		/* 		expandVolumeResp := &csi.ControllerExpandVolumeResponse{
-			CapacityBytes: 0,
-		} */
 		expandVolumeResp.NodeExpansionRequired = nodeExpansionRequired
 		return expandVolumeResp, nil
 	}
