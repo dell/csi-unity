@@ -231,7 +231,7 @@ DRIVER="csi-unity"
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 REPODIR="$( dirname "${SCRIPTDIR}" )"
 
-DRIVERVERSION="csi-unity-2.9.0"
+DRIVERVERSION="csi-unity-2.10.0"
 
 while getopts "cprv:h" opt; do
   case $opt in
