@@ -14,8 +14,9 @@
 # This will run coverage analysis using the integration testing.
 # The env.sh must point to a valid Unity XT Array# on this system.
 
-rm -f /root/go/bin/csi.sock
+
 source ../../env.sh
+mkdir $(dirname "${CSI_ENDPOINT}") || rm -f ${CSI_ENDPOINT}
 echo $SDC_GUID
 go test -v -coverprofile=c.out -timeout 60m -coverpkg=github.com/dell/csi-unity/service *test.go &
 wait 

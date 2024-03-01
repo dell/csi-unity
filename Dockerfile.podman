@@ -1,5 +1,6 @@
+ARG GOIMAGE
 # Stage to build the driver
-FROM golang:1.21 as builder
+FROM $GOIMAGE as builder
 RUN mkdir -p /go/src
 COPY csi-unity/ /go/src/csi-unity
 
