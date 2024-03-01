@@ -89,7 +89,7 @@ func (f *feature) aCSIService() error {
 }
 
 // aBasicBlockVolumeRequest method to buils a Create volume request
-func (f *feature) aBasicBlockVolumeRequest(volumeName, arrayId, protocol string, size int) error {
+func (f *feature) aBasicBlockVolumeRequest(volumeName, arrayID, protocol string, size int) error {
 	f.createVolumeRequest = nil
 	req := new(csi.CreateVolumeRequest)
 	params := make(map[string]string)
@@ -98,7 +98,7 @@ func (f *feature) aBasicBlockVolumeRequest(volumeName, arrayId, protocol string,
 	params["isDataReductionEnabled"] = "false"
 	params["tieringPolicy"] = "0"
 	params["description"] = "CSI Volume Unit Test"
-	params["arrayId"] = os.Getenv(arrayId)
+	params["arrayId"] = os.Getenv(arrayID)
 	params["protocol"] = protocol
 	params["nasServer"] = os.Getenv("NAS_SERVER")
 	req.Parameters = params
@@ -123,12 +123,12 @@ func (f *feature) aBasicBlockVolumeRequest(volumeName, arrayId, protocol string,
 }
 
 // aBasicBlockVolumeRequest method with volume content source
-func (f *feature) aBasicBlockVolumeRequestWithVolumeContentSource(volumeName, arrayId, protocol string, size int) error {
+func (f *feature) aBasicBlockVolumeRequestWithVolumeContentSource(volumeName, arrayID, protocol string, size int) error {
 	f.createVolumeRequest = nil
 	req := new(csi.CreateVolumeRequest)
 	params := make(map[string]string)
 	params["storagePool"] = os.Getenv("STORAGE_POOL")
-	params["arrayId"] = os.Getenv(arrayId)
+	params["arrayId"] = os.Getenv(arrayID)
 	params["protocol"] = protocol
 	req.Parameters = params
 	req.Name = volumeName
@@ -147,12 +147,12 @@ func (f *feature) aBasicBlockVolumeRequestWithVolumeContentSource(volumeName, ar
 	capabilities := make([]*csi.VolumeCapability, 0)
 	capabilities = append(capabilities, capability)
 	req.VolumeCapabilities = capabilities
-	volumeContentSource_SnapshotSource := new(csi.VolumeContentSource_SnapshotSource)
-	volumeContentSource_SnapshotSource.SnapshotId = f.createSnapshotResponse.GetSnapshot().GetSnapshotId()
-	volumeContentSource_Snapshot := new(csi.VolumeContentSource_Snapshot)
-	volumeContentSource_Snapshot.Snapshot = volumeContentSource_SnapshotSource
+	volumeContentSourceSnapshotSource := new(csi.VolumeContentSource_SnapshotSource)
+	volumeContentSourceSnapshotSource.SnapshotId = f.createSnapshotResponse.GetSnapshot().GetSnapshotId()
+	volumeContentSourceSnapshot := new(csi.VolumeContentSource_Snapshot)
+	volumeContentSourceSnapshot.Snapshot = volumeContentSourceSnapshotSource
 	volumeContentSource := new(csi.VolumeContentSource)
-	volumeContentSource.Type = volumeContentSource_Snapshot
+	volumeContentSource.Type = volumeContentSourceSnapshot
 	req.VolumeContentSource = volumeContentSource
 	f.createVolumeRequest = req
 	return nil
@@ -295,11 +295,11 @@ func (f *feature) theErrorMessageShouldContain(expected string) error {
 	if expected == "none" {
 		if len(f.errs) == 0 {
 			return nil
-		} else {
-			err := f.errs[0]
-			f.errs = make([]error, 0)
-			return fmt.Errorf("Unexpected error(s): %s", err)
 		}
+		err := f.errs[0]
+		f.errs = make([]error, 0)
+		return fmt.Errorf("Unexpected error(s): %s", err)
+
 	}
 	// We expect an error...
 	if len(f.errs) == 0 {
@@ -308,7 +308,7 @@ func (f *feature) theErrorMessageShouldContain(expected string) error {
 	err0 := f.errs[0]
 	f.errs = make([]error, 0)
 	if !strings.Contains(err0.Error(), expected) {
-		return errors.New(fmt.Sprintf("Error %s does not contain the expected message: %s", err0.Error(), expected))
+		return fmt.Errorf("Error %s does not contain the expected message: %s", err0.Error(), expected)
 	}
 	return nil
 }
@@ -362,10 +362,10 @@ func (f *feature) aDeleteSnapshotRequest() error {
 }
 
 // aDeleteSnapshotRequestWithID method is used to build a Delete Snapshot request with ID
-func (f *feature) aDeleteSnapshotRequestWithID(snap_id string) error {
+func (f *feature) aDeleteSnapshotRequestWithID(snapID string) error {
 	f.deleteSnapshotRequest = nil
 	req := new(csi.DeleteSnapshotRequest)
-	req.SnapshotId = snap_id
+	req.SnapshotId = snapID
 	f.deleteSnapshotRequest = req
 	return nil
 }
@@ -504,13 +504,13 @@ func (f *feature) iCallControllerGetCapabilities() error {
 }
 
 // iCallControllerExpandVolume - Test case for controller expand volume
-func (f *feature) iCallControllerExpandVolume(new_size int) error {
+func (f *feature) iCallControllerExpandVolume(newSize int) error {
 	f.controllerExpandVolumeRequest = nil
 	req := new(csi.ControllerExpandVolumeRequest)
 	req.VolumeId = f.volID
 	capRange := new(csi.CapacityRange)
-	capRange.RequiredBytes = int64(new_size * 1024 * 1024 * 1024)
-	capRange.LimitBytes = int64(new_size * 1024 * 1024 * 1024)
+	capRange.RequiredBytes = int64(newSize * 1024 * 1024 * 1024)
+	capRange.LimitBytes = int64(newSize * 1024 * 1024 * 1024)
 	req.CapacityRange = capRange
 	f.controllerExpandVolumeRequest = req
 
@@ -527,13 +527,13 @@ func (f *feature) iCallControllerExpandVolume(new_size int) error {
 }
 
 // iCallControllerExpandVolume - Test case for controller expand volume with volume id as parameter
-func (f *feature) iCallControllerExpandVolumeWithVolume(new_size int, volID string) error {
+func (f *feature) iCallControllerExpandVolumeWithVolume(newSize int, volID string) error {
 	f.controllerExpandVolumeRequest = nil
 	req := new(csi.ControllerExpandVolumeRequest)
 	req.VolumeId = volID
 	capRange := new(csi.CapacityRange)
-	capRange.RequiredBytes = int64(new_size * 1024 * 1024 * 1024)
-	capRange.LimitBytes = int64(new_size * 1024 * 1024 * 1024)
+	capRange.RequiredBytes = int64(newSize * 1024 * 1024 * 1024)
+	capRange.LimitBytes = int64(newSize * 1024 * 1024 * 1024)
 	req.CapacityRange = capRange
 	f.controllerExpandVolumeRequest = req
 

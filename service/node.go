@@ -1763,7 +1763,7 @@ func (s *service) syncNodeInfoRoutine(ctx context.Context) {
 		case <-time.After(time.Duration(s.opts.SyncNodeInfoTimeInterval) * time.Minute):
 			log.Debug("Checking if host information is added to array")
 			allHostsAdded := true
-			s.arrays.Range(func(key, value interface{}) bool {
+			s.arrays.Range(func(_, value interface{}) bool {
 				array := value.(*StorageArrayConfig)
 				if !array.IsHostAdded {
 					allHostsAdded = false
@@ -1794,7 +1794,7 @@ func (s *service) syncNodeInfo(ctx context.Context) {
 	ctx, log := incrementLogID(ctx, "node")
 	log.Debug("Synchronizing Node Info")
 	// Add a count of three, one for each goroutine.
-	s.arrays.Range(func(key, value interface{}) bool {
+	s.arrays.Range(func(_, value interface{}) bool {
 		array := value.(*StorageArrayConfig)
 		if !array.IsHostAdded {
 			go func() {

@@ -5,12 +5,12 @@ go 1.22
 require (
 	github.com/container-storage-interface/spec v1.6.0
 	github.com/cucumber/godog v0.10.0
-	github.com/dell/dell-csi-extensions/podmon v1.3.0
-	github.com/dell/gobrick v1.9.0
-	github.com/dell/gocsi v1.9.0
-	github.com/dell/gofsutil v1.14.0
-	github.com/dell/goiscsi v1.8.0
-	github.com/dell/gounity v1.16.0
+	github.com/dell/dell-csi-extensions/podmon v1.4.0
+	github.com/dell/gobrick v1.10.1
+	github.com/dell/gocsi v1.10.0
+	github.com/dell/gofsutil v1.15.0
+	github.com/dell/goiscsi v1.9.0
+	github.com/dell/gounity v1.17.0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/golang/protobuf v1.5.3
 	github.com/kubernetes-csi/csi-lib-utils v0.7.0
@@ -20,7 +20,7 @@ require (
 	go.uber.org/atomic v1.7.0
 	golang.org/x/net v0.17.0
 	google.golang.org/grpc v1.57.1
-	google.golang.org/protobuf v1.31.0
+	google.golang.org/protobuf v1.32.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/apimachinery v0.22.2
@@ -34,7 +34,7 @@ require (
 	github.com/cucumber/gherkin-go/v11 v11.0.0 // indirect
 	github.com/cucumber/messages-go/v10 v10.0.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dell/gonvme v1.4.0 // indirect
+	github.com/dell/gonvme v1.7.0 // indirect
 	github.com/go-logr/logr v0.4.0 // indirect
 	github.com/gofrs/uuid v3.2.0+incompatible // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect

@@ -170,7 +170,7 @@ func (s StorageArrayConfig) String() string {
 // modify the SP's interceptors, server options, or prevent the
 // server from starting by returning a non-nil error.
 func (s *service) BeforeServe(
-	ctx context.Context, sp *gocsi.StoragePlugin, lis net.Listener,
+	ctx context.Context, _ *gocsi.StoragePlugin, _ net.Listener,
 ) error {
 	ctx, log := setRunIDContext(ctx, "start")
 	var err error
@@ -322,7 +322,7 @@ func (s *service) getStorageArrayLength() (length int) {
 // Get storage array list from sync Map
 func (s *service) getStorageArrayList() []*StorageArrayConfig {
 	list := make([]*StorageArrayConfig, 0)
-	s.arrays.Range(func(key interface{}, value interface{}) bool {
+	s.arrays.Range(func(_ interface{}, value interface{}) bool {
 		list = append(list, value.(*StorageArrayConfig))
 		return true
 	})
@@ -399,7 +399,7 @@ func (s *service) loadDynamicConfig(ctx context.Context, secretFile, configFile 
 
 	// Watch for changes to driver config params file
 	vc.WatchConfig()
-	vc.OnConfigChange(func(e fsnotify.Event) {
+	vc.OnConfigChange(func(_ fsnotify.Event) {
 		log.Infof("Driver config params file changed")
 		s.syncDriverConfig(ctx, vc)
 	})
@@ -473,7 +473,7 @@ func (s *service) syncDriverSecret(ctx context.Context) error {
 	log.Info("*************Synchronizing driver secret**************")
 	syncMutex.Lock()
 	defer syncMutex.Unlock()
-	s.arrays.Range(func(key interface{}, value interface{}) bool {
+	s.arrays.Range(func(key interface{}, _ interface{}) bool {
 		s.arrays.Delete(key)
 		return true
 	})
@@ -496,7 +496,7 @@ func (s *service) syncDriverSecret(ctx context.Context) error {
 			return errors.New("Arrays details are not provided in unity-creds secret")
 		}
 
-		s.arrays.Range(func(key interface{}, value interface{}) bool {
+		s.arrays.Range(func(key interface{}, _ interface{}) bool {
 			s.arrays.Delete(key)
 			return true
 		})
@@ -533,15 +533,15 @@ func (s *service) syncDriverSecret(ctx context.Context) error {
 			}
 			secret.UnityClient = unityClient
 
-			copy := StorageArrayConfig{}
-			copy = secret
+			copyStorage := StorageArrayConfig{}
+			copyStorage = secret
 
 			_, ok := s.arrays.Load(secret.ArrayID)
 
 			if ok {
 				return fmt.Errorf("Duplicate ArrayID [%s] found in storageArrayList parameter", secret.ArrayID)
 			}
-			s.arrays.Store(secret.ArrayID, &copy)
+			s.arrays.Store(secret.ArrayID, &copyStorage)
 
 			fields := logrus.Fields{
 				"ArrayId":                   secret.ArrayID,
@@ -739,14 +739,14 @@ func (s *service) initFCConnector(chroot string) {
 	}
 }
 
-func setupGobrick(srv *service) {
+func setupGobrick(_ *service) {
 	gobrick.SetLogger(&customLogger{})
 	gobrick.SetTracer(&emptyTracer{})
 }
 
 type emptyTracer struct{}
 
-func (dl *emptyTracer) Trace(ctx context.Context, format string, args ...interface{}) {
+func (dl *emptyTracer) Trace(_ context.Context, _ string, _ ...interface{}) {
 }
 
 type customLogger struct{}
@@ -821,9 +821,9 @@ func (s *service) probe(ctx context.Context, probeType string, arrayID string) e
 			if err == nil {
 				atleastOneArraySuccess = true
 				break
-			} else {
-				log.Errorf("Probe failed for array %s error:%v", array, err)
 			}
+			log.Errorf("Probe failed for array %s error:%v", array, err)
+
 		}
 
 		if !atleastOneArraySuccess {

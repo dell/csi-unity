@@ -57,7 +57,7 @@ type feature struct {
 	volID                             string
 	volIDList                         []string
 	maxRetryCount                     int
-	nodeId                            string
+	nodeID                            string
 	ephemeral                         bool
 }
 
@@ -332,12 +332,12 @@ func (f *feature) aBasicBlockVolumeRequestWithVolumeContentSource(volumeName, pr
 	capabilities := make([]*csi.VolumeCapability, 0)
 	capabilities = append(capabilities, capability)
 	req.VolumeCapabilities = capabilities
-	volumeContentSource_SnapshotSource := new(csi.VolumeContentSource_SnapshotSource)
-	volumeContentSource_SnapshotSource.SnapshotId = f.createSnapshotResponse.GetSnapshot().GetSnapshotId()
-	volumeContentSource_Snapshot := new(csi.VolumeContentSource_Snapshot)
-	volumeContentSource_Snapshot.Snapshot = volumeContentSource_SnapshotSource
+	volumeContentSourceSnapshotSource := new(csi.VolumeContentSource_SnapshotSource)
+	volumeContentSourceSnapshotSource.SnapshotId = f.createSnapshotResponse.GetSnapshot().GetSnapshotId()
+	volumeContentSourceSnapshot := new(csi.VolumeContentSource_Snapshot)
+	volumeContentSourceSnapshot.Snapshot = volumeContentSourceSnapshotSource
 	volumeContentSource := new(csi.VolumeContentSource)
-	volumeContentSource.Type = volumeContentSource_Snapshot
+	volumeContentSource.Type = volumeContentSourceSnapshot
 	req.VolumeContentSource = volumeContentSource
 	f.createVolumeRequest = req
 	return nil
@@ -368,12 +368,12 @@ func (f *feature) aBasicBlockVolumeRequestWithVolumeContentSourceAsVolume(volume
 	capabilities := make([]*csi.VolumeCapability, 0)
 	capabilities = append(capabilities, capability)
 	req.VolumeCapabilities = capabilities
-	volumeContentSource_VolumeSource := new(csi.VolumeContentSource_VolumeSource)
-	volumeContentSource_VolumeSource.VolumeId = f.createVolumeResponse.GetVolume().GetVolumeId()
-	volumeContentSource_Volume := new(csi.VolumeContentSource_Volume)
-	volumeContentSource_Volume.Volume = volumeContentSource_VolumeSource
+	volumeContentSourceVolumeSource := new(csi.VolumeContentSource_VolumeSource)
+	volumeContentSourceVolumeSource.VolumeId = f.createVolumeResponse.GetVolume().GetVolumeId()
+	volumeContentSourceVolume := new(csi.VolumeContentSource_Volume)
+	volumeContentSourceVolume.Volume = volumeContentSourceVolumeSource
 	volumeContentSource := new(csi.VolumeContentSource)
-	volumeContentSource.Type = volumeContentSource_Volume
+	volumeContentSource.Type = volumeContentSourceVolume
 	req.VolumeContentSource = volumeContentSource
 	f.createVolumeRequest = req
 	return nil
@@ -451,7 +451,7 @@ func (f *feature) whenICallPublishVolume() error {
 	req := new(csi.ControllerPublishVolumeRequest)
 	req.VolumeId = f.volID
 	req.NodeId = os.Getenv("X_CSI_UNITY_NODENAME") + "," + os.Getenv("X_CSI_UNITY_LONGNODENAME")
-	f.nodeId = req.NodeId
+	f.nodeID = req.NodeId
 	req.Readonly = false
 	req.VolumeCapability = f.capability
 	req.VolumeContext = f.volumeContext
@@ -470,11 +470,11 @@ func (f *feature) whenICallPublishVolume() error {
 }
 
 // whenICallPublishVolumeWithParam - Test case to Publish volume to the given host with readonly as parameter
-func (f *feature) whenICallPublishVolumeWithParam(hostName, readonly string) error {
+func (f *feature) whenICallPublishVolumeWithParam(_, readonly string) error {
 	req := new(csi.ControllerPublishVolumeRequest)
 	req.VolumeId = f.volID
 	req.NodeId = os.Getenv("X_CSI_UNITY_NODENAME") + "," + os.Getenv("X_CSI_UNITY_LONGNODENAME")
-	f.nodeId = req.NodeId
+	f.nodeID = req.NodeId
 	read, _ := strconv.ParseBool(readonly)
 	req.Readonly = read
 	req.VolumeCapability = f.capability
@@ -494,11 +494,11 @@ func (f *feature) whenICallPublishVolumeWithParam(hostName, readonly string) err
 }
 
 // whenICallPublishVolumeWithVolumeId - Test case to Publish volume to the given host with volumeID as parameter
-func (f *feature) whenICallPublishVolumeWithVolumeId(volId string) error {
+func (f *feature) whenICallPublishVolumeWithVolumeID(volID string) error {
 	req := new(csi.ControllerPublishVolumeRequest)
-	req.VolumeId = volId
+	req.VolumeId = volID
 	req.NodeId = os.Getenv("X_CSI_UNITY_NODENAME") + "," + os.Getenv("X_CSI_UNITY_LONGNODENAME")
-	f.nodeId = req.NodeId
+	f.nodeID = req.NodeId
 	req.Readonly = false
 	req.VolumeCapability = f.capability
 	req.VolumeContext = f.volumeContext
@@ -535,9 +535,9 @@ func (f *feature) whenICallUnpublishVolume() error {
 }
 
 // iCallUnpublishVolumeWithVolumeId - Test case to unpublish volume with volume ID as parameter
-func (f *feature) iCallUnpublishVolumeWithVolumeId(volId string) error {
+func (f *feature) iCallUnpublishVolumeWithVolumeID(volID string) error {
 	req := new(csi.ControllerUnpublishVolumeRequest)
-	req.VolumeId = volId
+	req.VolumeId = volID
 	req.NodeId = os.Getenv("X_CSI_UNITY_NODENAME") + "," + os.Getenv("X_CSI_UNITY_LONGNODENAME")
 	ctx := context.Background()
 	client := csi.NewControllerClient(grpcClient)
@@ -558,11 +558,11 @@ func (f *feature) theErrorMessageShouldContain(expected string) error {
 	if expected == "none" {
 		if len(f.errs) == 0 {
 			return nil
-		} else {
-			err := f.errs[0]
-			f.errs = make([]error, 0)
-			return fmt.Errorf("Unexpected error(s): %s", err)
 		}
+		err := f.errs[0]
+		f.errs = make([]error, 0)
+		return fmt.Errorf("Unexpected error(s): %s", err)
+
 	}
 	// We expect an error...
 	if len(f.errs) == 0 {
@@ -571,7 +571,7 @@ func (f *feature) theErrorMessageShouldContain(expected string) error {
 	err0 := f.errs[0]
 	f.errs = make([]error, 0)
 	if !strings.Contains(err0.Error(), expected) {
-		return errors.New(fmt.Sprintf("Error %s does not contain the expected message: %s", err0.Error(), expected))
+		return fmt.Errorf("Error %s does not contain the expected message: %s", err0.Error(), expected)
 	}
 	return nil
 }
@@ -625,10 +625,10 @@ func (f *feature) aDeleteSnapshotRequest() error {
 }
 
 // aDeleteSnapshotRequestWithID method is used to build a Delete Snapshot request with ID
-func (f *feature) aDeleteSnapshotRequestWithID(snap_id string) error {
+func (f *feature) aDeleteSnapshotRequestWithID(snapID string) error {
 	f.deleteSnapshotRequest = nil
 	req := new(csi.DeleteSnapshotRequest)
-	req.SnapshotId = snap_id
+	req.SnapshotId = snapID
 	f.deleteSnapshotRequest = req
 	return nil
 }
@@ -767,13 +767,13 @@ func (f *feature) iCallControllerGetCapabilities() error {
 }
 
 // iCallControllerExpandVolume - Test case for controller expand volume
-func (f *feature) iCallControllerExpandVolume(new_size int) error {
+func (f *feature) iCallControllerExpandVolume(newSize int) error {
 	f.controllerExpandVolumeRequest = nil
 	req := new(csi.ControllerExpandVolumeRequest)
 	req.VolumeId = f.volID
 	capRange := new(csi.CapacityRange)
-	capRange.RequiredBytes = int64(new_size * 1024 * 1024 * 1024)
-	capRange.LimitBytes = int64(new_size * 1024 * 1024 * 1024)
+	capRange.RequiredBytes = int64(newSize * 1024 * 1024 * 1024)
+	capRange.LimitBytes = int64(newSize * 1024 * 1024 * 1024)
 	req.CapacityRange = capRange
 	f.controllerExpandVolumeRequest = req
 
@@ -790,13 +790,13 @@ func (f *feature) iCallControllerExpandVolume(new_size int) error {
 }
 
 // iCallControllerExpandVolume - Test case for controller expand volume with volume id as parameter
-func (f *feature) iCallControllerExpandVolumeWithVolume(new_size int, volID string) error {
+func (f *feature) iCallControllerExpandVolumeWithVolume(newSize int, volID string) error {
 	f.controllerExpandVolumeRequest = nil
 	req := new(csi.ControllerExpandVolumeRequest)
 	req.VolumeId = volID
 	capRange := new(csi.CapacityRange)
-	capRange.RequiredBytes = int64(new_size * 1024 * 1024 * 1024)
-	capRange.LimitBytes = int64(new_size * 1024 * 1024 * 1024)
+	capRange.RequiredBytes = int64(newSize * 1024 * 1024 * 1024)
+	capRange.LimitBytes = int64(newSize * 1024 * 1024 * 1024)
 	req.CapacityRange = capRange
 	f.controllerExpandVolumeRequest = req
 
@@ -929,7 +929,7 @@ func (f *feature) whenICallEphemeralNodePublishVolume(volName, fsType, am, size,
 }
 
 // whenICallNodePublishVolumeWithTargetPath - Test case for node publish volume with target path
-func (f *feature) whenICallNodePublishVolumeWithTargetPath(target_path, fsType string) error {
+func (f *feature) whenICallNodePublishVolumeWithTargetPath(targetPath, fsType string) error {
 	f.nodePublishVolumeRequest = nil
 	req := new(csi.NodePublishVolumeRequest)
 	if f.createVolumeResponse != nil || f.ephemeral == true {
@@ -939,7 +939,7 @@ func (f *feature) whenICallNodePublishVolumeWithTargetPath(target_path, fsType s
 	}
 	fmt.Println("========================", req.VolumeId)
 	req.StagingTargetPath = path.Join(os.Getenv("X_CSI_STAGING_TARGET_PATH"), f.volID)
-	req.TargetPath = target_path
+	req.TargetPath = targetPath
 	capability := new(csi.VolumeCapability)
 	mount := new(csi.VolumeCapability_MountVolume)
 	mount.FsType = fsType
@@ -1028,7 +1028,7 @@ func (f *feature) whenICallNodeUnPublishVolume() error {
 }
 
 // whenICallNodeUnPublishVolumeWithTargetPath - Test case for node unpublish volume with target path
-func (f *feature) whenICallNodeUnPublishVolumeWithTargetPath(target_path string) error {
+func (f *feature) whenICallNodeUnPublishVolumeWithTargetPath(targetPath string) error {
 	f.nodeUnpublishVolumeRequest = nil
 	req := new(csi.NodeUnpublishVolumeRequest)
 	if f.nodePublishVolumeRequest != nil {
@@ -1037,7 +1037,7 @@ func (f *feature) whenICallNodeUnPublishVolumeWithTargetPath(target_path string)
 		req.VolumeId = ""
 	}
 
-	req.TargetPath = target_path
+	req.TargetPath = targetPath
 	f.nodeUnpublishVolumeRequest = req
 
 	ctx := context.Background()
@@ -1090,14 +1090,14 @@ func (f *feature) whenICallNodeStageVolume(fsType string) error {
 }
 
 // whenICallNodeStageVolumeWithTargetPath - Test case for node stage volume with target path as parameter
-func (f *feature) whenICallNodeStageVolumeWithTargetPath(fsType, target_path string) error {
+func (f *feature) whenICallNodeStageVolumeWithTargetPath(fsType, targetPath string) error {
 	f.nodeStageVolumeRequest = nil
 	req := new(csi.NodeStageVolumeRequest)
 	req.VolumeId = f.volID
 	if f.createVolumeResponse == nil {
 		req.VolumeId = "NoID"
 	}
-	req.StagingTargetPath = target_path
+	req.StagingTargetPath = targetPath
 	capability := new(csi.VolumeCapability)
 	mount := new(csi.VolumeCapability_MountVolume)
 	mount.FsType = fsType
@@ -1301,9 +1301,9 @@ func FeatureContext(s *godog.Suite) {
 	s.Step(`^there are no errors$`, f.thereAreNoErrors)
 	s.Step(`^when I call PublishVolume$`, f.whenICallPublishVolume)
 	s.Step(`^when I call PublishVolume with host "([^"]*)" readonly "([^"]*)"$`, f.whenICallPublishVolumeWithParam)
-	s.Step(`^when I call PublishVolume with volumeId "([^"]*)"$`, f.whenICallPublishVolumeWithVolumeId)
+	s.Step(`^when I call PublishVolume with volumeId "([^"]*)"$`, f.whenICallPublishVolumeWithVolumeID)
 	s.Step(`^when I call UnpublishVolume$`, f.whenICallUnpublishVolume)
-	s.Step(`^I call UnpublishVolume with volumeId "([^"]*)"$`, f.iCallUnpublishVolumeWithVolumeId)
+	s.Step(`^I call UnpublishVolume with volumeId "([^"]*)"$`, f.iCallUnpublishVolumeWithVolumeID)
 	s.Step(`^the error message should contain "([^"]*)"$`, f.theErrorMessageShouldContain)
 	s.Step(`^a create snapshot request "([^"]*)"$`, f.aCreateSnapshotRequest)
 	s.Step(`^I call CreateSnapshot$`, f.iCallCreateSnapshot)

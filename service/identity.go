@@ -46,8 +46,8 @@ func (s *service) Probe(
 }
 
 func (s *service) GetPluginInfo(
-	ctx context.Context,
-	req *csi.GetPluginInfoRequest) (
+	_ context.Context,
+	_ *csi.GetPluginInfoRequest) (
 	*csi.GetPluginInfoResponse, error,
 ) {
 	return &csi.GetPluginInfoResponse{
