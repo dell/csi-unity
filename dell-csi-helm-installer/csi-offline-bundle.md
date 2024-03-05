@@ -189,8 +189,8 @@ Preparing a offline bundle for installation
 *
 * Loading docker images
 
-Loaded image: docker.io/dellemc/csi-powerstore:v2.9.0
-Loaded image: docker.io/dellemc/csi-isilon:v2.9.0
+Loaded image: docker.io/dellemc/csi-powerstore:v2.10.0
+Loaded image: docker.io/dellemc/csi-isilon:v2.10.0
 ...
 ...
 Loaded image: registry.k8s.io/sig-storage/csi-resizer:v1.9.2
@@ -199,8 +199,8 @@ Loaded image: registry.k8s.io/sig-storage/csi-snapshotter:v6.3.2
 *
 * Tagging and pushing images
 
-   dellemc/csi-isilon:v2.9.0 -> localregistry:5000/dell-csm-operator/csi-isilon:v2.9.0
-   dellemc/csi-metadata-retriever:v1.6.0 -> localregistry:5000/dell-csm-operator/csi-metadata-retriever:v1.6.0
+   dellemc/csi-isilon:v2.10.0 -> localregistry:5000/dell-csm-operator/csi-isilon:v2.10.0
+   dellemc/csi-metadata-retriever:v1.7.2 -> localregistry:5000/dell-csm-operator/csi-metadata-retriever:v1.7.2
    ...
    ...
    registry.k8s.io/sig-storage/csi-resizer:v1.9.2 -> localregistry:5000/dell-csm-operator/csi-resizer:v1.9.2
@@ -209,8 +209,8 @@ Loaded image: registry.k8s.io/sig-storage/csi-snapshotter:v6.3.2
 *
 * Preparing files within /root/dell-csm-operator-bundle
 
-   changing: dellemc/csi-isilon:v2.9.0 -> localregistry:5000/dell-csm-operator/csi-isilon:v2.9.0
-   changing: dellemc/csi-metadata-retriever:v1.6.0 -> localregistry:5000/dell-csm-operator/csi-metadata-retriever:v1.6.0
+   changing: dellemc/csi-isilon:v2.10.0 -> localregistry:5000/dell-csm-operator/csi-isilon:v2.10.0
+   changing: dellemc/csi-metadata-retriever:v1.7.2 -> localregistry:5000/dell-csm-operator/csi-metadata-retriever:v1.7.2
    ...
    ...
    changing: registry.k8s.io/sig-storage/csi-resizer:v1.9.2 -> localregistry:5000/dell-csm-operator/csi-resizer:v1.9.2
