@@ -43,7 +43,7 @@ type StorageArrayList struct {
 }
 
 type StorageArrayConfig struct {
-	ArrayId string `yaml:"ArrayId"`
+	ArrayID string `yaml:"ArrayId"`
 }
 
 func TestMain(m *testing.M) {
@@ -53,14 +53,14 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic("Driver Config missing")
 	}
-	arrayIdList := StorageArrayList{}
-	_ = yaml.Unmarshal([]byte(file), &arrayIdList)
-	if len(arrayIdList.StorageArrayList) == 0 {
+	arrayIDList := StorageArrayList{}
+	_ = yaml.Unmarshal([]byte(file), &arrayIDList)
+	if len(arrayIDList.StorageArrayList) == 0 {
 		panic("Array Info not provided")
 	}
-	for i := 0; i < len(arrayIdList.StorageArrayList); i++ {
+	for i := 0; i < len(arrayIDList.StorageArrayList); i++ {
 		arrayIdvar := "Array" + strconv.Itoa(i+1) + "-Id"
-		os.Setenv(arrayIdvar, arrayIdList.StorageArrayList[i].ArrayId)
+		os.Setenv(arrayIdvar, arrayIDList.StorageArrayList[i].ArrayID)
 	}
 
 	ctx := context.Background()

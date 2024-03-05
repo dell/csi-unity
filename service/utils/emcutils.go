@@ -285,7 +285,7 @@ func ipListContains(ipArray []net.IP, value string) bool {
 }
 
 // GetIPsFromInferfaces - Method to extract ip as string from ipInterface object
-func GetIPsFromInferfaces(ctx context.Context, ipInterfaces []types.IPInterfaceEntries) []string {
+func GetIPsFromInferfaces(_ context.Context, ipInterfaces []types.IPInterfaceEntries) []string {
 	ips := make([]string, 0)
 
 	for _, ipInterface := range ipInterfaces {

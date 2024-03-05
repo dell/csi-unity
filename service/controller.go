@@ -495,7 +495,7 @@ func (s *service) ValidateVolumeCapabilities(ctx context.Context, req *csi.Valid
 	return resp, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Unsupported capability"))
 }
 
-func (s *service) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
+func (s *service) ListVolumes(_ context.Context, _ *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "Not implemented")
 }
 
@@ -1596,7 +1596,7 @@ func (s *service) exportFilesystem(ctx context.Context, volID, hostID, nodeID, a
 }
 
 // exportVolume - Method to export volume with idempotency
-func (s *service) exportVolume(ctx context.Context, protocol, volID, hostID, nodeID, arrayID string, unity *gounity.Client, pinfo map[string]string, host *types.Host, vc *csi.VolumeCapability) (*csi.ControllerPublishVolumeResponse, error) {
+func (s *service) exportVolume(ctx context.Context, protocol, volID, hostID, _, _ string, unity *gounity.Client, pinfo map[string]string, host *types.Host, vc *csi.VolumeCapability) (*csi.ControllerPublishVolumeResponse, error) {
 	ctx, log, rid := GetRunidLog(ctx)
 	pinfo["lun"] = volID
 	am := vc.GetAccessMode()

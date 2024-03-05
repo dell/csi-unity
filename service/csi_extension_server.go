@@ -61,6 +61,7 @@ var (
 		"sp.*.storage.lun.*.currentIOCount",
 	}
 )
+
 var fileSystemRWs = []string{
 	"sp.*.storage.filesystem.*.clientReads",
 	"sp.*.storage.filesystem.*.clientWrites",
@@ -119,7 +120,7 @@ func (s *service) ValidateVolumeHostConnectivity(ctx context.Context, req *podmo
 	if systemID == "" {
 		log.Infof("No arrayId passed in, extracting it using other methods")
 		// Try to extract the arrayID from the volumes
-		foundOne := s.getArrayIdsFromVolumes(ctx, systemIDs, req.GetVolumeIds())
+		foundOne := s.getArrayIDsFromVolumes(ctx, systemIDs, req.GetVolumeIds())
 		// If no arrayIDs found in volumes (possibly because they weren't provided), then try the default array
 		if !foundOne {
 			// Lookup the default array
@@ -231,12 +232,12 @@ func (s *service) ValidateVolumeHostConnectivity(ctx context.Context, req *podmo
 
 // getArrayIdsFromVolumes iterates the requestVolumeIds list, extracting the arrayId and adding them to 'systemIDs'
 // returns true if there was at least one arrayId found
-func (s *service) getArrayIdsFromVolumes(ctx context.Context, systemIDs map[string]bool, requestVolumeIds []string) bool {
+func (s *service) getArrayIDsFromVolumes(ctx context.Context, systemIDs map[string]bool, requestVolumeIDs []string) bool {
 	ctx, log, _ := GetRunidLog(ctx)
 	var err error
 	var systemID string
 	var foundAtLeastOne bool
-	for _, volumeID := range requestVolumeIds {
+	for _, volumeID := range requestVolumeIDs {
 		// Extract arrayID from the volume ID (if any volumes in the request)
 		if systemID, err = GetArrayIDFromVolumeContext(s, volumeID); err != nil {
 			log.Warnf("Error getting arrayID for %s - %s", volumeID, err.Error())
@@ -311,9 +312,9 @@ func (s *service) checkIfNodeIsConnected(ctx context.Context, arrayID string, no
 					rep.Connected = true
 					fcConnectivity = true
 					break
-				} else {
-					log.Infof("FC Health is bad for array:%s, Health:%s", arrayID, healthContent.DescriptionIDs[0])
 				}
+				log.Infof("FC Health is bad for array:%s, Health:%s", arrayID, healthContent.DescriptionIDs[0])
+
 			}
 		}
 	}
@@ -335,9 +336,9 @@ func (s *service) checkIfNodeIsConnected(ctx context.Context, arrayID string, no
 					rep.Messages = append(rep.Messages, message)
 					rep.Connected = true
 					break
-				} else {
-					log.Infof("iSCSI Health is bad for array:%s, Health:%s", arrayID, healthContent.DescriptionIDs[0])
 				}
+				log.Infof("iSCSI Health is bad for array:%s, Health:%s", arrayID, healthContent.DescriptionIDs[0])
+
 			}
 		}
 	}
@@ -346,7 +347,7 @@ func (s *service) checkIfNodeIsConnected(ctx context.Context, arrayID string, no
 }
 
 // doesAnyVolumeHaveIO will determine if any of the given volumes on array has IOs.
-func (s *service) doesAnyVolumeHaveIO(ctx context.Context, rep *podmon.ValidateVolumeHostConnectivityResponse, arrayID string, volumeIds []string) (bool, error) {
+func (s *service) doesAnyVolumeHaveIO(ctx context.Context, rep *podmon.ValidateVolumeHostConnectivityResponse, arrayID string, volumeIDs []string) (bool, error) {
 	ctx, log, _ := GetRunidLog(ctx)
 
 	// Retrieve the latest currentIO metrics for all the array's volumes
@@ -356,7 +357,7 @@ func (s *service) doesAnyVolumeHaveIO(ctx context.Context, rep *podmon.ValidateV
 	}
 
 	foundVolumeWithIO := false
-	for _, volumeID := range volumeIds {
+	for _, volumeID := range volumeIDs {
 		// As an example, the results should look like this if printed out as a string:
 		// sp.*.storage.lun.*.currentIOCount [spa = map[sv_108:0 sv_18:0 sv_19:0 sv_22:0 sv_23:0 sv_24:0 sv_25:0 sv_26:0]]
 		//
@@ -390,7 +391,7 @@ func (s *service) doesAnyVolumeHaveIO(ctx context.Context, rep *podmon.ValidateV
 }
 
 // doesAnyFileSystemHaveIO returns true if any of the file systems in 'fsIds' shows active IOs
-func (s *service) doesAnyFileSystemHaveIO(ctx context.Context, rep *podmon.ValidateVolumeHostConnectivityResponse, arrayID string, fsIds []string) (bool, error) {
+func (s *service) doesAnyFileSystemHaveIO(ctx context.Context, rep *podmon.ValidateVolumeHostConnectivityResponse, arrayID string, fsIDs []string) (bool, error) {
 	ctx, log, _ := GetRunidLog(ctx)
 
 	// Get two samples over the interval period and get a difference between the values
@@ -416,7 +417,7 @@ func (s *service) doesAnyFileSystemHaveIO(ctx context.Context, rep *podmon.Valid
 	}
 
 	foundVolumeWithIO := false
-	for _, fsID := range fsIds {
+	for _, fsID := range fsIDs {
 		firstSample, getValueErr = s.getMetricValues(ctx, first, arrayID, fsID)
 		if getValueErr != nil {
 			return false, getValueErr

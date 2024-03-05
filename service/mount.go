@@ -190,13 +190,12 @@ func publishNFS(ctx context.Context, req *csi.NodePublishVolumeRequest, exportPa
 					return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Target path: %s is already mounted to export path: %s with conflicting access modes", targetPath, stageExportPathURL))
 				} else if m.Path == stagingTargetPath || m.Path == chroot+stagingTargetPath {
 					continue
-				} else {
-					if accMode.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_SINGLE_WRITER || (accMode.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER && !allowRWOmultiPodAccess) {
-						return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Export path: %s is already mounted to different target path: %s", stageExportPathURL, m.Path))
-					}
-					// For multi-node access modes and when allowRWOmultiPodAccess is true for single-node access, target mount will be executed
-					continue
 				}
+				if accMode.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_SINGLE_WRITER || (accMode.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER && !allowRWOmultiPodAccess) {
+					return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Export path: %s is already mounted to different target path: %s", stageExportPathURL, m.Path))
+				}
+				// For multi-node access modes and when allowRWOmultiPodAccess is true for single-node access, target mount will be executed
+				continue
 			}
 		}
 	}
@@ -260,7 +259,6 @@ func stageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest, stagingPa
 		var created bool
 
 		created, err = mkdir(ctx, stagingPath)
-
 		if err != nil {
 			return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Unable to create staging mount point: %s", err.Error()))
 		}
@@ -325,9 +323,9 @@ func stageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest, stagingPa
 				if utils.ArrayContains(m.Opts, rwo) {
 					log.Warn("staging mount already in place")
 					break
-				} else {
-					return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "access mode conflicts with existing mounts"))
 				}
+				return status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "access mode conflicts with existing mounts"))
+
 			}
 			// It is ok if the device is mounted elsewhere - could be targetPath. If not this will be caught during NodePublish
 		}
@@ -582,9 +580,9 @@ func unstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest, devic
 			if m.Path == stagingTarget || m.Path == chroot+stagingTarget {
 				stgMnt = true
 				break
-			} else {
-				log.Infof("Device %s has been mounted outside staging target on %s", sysDevice.FullPath, m.Path)
 			}
+			log.Infof("Device %s has been mounted outside staging target on %s", sysDevice.FullPath, m.Path)
+
 		} else if (m.Path == stagingTarget || m.Path == chroot+stagingTarget) && !(m.Source == sysDevice.FullPath || m.Device == sysDevice.FullPath) {
 			log.Infof("Staging path %s has been mounted by foreign device %s", stagingTarget, m.Device)
 		}
