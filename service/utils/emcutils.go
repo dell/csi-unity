@@ -145,8 +145,7 @@ func GetFCInitiators(ctx context.Context) ([]string, error) {
 }
 
 // GetHostIP - Utility method to extract Host IP
-func GetHostIP(ctx context.Context) ([]string, error) {
-	log := GetRunidLogger(ctx)
+func GetHostIP() ([]string, error) {
 	cmd := exec.Command("hostname", "-I")
 	cmdOutput := &bytes.Buffer{}
 	cmd.Stdout = cmdOutput
@@ -162,31 +161,21 @@ func GetHostIP(ctx context.Context) ([]string, error) {
 	}
 	output := string(cmdOutput.Bytes())
 	ips := strings.Split(strings.TrimSpace(output), " ")
-	log.Debugf("Host IPs: %v", ips)
 
 	hostname, err := os.Hostname()
-	log.Debugf("Hostname: %v", hostname)
 	if err != nil {
 		return nil, err
 	}
 
 	var lookupIps []string
 	for _, ip := range ips {
-		if !strings.Contains(ip, ":") {
-			lookupResp, err := net.LookupAddr(ip)
-			log.Debugf("lookupResp: %v for ip: %v", lookupResp, ip)
-			if err == nil {
-				for _, resp := range lookupResp {
-					log.Debugf("resp: %v, hostname: %v", resp, hostname)
-					if strings.Contains(resp, hostname) {
-						lookupIps = append(lookupIps, ip)
-					}
-				}
-			}
+		lookupResp, err := net.LookupAddr(ip)
+		if err == nil && strings.Contains(lookupResp[0], hostname) {
+			lookupIps = append(lookupIps, ip)
 		}
 	}
 	if len(lookupIps) == 0 {
-		return nil, errors.New("host ip not found")
+		lookupIps = append(lookupIps, ips[0])
 	}
 	return lookupIps, nil
 }

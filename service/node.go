@@ -1522,7 +1522,7 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 		log.Infof("Node %s does not have FC or iSCSI initiators and can only be used for NFS exports", s.opts.NodeName)
 	}
 
-	nodeIps, err := utils.GetHostIP(ctx)
+	nodeIps, err := utils.GetHostIP()
 	if err != nil {
 		return status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Unable to get node IP. Error: %v", err))
 	}
