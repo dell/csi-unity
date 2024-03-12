@@ -146,38 +146,24 @@ func GetFCInitiators(ctx context.Context) ([]string, error) {
 
 // GetHostIP - Utility method to extract Host IP
 func GetHostIP() ([]string, error) {
-	cmd := exec.Command("hostname", "-I")
-	cmdOutput := &bytes.Buffer{}
-	cmd.Stdout = cmdOutput
-	err := cmd.Run()
-	if err != nil {
-		cmd = exec.Command("hostname", "-i")
-		cmdOutput = &bytes.Buffer{}
-		cmd.Stdout = cmdOutput
-		err = cmd.Run()
-		if err != nil {
-			return nil, err
-		}
-	}
-	output := string(cmdOutput.Bytes())
-	ips := strings.Split(strings.TrimSpace(output), " ")
-
-	hostname, err := os.Hostname()
+	_, err := os.Hostname()
 	if err != nil {
 		return nil, err
 	}
 
-	var lookupIps []string
-	for _, ip := range ips {
-		lookupResp, err := net.LookupAddr(ip)
-		if err == nil && strings.Contains(lookupResp[0], hostname) {
-			lookupIps = append(lookupIps, ip)
-		}
+	cmd := exec.Command("hostname", "-i")
+	cmdOutput := &bytes.Buffer{}
+	cmd.Stdout = cmdOutput
+
+	err = cmd.Run()
+	if err != nil {
+		return nil, err
 	}
-	if len(lookupIps) == 0 {
-		lookupIps = append(lookupIps, ips[0])
-	}
-	return lookupIps, nil
+
+	output := string(cmdOutput.Bytes())
+	ips := strings.Split(strings.TrimSpace(output), " ")
+
+	return ips, nil
 }
 
 // GetSnapshotResponseFromSnapshot - Utility method to convert Unity XT Rest type Snapshot to CSI standard Snapshot Response
