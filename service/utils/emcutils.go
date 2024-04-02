@@ -180,6 +180,43 @@ func GetHostIP() ([]string, error) {
 	return lookupIps, nil
 }
 
+// GetNFSClientIP is used to fetch IP address from networks on which NFS traffic is allowed
+func GetNFSClientIP(allowedNetworks []string) ([]string, error) {
+	var nodeIPs []string
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return nil, err
+	}
+
+	networks := make(map[string]bool)
+	for _, cnet := range allowedNetworks {
+		networks[cnet] = false
+	}
+
+	for _, a := range addrs {
+		switch v := a.(type) {
+		case *net.IPNet:
+			if v.IP.To4() != nil {
+				ip, cnet, err := net.ParseCIDR(a.String())
+				if err != nil {
+					continue
+				}
+
+				if _, ok := networks[cnet.String()]; ok {
+					nodeIPs = append(nodeIPs, ip.String())
+				}
+			}
+		}
+	}
+
+	// If a valid IP address matching allowedNetworks is not found return error
+	if len(nodeIPs) == 0 {
+		return nil, fmt.Errorf("no valid IP address found matching against allowedNetworks %v", allowedNetworks)
+	}
+
+	return nodeIPs, nil
+}
+
 // GetSnapshotResponseFromSnapshot - Utility method to convert Unity XT Rest type Snapshot to CSI standard Snapshot Response
 func GetSnapshotResponseFromSnapshot(snap *types.Snapshot, protocol, arrayID string) *csi.CreateSnapshotResponse {
 	content := snap.SnapshotContent
