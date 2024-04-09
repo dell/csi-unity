@@ -182,12 +182,19 @@ func GetHostIP() ([]string, error) {
 
 // GetNFSClientIP is used to fetch IP address from networks on which NFS traffic is allowed
 func GetNFSClientIP(allowedNetworks []string) ([]string, error) {
-	var nodeIPs []string
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		return nil, err
 	}
+	nodeIPs, err := GetAddresses(allowedNetworks, addrs)
+	if err != nil {
+		return nil, err
+	}
+	return nodeIPs, nil
+}
 
+func GetAddresses(allowedNetworks []string, addrs []net.Addr) ([]string, error) {
+	var nodeIPs []string
 	networks := make(map[string]bool)
 	for _, cnet := range allowedNetworks {
 		networks[cnet] = false
@@ -213,7 +220,6 @@ func GetNFSClientIP(allowedNetworks []string) ([]string, error) {
 	if len(nodeIPs) == 0 {
 		return nil, fmt.Errorf("no valid IP address found matching against allowedNetworks %v", allowedNetworks)
 	}
-
 	return nodeIPs, nil
 }
 
