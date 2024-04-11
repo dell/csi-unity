@@ -35,14 +35,14 @@ func TestGetAddresses(t *testing.T) {
 	for _, scenario := range []errorTestCases{
 		{
 			description:       "invalid",
-			addrs:             []net.Addr{&net.IPAddr{IP: []byte("192.168.2.1")}},
-			networkAddresses:  []string{"192.168.1.0/24"},
+			addrs:             []net.Addr{&net.IPNet{IP: net.ParseIP("192.168.2.1"), Mask: net.CIDRMask(24, 32)}},
+			networkAddresses:  []string{"192.168.1.1/24"},
 			expectedAddresses: []string{},
-			expectedError:     fmt.Sprintf("no valid IP address found matching against allowedNetworks %v", []string{"192.168.1.0/24"}),
+			expectedError:     fmt.Sprintf("no valid IP address found matching against allowedNetworks %v", []string{"192.168.1.1/24"}),
 		},
 		{
 			description:       "ok",
-			addrs:             []net.Addr{&net.IPAddr{IP: []byte("192.168.1.1")}},
+			addrs:             []net.Addr{&net.IPNet{IP: net.ParseIP("192.168.1.1"), Mask: net.CIDRMask(24, 32)}},
 			networkAddresses:  []string{"192.168.1.0/24"},
 			expectedAddresses: []string{"192.168.1.1"},
 			expectedError:     "",
@@ -56,7 +56,6 @@ func TestGetAddresses(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, scenario.expectedAddresses, addresses)
 			}
-
 		})
 	}
 }

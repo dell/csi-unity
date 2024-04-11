@@ -197,14 +197,18 @@ func GetAddresses(allowedNetworks []string, addrs []net.Addr) ([]string, error) 
 	var nodeIPs []string
 	networks := make(map[string]bool)
 	for _, cnet := range allowedNetworks {
-		networks[cnet] = false
+		_, cnet, err := net.ParseCIDR(cnet)
+		if err != nil {
+			return nil, err
+		}
+		networks[cnet.String()] = false
 	}
 
 	for _, a := range addrs {
 		switch v := a.(type) {
 		case *net.IPNet:
 			if v.IP.To4() != nil {
-				ip, cnet, err := net.ParseCIDR(a.String())
+				ip, cnet, err := net.ParseCIDR(v.String())
 				if err != nil {
 					continue
 				}
