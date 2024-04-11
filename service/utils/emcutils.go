@@ -188,7 +188,7 @@ func GetNFSClientIP(allowedNetworks []string) ([]string, error) {
 	}
 	nodeIPs, err := GetAddresses(allowedNetworks, addrs)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 	return nodeIPs, nil
 }
