@@ -193,6 +193,7 @@ func GetNFSClientIP(allowedNetworks []string) ([]string, error) {
 	return nodeIPs, nil
 }
 
+// GetAddresses is used to get validated IPs with allowed networks
 func GetAddresses(allowedNetworks []string, addrs []net.Addr) ([]string, error) {
 	var nodeIPs []string
 	networks := make(map[string]bool)
