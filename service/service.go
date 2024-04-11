@@ -262,11 +262,7 @@ func (s *service) BeforeServe(
 
 	var networksList []string
 	if allNetworks, ok := csictx.LookupEnv(ctx, EnvAllowedNetworks); ok {
-		err := yaml.Unmarshal([]byte(allNetworks), &networksList)
-		if err != nil {
-			log.Errorf("invalid array value for '%s'", EnvAllowedNetworks)
-			opts.allowedNetworks = networksList
-		}
+		networksList = strings.Split(allNetworks, " ")
 	}
 	opts.allowedNetworks = networksList
 
