@@ -23,7 +23,6 @@ import (
 )
 
 func TestGetAddresses(t *testing.T) {
-
 	type errorTestCases struct {
 		description       string
 		addrs             []net.Addr
@@ -49,16 +48,20 @@ func TestGetAddresses(t *testing.T) {
 		},
 		{
 			description: "multiple networks, multiple addresses-successful",
-			addrs: []net.Addr{&net.IPNet{IP: net.ParseIP("192.168.1.1"), Mask: net.CIDRMask(24, 32)},
-				&net.IPNet{IP: net.ParseIP("192.168.2.1"), Mask: net.CIDRMask(24, 32)}},
+			addrs: []net.Addr{
+				&net.IPNet{IP: net.ParseIP("192.168.1.1"), Mask: net.CIDRMask(24, 32)},
+				&net.IPNet{IP: net.ParseIP("192.168.2.1"), Mask: net.CIDRMask(24, 32)},
+			},
 			networkAddresses:  []string{"192.168.1.0/24", "192.168.2.0/24"},
 			expectedAddresses: []string{"192.168.1.1", "192.168.2.1"},
 			expectedError:     "",
 		},
 		{
 			description: "multiple networks, one erroneous address",
-			addrs: []net.Addr{&net.IPNet{IP: net.ParseIP("192.168.1.1"), Mask: net.CIDRMask(24, 32)},
-				&net.IPNet{IP: net.ParseIP("192.168.3.1"), Mask: net.CIDRMask(24, 32)}},
+			addrs: []net.Addr{
+				&net.IPNet{IP: net.ParseIP("192.168.1.1"), Mask: net.CIDRMask(24, 32)},
+				&net.IPNet{IP: net.ParseIP("192.168.3.1"), Mask: net.CIDRMask(24, 32)},
+			},
 			networkAddresses:  []string{"192.168.1.0/24", "192.168.2.0/24"},
 			expectedAddresses: []string{"192.168.1.1"},
 			expectedError:     "",

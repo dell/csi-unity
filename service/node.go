@@ -1531,7 +1531,7 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 		log.Debugf("Fetching IP address of custom network for NFS I/O traffic")
 		nodeIps, err = utils.GetNFSClientIP(s.opts.allowedNetworks)
 		if err != nil {
-			log.Error("Failed to find IP address corresponding to the allowed network with error", err.Error())
+			log.Fatalf("Failed to find IP address corresponding to the allowed network with error %s", err.Error())
 			return err
 		}
 	} else {
