@@ -100,6 +100,7 @@ type StorageArrayConfig struct {
 	SkipCertificateValidation *bool  `yaml:"skipCertificateValidation,omitempty"`
 	IsProbeSuccess            bool
 	IsHostAdded               bool
+	IsHostAdditionFailed      bool
 	IsDefaultArray            bool
 	UnityClient               *gounity.Client
 }
