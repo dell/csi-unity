@@ -56,4 +56,7 @@ const (
 
 	// EnvIsVolumeHealthMonitorEnabled - Environment variable to enable/disable health monitor of CSI volumes
 	EnvIsVolumeHealthMonitorEnabled = "X_CSI_HEALTH_MONITOR_ENABLED"
+
+	// EnvAllowedNetworks indicates list of networks on which NFS traffic is allowed
+	EnvAllowedNetworks = "X_CSI_ALLOWED_NETWORKS"
 )

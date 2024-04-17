@@ -1522,9 +1522,24 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 		log.Infof("Node %s does not have FC or iSCSI initiators and can only be used for NFS exports", s.opts.NodeName)
 	}
 
-	nodeIps, err := utils.GetHostIP()
-	if err != nil {
-		return status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Unable to get node IP. Error: %v", err))
+	// logic if else
+	// if allowedNetowrks is set
+	// else utils.GetHostIP() with hostname -I/i method
+	var nodeIps []string
+	var err error
+	if len(s.opts.allowedNetworks) > 0 {
+		log.Debugf("Fetching IP address of custom network for NFS I/O traffic")
+		nodeIps, err = utils.GetNFSClientIP(s.opts.allowedNetworks)
+		if err != nil {
+			log.Fatalf("Failed to find IP address corresponding to the allowed network with error %s", err.Error())
+			return err
+		}
+	} else {
+		// existing mechanism with hostname -I
+		nodeIps, err = utils.GetHostIP()
+		if err != nil {
+			return status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Unable to get node IP. Error: %v", err))
+		}
 	}
 
 	fqdnHost := false
