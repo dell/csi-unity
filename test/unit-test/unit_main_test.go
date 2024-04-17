@@ -16,6 +16,7 @@ package unit_test
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
 	"strconv"
@@ -26,6 +27,7 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/cucumber/godog"
+	"github.com/cucumber/godog/colors"
 	"github.com/dell/csi-unity/provider"
 	"github.com/dell/csi-unity/service"
 	"github.com/dell/gocsi/utils"
@@ -35,7 +37,12 @@ import (
 var (
 	grpcClient *grpc.ClientConn
 	stop       func()
+	opt        = godog.Options{Output: colors.Colored(os.Stdout)}
 )
+
+func init() {
+	godog.BindFlags("godog.", flag.CommandLine, &opt)
+}
 
 // To parse the secret json file
 type StorageArrayList struct {
@@ -43,7 +50,7 @@ type StorageArrayList struct {
 }
 
 type StorageArrayConfig struct {
-	ArrayID string `yaml:"ArrayId"`
+	ArrayID string `yaml:"arrayId"`
 }
 
 func TestMain(m *testing.M) {
@@ -69,12 +76,13 @@ func TestMain(m *testing.M) {
 	fmt.Printf("back from startServer")
 	time.Sleep(5 * time.Second)
 
+	flag.Parse()
+	opt.Format = "pretty"
+	opt.Paths = []string{"features"}
+
 	exitVal := godog.RunWithOptions("godog", func(s *godog.Suite) {
 		FeatureContext(s)
-	}, godog.Options{
-		Format: "pretty",
-		Paths:  []string{"features"},
-	})
+	}, opt)
 	if st := m.Run(); st > exitVal {
 		exitVal = st
 	}

@@ -607,11 +607,14 @@ Feature: CSI interface
     Given a CSI service
     And When I call GetPluginInfo
     Then there are no errors
-
+@wip
   Scenario: NodeGetInfo
-    Given a CSI service
+    Given a CSI service with node
     And When I call NodeGetInfo
-    Then the error message should contain "not added"
+    Then there are no errors
+    And I validate topology is correctly set
+    And I stop CSI service with node
+    And I start CSI service
 
   Scenario: Node stage, publish, unpublish and unstage volume for iSCSI
     Given a CSI service
