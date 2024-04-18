@@ -130,6 +130,7 @@ type Opts struct {
 	LogLevel                      string
 	TenantName                    string
 	IsVolumeHealthMonitorEnabled  bool
+	allowedNetworks               []string
 }
 
 type service struct {
@@ -258,6 +259,12 @@ func (s *service) BeforeServe(
 	if ephemeralStagePath, ok := csictx.LookupEnv(ctx, EnvEphemeralStagingPath); ok {
 		opts.EnvEphemeralStagingTargetPath = ephemeralStagePath
 	}
+
+	var networksList []string
+	if allNetworks, ok := csictx.LookupEnv(ctx, EnvAllowedNetworks); ok {
+		networksList = strings.Split(allNetworks, " ")
+	}
+	opts.allowedNetworks = networksList
 
 	// setup the iscsi client
 	iscsiOpts := make(map[string]string, 0)
