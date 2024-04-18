@@ -102,26 +102,15 @@ func (f *feature) aCSIService() error {
 func (f *feature) aCSIServiceWithNode() error {
 	stop()
 	time.Sleep(10 * time.Second)
+
+	nodeName := "unit-test" + fmt.Sprintf("%d", time.Now().Unix())
+	os.Setenv("X_CSI_UNITY_NODENAME", nodeName)
+	os.Setenv("X_CSI_UNITY_LONGNODENAME", nodeName)
+
+	os.Setenv("X_CSI_UNITY_SYNC_NODEINFO_INTERVAL", "15")
 	os.Setenv("X_CSI_MODE", "node")
+
 	ctx := context.Background()
-	grpcClient, stop = startServer(ctx)
-	time.Sleep(5 * time.Second)
-
-	ctx = context.Background()
-	fmt.Printf("testing Identity Probe\n")
-	client := csi.NewIdentityClient(grpcClient)
-	probeResp, err := client.Probe(ctx, &csi.ProbeRequest{})
-	time.Sleep(120 * time.Second)
-	if err != nil {
-		fmt.Printf("Probe failed with error: %s:\n", err.Error())
-	} else {
-		fmt.Printf("Probe passed: %s\n", probeResp.Ready)
-	}
-
-	stop()
-	time.Sleep(10 * time.Second)
-	os.Setenv("X_CSI_MODE", "")
-	ctx = context.Background()
 	grpcClient, stop = startServer(ctx)
 	time.Sleep(5 * time.Second)
 	return nil
@@ -1365,7 +1354,7 @@ func FeatureContext(s *godog.Suite) {
 	s.Step(`^when I call NodeStageVolume fsType "([^"]*)"$`, f.whenICallNodeStageVolume)
 	s.Step(`^when I call NodeStageVolume fsType "([^"]*)" with StagingTargetPath "([^"]*)"$`, f.whenICallNodeStageVolumeWithTargetPath)
 	s.Step(`^when I call NodeUnstageVolume$`, f.whenICallNodeUnstageVolume)
-	s.Step(`^When I call NodeGetInfo$`, f.whenICallNodeGetInfo)
+	s.Step(`^I call NodeGetInfo$`, f.whenICallNodeGetInfo)
 	s.Step(`^I validate topology is correctly set$`, f.iValidateTopologyIsCorrectlySet)
 	s.Step(`^When I call NodeGetCapabilities$`, f.whenICallNodeGetCapabilities)
 	s.Step(`^when I call NodePublishVolume without accessmode and fsType "([^"]*)"$`, f.whenICallNodePublishVolumeWithoutAccessmode)

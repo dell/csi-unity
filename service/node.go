@@ -746,7 +746,7 @@ func (s *service) NodeGetInfo(
 	var maxUnityVolumesPerNode int64
 	labels, err := s.GetNodeLabels(ctx)
 	if err != nil {
-		return nil, err
+		log.Warnf("failed to get Node Labels with error: %s", err.Error())
 	}
 
 	if val, ok := labels[maxUnityVolumesPerNodeLabel]; ok {
