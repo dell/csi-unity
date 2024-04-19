@@ -707,8 +707,6 @@ func (s *service) NodeGetInfo(
 	ctx, log, rid := GetRunidLog(ctx)
 	log.Debugf("Executing NodeGetInfo with args: %+v", *req)
 
-	// Sleep for a while and wait untill iscsi discovery is completed
-	// time.Sleep(nodeStartTimeout)
 	arraysList := s.getStorageArrayList()
 
 	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
