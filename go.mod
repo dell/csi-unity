@@ -12,7 +12,6 @@ require (
 	github.com/dell/goiscsi v1.9.0
 	github.com/dell/gounity v1.17.0
 	github.com/fsnotify/fsnotify v1.4.9
-	github.com/golang/protobuf v1.5.3
 	github.com/kubernetes-csi/csi-lib-utils v0.7.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.7.1
@@ -40,6 +39,7 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/mock v1.4.4 // indirect
+	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/googleapis/gnostic v0.4.1 // indirect
 	github.com/hashicorp/go-immutable-radix v1.2.0 // indirect
