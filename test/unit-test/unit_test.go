@@ -20,12 +20,14 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/cucumber/godog"
+	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -59,6 +61,7 @@ type feature struct {
 	maxRetryCount                     int
 	nodeID                            string
 	ephemeral                         bool
+	topology                          []string
 }
 
 // addError method appends an error to the error list
@@ -99,26 +102,29 @@ func (f *feature) aCSIService() error {
 func (f *feature) aCSIServiceWithNode() error {
 	stop()
 	time.Sleep(10 * time.Second)
+
+	nodeName := "unit-test" + fmt.Sprintf("%d", time.Now().Unix())
+	os.Setenv("X_CSI_UNITY_NODENAME", nodeName)
+	os.Setenv("X_CSI_UNITY_LONGNODENAME", nodeName)
+
+	os.Setenv("X_CSI_UNITY_SYNC_NODEINFO_INTERVAL", "15")
 	os.Setenv("X_CSI_MODE", "node")
+
 	ctx := context.Background()
 	grpcClient, stop = startServer(ctx)
 	time.Sleep(5 * time.Second)
+	return nil
+}
 
-	ctx = context.Background()
-	fmt.Printf("testing Identity Probe\n")
-	client := csi.NewIdentityClient(grpcClient)
-	probeResp, err := client.Probe(ctx, &csi.ProbeRequest{})
-	time.Sleep(120 * time.Second)
-	if err != nil {
-		fmt.Printf("Probe failed with error: %s:\n", err.Error())
-	} else {
-		fmt.Printf("Probe passed: %s\n", probeResp.Ready)
-	}
-
+func (f *feature) iStopCSIServiceWithNode() error {
 	stop()
 	time.Sleep(10 * time.Second)
+	return nil
+}
+
+func (f *feature) iStartCSIService() error {
 	os.Setenv("X_CSI_MODE", "")
-	ctx = context.Background()
+	ctx := context.Background()
 	grpcClient, stop = startServer(ctx)
 	time.Sleep(5 * time.Second)
 	return nil
@@ -1156,13 +1162,34 @@ func (f *feature) whenICallNodeGetInfo() error {
 
 	ctx := context.Background()
 	client := csi.NewNodeClient(grpcClient)
-	_, err := client.NodeGetInfo(ctx, req)
+	resp, err := client.NodeGetInfo(ctx, req)
 	if err != nil {
 		fmt.Printf("Node get info failed: %s\n", err.Error())
 		f.addError(err)
 	} else {
 		fmt.Printf("Node get info completed successfully\n")
+		for key := range resp.AccessibleTopology.Segments {
+			f.topology = append(f.topology, key)
+		}
 	}
+	return nil
+}
+
+func (f *feature) iValidateTopologyIsCorrectlySet() error {
+	file, err := os.ReadFile(os.Getenv("DRIVER_SECRET"))
+	if err != nil {
+		panic("Driver Config missing")
+	}
+	arrayIDList := StorageArrayList{}
+	_ = yaml.Unmarshal([]byte(file), &arrayIDList)
+
+	for _, array := range arrayIDList.StorageArrayList {
+		topology := "csi-unity.dellemc.com/" + strings.ToLower(array.ArrayID) + "-nfs"
+		if !slices.Contains(f.topology, topology) {
+			return fmt.Errorf("Topology %s is not set", topology)
+		}
+	}
+
 	return nil
 }
 
@@ -1287,6 +1314,8 @@ func FeatureContext(s *godog.Suite) {
 	f := &feature{}
 	s.Step(`^a CSI service$`, f.aCSIService)
 	s.Step(`^a CSI service with node$`, f.aCSIServiceWithNode)
+	s.Step(`^I stop CSI service with node$`, f.iStopCSIServiceWithNode)
+	s.Step(`^I start CSI service$`, f.iStartCSIService)
 	s.Step(`^a CSI service with node topology$`, f.aCSIServiceWithNodeTopology)
 	s.Step(`^a basic block volume request name "([^"]*)" protocol "([^"]*)" size "(\d+)"$`, f.aBasicBlockVolumeRequest)
 	s.Step(`^a basic raw block volume request name "([^"]*)" protocol "([^"]*)" size "(\d+)"$`, f.aBasicRawBlockVolumeRequest)
@@ -1325,7 +1354,8 @@ func FeatureContext(s *godog.Suite) {
 	s.Step(`^when I call NodeStageVolume fsType "([^"]*)"$`, f.whenICallNodeStageVolume)
 	s.Step(`^when I call NodeStageVolume fsType "([^"]*)" with StagingTargetPath "([^"]*)"$`, f.whenICallNodeStageVolumeWithTargetPath)
 	s.Step(`^when I call NodeUnstageVolume$`, f.whenICallNodeUnstageVolume)
-	s.Step(`^When I call NodeGetInfo$`, f.whenICallNodeGetInfo)
+	s.Step(`^I call NodeGetInfo$`, f.whenICallNodeGetInfo)
+	s.Step(`^I validate topology is correctly set$`, f.iValidateTopologyIsCorrectlySet)
 	s.Step(`^When I call NodeGetCapabilities$`, f.whenICallNodeGetCapabilities)
 	s.Step(`^when I call NodePublishVolume without accessmode and fsType "([^"]*)"$`, f.whenICallNodePublishVolumeWithoutAccessmode)
 	s.Step(`^When I call GetPluginCapabilities$`, f.whenICallGetPluginCapabilities)

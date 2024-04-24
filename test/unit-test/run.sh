@@ -19,5 +19,6 @@ source ../../env.sh
 mkdir $(dirname "${CSI_ENDPOINT}") || rm -f ${CSI_ENDPOINT}
 echo $SDC_GUID
 go test -v -coverprofile=c.out -timeout 60m -coverpkg=github.com/dell/csi-unity/service *test.go &
+# go test -v --godog.tags=wip -coverprofile=c.out -timeout 60m -coverpkg=github.com/dell/csi-unity/service *test.go &
 wait 
 go tool cover -html=c.out
