@@ -28,8 +28,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/timestamp"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/dell/gounity/types"
@@ -232,9 +231,9 @@ func GetAddresses(allowedNetworks []string, addrs []net.Addr) ([]string, error) 
 func GetSnapshotResponseFromSnapshot(snap *types.Snapshot, protocol, arrayID string) *csi.CreateSnapshotResponse {
 	content := snap.SnapshotContent
 	snapID := fmt.Sprintf("%s-%s-%s-%s", content.Name, protocol, arrayID, content.ResourceID)
-	var timestamp *timestamp.Timestamp
+	var timestamp *timestamppb.Timestamp
 	if !snap.SnapshotContent.CreationTime.IsZero() {
-		timestamp, _ = ptypes.TimestampProto(snap.SnapshotContent.CreationTime)
+		timestamp = timestamppb.New(snap.SnapshotContent.CreationTime)
 	}
 
 	snapReq := &csi.Snapshot{

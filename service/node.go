@@ -707,56 +707,68 @@ func (s *service) NodeGetInfo(
 	ctx, log, rid := GetRunidLog(ctx)
 	log.Debugf("Executing NodeGetInfo with args: %+v", *req)
 
-	atleastOneArraySuccess := false
-	// Sleep for a while and wait untill iscsi discovery is completed
-	time.Sleep(nodeStartTimeout)
 	arraysList := s.getStorageArrayList()
 
-	for _, array := range arraysList {
-		if array.IsHostAdded {
-			atleastOneArraySuccess = true
+	if _, deadlineSet := ctx.Deadline(); !deadlineSet {
+		var cancelFunc context.CancelFunc
+		ctx, cancelFunc = context.WithTimeout(ctx, 2*time.Minute)
+		defer cancelFunc()
+	}
+
+	unProcessedArrays := make(map[string]any)
+	s.arrays.Range(func(key any, _ any) bool {
+		unProcessedArrays[key.(string)] = ""
+		return true
+	})
+
+	for len(unProcessedArrays) != 0 {
+		select {
+		case <-ctx.Done():
+			return nil, status.Error(codes.Unavailable, utils.GetMessageWithRunID(rid, "The node [%s] could not process these arrays : %v", s.opts.NodeName, unProcessedArrays))
+		case <-time.After(nodeStartTimeout):
+			for _, currentArr := range arraysList {
+				if currentArr.IsHostAdded || currentArr.IsHostAdditionFailed {
+					delete(unProcessedArrays, currentArr.ArrayID)
+				}
+			}
 		}
 	}
 
-	if atleastOneArraySuccess {
-		s.validateProtocols(ctx, arraysList)
-		topology := getTopology()
-		// If topology keys are empty then this node is not capable of either iSCSI/FC but can still provision NFS volumes by default
-		log.Debugf("Topology Keys--->%+v", topology)
+	s.validateProtocols(ctx, arraysList)
+	topology := getTopology()
+	// If topology keys are empty then this node is not capable of either iSCSI/FC but can still provision NFS volumes by default
+	log.Debugf("Topology Keys--->%+v", topology)
 
-		// Check for node label 'max-unity-volumes-per-node'. If present set 'MaxVolumesPerNode' to this value.
-		// If node label is not present, set 'MaxVolumesPerNode' to default value i.e., 0
-		var maxUnityVolumesPerNode int64
-		labels, err := s.GetNodeLabels(ctx)
+	// Check for node label 'max-unity-volumes-per-node'. If present set 'MaxVolumesPerNode' to this value.
+	// If node label is not present, set 'MaxVolumesPerNode' to default value i.e., 0
+	var maxUnityVolumesPerNode int64
+	labels, err := s.GetNodeLabels(ctx)
+	if err != nil {
+		log.Warnf("failed to get Node Labels with error: %s", err.Error())
+	}
+
+	if val, ok := labels[maxUnityVolumesPerNodeLabel]; ok {
+		maxUnityVolumesPerNode, err = strconv.ParseInt(val, 10, 64)
 		if err != nil {
-			return nil, err
+			return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "invalid value '%s' specified for 'max-unity-volumes-per-node' node label", val))
 		}
-
-		if val, ok := labels[maxUnityVolumesPerNodeLabel]; ok {
-			maxUnityVolumesPerNode, err = strconv.ParseInt(val, 10, 64)
-			if err != nil {
-				return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "invalid value '%s' specified for 'max-unity-volumes-per-node' node label", val))
-			}
-		} else {
-			// As per the csi spec the plugin MUST NOT set negative values to
-			// 'MaxVolumesPerNode' in the NodeGetInfoResponse response
-			if s.opts.MaxVolumesPerNode < 0 {
-				return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "maxUnityVolumesPerNode MUST NOT be set to negative value"))
-			}
-			maxUnityVolumesPerNode = s.opts.MaxVolumesPerNode
+	} else {
+		// As per the csi spec the plugin MUST NOT set negative values to
+		// 'MaxVolumesPerNode' in the NodeGetInfoResponse response
+		if s.opts.MaxVolumesPerNode < 0 {
+			return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "maxUnityVolumesPerNode MUST NOT be set to negative value"))
 		}
-
-		log.Info("NodeGetInfo success")
-		return &csi.NodeGetInfoResponse{
-			NodeId: s.opts.NodeName + "," + s.opts.LongNodeName,
-			AccessibleTopology: &csi.Topology{
-				Segments: topology,
-			},
-			MaxVolumesPerNode: maxUnityVolumesPerNode,
-		}, nil
+		maxUnityVolumesPerNode = s.opts.MaxVolumesPerNode
 	}
 
-	return nil, status.Error(codes.Unavailable, utils.GetMessageWithRunID(rid, "The node [%s] is not added to any of the arrays", s.opts.NodeName))
+	log.Info("NodeGetInfo success")
+	return &csi.NodeGetInfoResponse{
+		NodeId: s.opts.NodeName + "," + s.opts.LongNodeName,
+		AccessibleTopology: &csi.Topology{
+			Segments: topology,
+		},
+		MaxVolumesPerNode: maxUnityVolumesPerNode,
+	}, nil
 }
 
 func (s *service) NodeGetCapabilities(
@@ -1817,8 +1829,10 @@ func (s *service) syncNodeInfo(ctx context.Context) {
 				err := s.addNodeInformationIntoArray(ctx, array)
 				if err == nil {
 					array.IsHostAdded = true
+					array.IsHostAdditionFailed = false
 					log.Debugf("Node [%s] Added successfully", array.ArrayID)
 				} else {
+					array.IsHostAdditionFailed = true
 					log.Debugf("Adding node [%s] failed, Error: [%v]", array.ArrayID, err)
 				}
 			}()
