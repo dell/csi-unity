@@ -789,25 +789,26 @@ func (s *service) requireProbe(ctx context.Context, arrayID string) error {
 func singleArrayProbe(ctx context.Context, probeType string, array *StorageArrayConfig) error {
 	rid, log := utils.GetRunidAndLogger(ctx)
 	ctx, log = setArrayIDContext(ctx, array.ArrayID)
-	if array.UnityClient.GetToken() == "" {
-		err := array.UnityClient.BasicSystemInfo(ctx, &gounity.ConfigConnect{
-			Endpoint: array.Endpoint,
-		})
-		if err != nil {
-			log.Errorf("Unity probe failed for array %s error: %v", array.ArrayID, err)
-			if e, ok := status.FromError(err); ok {
-				if e.Code() == codes.Unauthenticated {
-					array.IsProbeSuccess = false
-					return status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Unable Get basic system info from Unity. Error: %s", err.Error()))
-				}
+
+	err := array.UnityClient.BasicSystemInfo(ctx, &gounity.ConfigConnect{
+		Endpoint: array.Endpoint,
+		Username: array.Username,
+		Password: array.Password,
+		Insecure: *array.SkipCertificateValidation,
+	})
+	if err != nil {
+		log.Errorf("Unity probe failed for array %s error: %v", array.ArrayID, err)
+		if e, ok := status.FromError(err); ok {
+			if e.Code() == codes.Unauthenticated {
+				array.IsProbeSuccess = false
+				return status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Unable Get basic system info from Unity. Error: %s", err.Error()))
 			}
-			array.IsProbeSuccess = false
-			return status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Unable Get basic system info from Unity. Verify hostname/IP Address of unity. Error: %s", err.Error()))
 		}
-		array.IsProbeSuccess = true
-		log.Debugf("%s Probe Success", probeType)
-		return nil
+		array.IsProbeSuccess = false
+		return status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Unable Get basic system info from Unity. Verify hostname/IP Address of unity. Error: %s", err.Error()))
 	}
+	array.IsProbeSuccess = true
+	log.Debugf("%s Probe Success", probeType)
 	return nil
 }
 
