@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2021 Dell Inc., or its subsidiaries. All Rights Reserved.
+# Copyright (c) 2021-2024 Dell Inc., or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -231,7 +231,7 @@ DRIVER="csi-unity"
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 REPODIR="$( dirname "${SCRIPTDIR}" )"
 
-DRIVERVERSION="csi-unity-2.10.0"
+DRIVERVERSION="csi-unity-2.10.1"
 
 while getopts "cprv:h" opt; do
   case $opt in

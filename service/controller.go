@@ -21,8 +21,7 @@ import (
 
 	"github.com/dell/gounity/api"
 	"github.com/dell/gounity/util"
-	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/timestamp"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/dell/csi-unity/service/utils"
@@ -916,9 +915,9 @@ func (s *service) getCSISnapshots(snaps []types.Snapshot, volID, protocol, array
 		if snap.SnapshotContent.State == 2 {
 			isReady = true
 		}
-		var timestamp *timestamp.Timestamp
+		var timestamp *timestamppb.Timestamp
 		if !snap.SnapshotContent.CreationTime.IsZero() {
-			timestamp, _ = ptypes.TimestampProto(snap.SnapshotContent.CreationTime)
+			timestamp = timestamppb.New(snap.SnapshotContent.CreationTime)
 		}
 
 		snapID := fmt.Sprintf("%s-%s-%s-%s", snap.SnapshotContent.Name, protocol, arrayID, snap.SnapshotContent.ResourceID)

@@ -62,10 +62,10 @@ You can run an integration test on a Linux system by populating the env files at
 Both the Controller and the Node portions of the driver can only be run on nodes which have network connectivity to “`Unisphere for Unity XT`” (which is used by the driver).
 
 ## Driver Installation
-Please consult the [Installation Guide](https://dell.github.io/csm-docs/docs/csidriver/installation)
+Please consult the [Installation Guide](https://dell.github.io/csm-docs/docs/deployment/) to install the driver via various methods.
 
 ## Using Driver
-Please refer to the section `Testing Drivers` in the [Documentation](https://dell.github.io/csm-docs/docs/csidriver/installation/test/) for more info.
+Please refer to the section `Testing Drivers` in the [Documentation](https://dell.github.io/csm-docs/docs/csidriver/test/) for more info.
 
 ## Documentation
 For more detailed information on the driver, please refer to [Container Storage Modules documentation](https://dell.github.io/csm-docs/).
