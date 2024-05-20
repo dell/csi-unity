@@ -16,10 +16,10 @@ PROG="${0}"
 NODE_VERIFY=1
 VERIFY=1
 MODE="install"
-DEFAULT_DRIVER_VERSION="v2.10.0"
+DEFAULT_DRIVER_VERSION="v2.11.0"
 WATCHLIST=""
 
-DRIVERVERSION="csi-unity-2.10.0"
+DRIVERVERSION="csi-unity-2.11.0"
 
 # usage will print command execution help and then exit
 function usage() {
