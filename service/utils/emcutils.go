@@ -145,6 +145,7 @@ func GetFCInitiators(ctx context.Context) ([]string, error) {
 
 // GetHostIP - Utility method to extract Host IP
 func GetHostIP() ([]string, error) {
+	// @TODO: Investigate the use of 'hostname -I' fetching all the addresses of the host
 	cmd := exec.Command("hostname", "-I")
 	cmdOutput := &bytes.Buffer{}
 	cmd.Stdout = cmdOutput
@@ -174,6 +175,16 @@ func GetHostIP() ([]string, error) {
 		}
 	}
 	if len(lookupIps) == 0 {
+		// Compute host ip from 'hostname -i' when lookup address fails
+		cmd = exec.Command("hostname", "-i")
+		cmdOutput = &bytes.Buffer{}
+		cmd.Stdout = cmdOutput
+		err = cmd.Run()
+		if err != nil {
+			return nil, err
+		}
+		output := string(cmdOutput.Bytes())
+		ips := strings.Split(strings.TrimSpace(output), " ")
 		lookupIps = append(lookupIps, ips[0])
 	}
 	return lookupIps, nil
