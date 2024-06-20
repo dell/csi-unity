@@ -263,7 +263,12 @@ func (s *service) BeforeServe(
 
 	var networksList []string
 	if allNetworks, ok := csictx.LookupEnv(ctx, EnvAllowedNetworks); ok {
-		networksList = strings.Split(allNetworks, " ")
+		allNetworks = strings.TrimSpace(allNetworks)
+		if allNetworks == "" {
+			networksList = []string{}
+		} else {
+			networksList = strings.Split(allNetworks, ",")
+		}
 	}
 	opts.allowedNetworks = networksList
 
