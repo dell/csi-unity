@@ -10,7 +10,7 @@ require (
 	github.com/dell/gocsi v1.10.1
 	github.com/dell/gofsutil v1.15.0
 	github.com/dell/goiscsi v1.9.0
-	github.com/dell/gounity v1.17.1
+	github.com/dell/gounity v1.17.2-0.20240618101219-2cc3b38fca9f
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/kubernetes-csi/csi-lib-utils v0.7.0
 	github.com/sirupsen/logrus v1.9.3
