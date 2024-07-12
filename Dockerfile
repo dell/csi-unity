@@ -1,12 +1,7 @@
 # Dockerfile to build Unity CSI Driver
-FROM centos:7.6.1810
+ARG BASEIMAGE
 
-# dependencies, following by cleaning the cache
-RUN yum install -y e2fsprogs xfsprogs which nfs-utils device-mapper-multipath \
-    && \
-    yum clean all \
-    && \
-    rm -rf /var/cache/run
+FROM $BASEIMAGE
 
 # validate some cli utilities are found
 RUN which mkfs.ext4

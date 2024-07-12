@@ -16,15 +16,27 @@ DOCKER_REPO ?= dellemc
 DOCKER_NAMESPACE ?= csi-unity
 DOCKER_IMAGE_TAG ?= ${VERSION}
 
+.PHONY: download-csm-common
+download-csm-common:
+	curl -O -L https://raw.githubusercontent.com/dell/csm/main/config/csm-common.mk
+
+.PHONY: build-base-image
+build-base-image: download-csm-common
+	$(eval include csm-common.mk)
+	@echo "Building base image from $(DEFAULT_BASEIMAGE) and loading dependencies..."
+	sh ./build_ubi_micro.sh $(DEFAULT_BASEIMAGE)
+	@echo "Base image build: SUCCESS"
+	$(eval BASEIMAGE=csiunity-ubimicro:latest)
+
 .PHONY: docker-build
-docker-build:
+docker-build: build-base-image
 	echo ${VERSION} ${GITLAB_CI} ${CI_COMMIT_TAG} ${CI_COMMIT_SHA}
 	rm -f core/core_generated.go
 	cd core && go generate
 	go run core/semver/semver.go -f mk >semver.mk
 	mkdir -p ${BIN_DIR}
 	GOOS=linux CGO_ENABLED=0 GOARCH=amd64 go build -ldflags '-extldflags "-static"' -o ${BIN_DIR}/${BIN_NAME}
-	docker build -t ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} .
+	docker build -t ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} --build-arg BASEIMAGE=$(BASEIMAGE) .
 	docker tag ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} ${DOCKER_REPO}/${DOCKER_NAMESPACE}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}
 
 .PHONY: docker-push
