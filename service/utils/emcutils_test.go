@@ -25,8 +25,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var execCommand = exec.Command
-var osHostname = os.Hostname
+var (
+	execCommand = exec.Command
+	osHostname  = os.Hostname
+)
 
 func TestGetAddresses(t *testing.T) {
 	type errorTestCases struct {
@@ -87,7 +89,7 @@ func TestGetAddresses(t *testing.T) {
 
 // MockCmd is a helper function to create a mocked exec.Command
 func MockCmd(output string, err error) func(name string, arg ...string) *exec.Cmd {
-	return func(name string, arg ...string) *exec.Cmd {
+	return func(_ string, _ ...string) *exec.Cmd {
 		cmd := exec.Command("echo", output)
 		if err != nil {
 			cmd = exec.Command("false")
