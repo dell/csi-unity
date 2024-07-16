@@ -15,11 +15,19 @@
 package utils
 
 import (
+	"bytes"
 	"fmt"
 	"net"
+	"os"
+	"os/exec"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+)
+
+var (
+	execCommand = exec.Command
+	osHostname  = os.Hostname
 )
 
 func TestGetAddresses(t *testing.T) {
@@ -74,6 +82,68 @@ func TestGetAddresses(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, scenario.expectedAddresses, addresses)
+			}
+		})
+	}
+}
+
+// MockCmd is a helper function to create a mocked exec.Command
+func MockCmd(output string, err error) func(name string, arg ...string) *exec.Cmd {
+	return func(_ string, _ ...string) *exec.Cmd {
+		cmd := exec.Command("echo", output)
+		if err != nil {
+			cmd = exec.Command("false")
+		}
+		cmd.Stdout = bytes.NewBufferString(output)
+		return cmd
+	}
+}
+
+// mockHostname is a helper function to mock os.Hostname
+func mockHostname(hostname string, err error) func() (string, error) {
+	return func() (string, error) {
+		return hostname, err
+	}
+}
+
+func TestGetHostIP(t *testing.T) {
+	originalExecCommand := execCommand
+	originalHostname := osHostname
+
+	defer func() {
+		execCommand = originalExecCommand
+		osHostname = originalHostname
+	}()
+
+	tests := []struct {
+		description    string
+		hostnameOutput string
+		hostnameError  error
+		cmdOutput      string
+		cmdError       error
+		expectedIps    []string
+		expectedError  error
+	}{
+		{
+			description:    "successful hostname -I",
+			cmdOutput:      "192.168.1.1\n",
+			cmdError:       nil,
+			hostnameOutput: "testhost",
+			expectedError:  nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.description, func(t *testing.T) {
+			execCommand = MockCmd(tt.cmdOutput, tt.cmdError)
+			osHostname = mockHostname(tt.hostnameOutput, tt.hostnameError)
+
+			_, err := GetHostIP()
+			if tt.expectedError != nil {
+				assert.Error(t, err)
+				assert.Equal(t, tt.expectedError, err)
+			} else {
+				assert.NoError(t, err)
 			}
 		})
 	}
