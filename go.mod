@@ -6,7 +6,7 @@ require (
 	github.com/container-storage-interface/spec v1.6.0
 	github.com/cucumber/godog v0.10.0
 	github.com/dell/dell-csi-extensions/podmon v1.5.0
-	github.com/dell/gobrick v1.11.3
+	github.com/dell/gobrick v1.11.2
 	github.com/dell/gocsi v1.11.0
 	github.com/dell/gofsutil v1.16.1
 	github.com/dell/goiscsi v1.9.0
