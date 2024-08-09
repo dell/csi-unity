@@ -188,13 +188,26 @@ function verify_k8s_versions() {
   local MIN=${1}
   local MAX=${2}
   local V="${kMajorVersion}.${kMinorVersion}"
+
+  # check non supported version (k8s alpha/beta)
+  if [ -n "${kNonGAVersion}" ]; then
+    echo "Installing on an unreleased version of Kubernetes : "${kNonGAVersion}". Acknowledge and proceed with installation? (y/n)"
+    read -n 1 -p "Press 'y' to continue or any other key to exit: " CONT
+    decho
+      if [ "${CONT}" != "Y" -a "${CONT}" != "y" ]; then
+        decho "quitting at user request"
+        exit 2
+      fi
+  fi
+
   # check minimum
   log arrow
   log smart_step "Verifying minimum Kubernetes version" "small"
   error=0
   if [[ ${V} < ${MIN} ]]; then
     error=1
-    found_error "Kubernetes version ${V} is too old. Minimum required version is: ${MIN}"
+    found_warning "Kubernetes version ${V} is too old. Minimum required version is: ${MIN}"
+    found_warning "To ensure the driver is fully supported run cert-csi and make sure all tests pass. More details: https://dell.github.io/csm-docs/docs/support/cert-csi/"
   fi
   check_error error
 
@@ -205,7 +218,7 @@ function verify_k8s_versions() {
   if [[ ${V} > ${MAX} ]]; then
     error=1
     found_warning "Kubernetes version ${V} is newer than the version that has been tested. Latest tested version is: ${MAX}"
-    found_warning "To ensure the driver is fully supported run cert-csi and make sure all tests pass. More details: https://dell.github.io/csm-docs/docs/cert-csi/"
+    found_warning "To ensure the driver is fully supported run cert-csi and make sure all tests pass. More details: https://dell.github.io/csm-docs/docs/support/cert-csi/"
   fi
   check_error error
 
@@ -228,7 +241,8 @@ function verify_openshift_versions() {
   error=0
   if (( ${V%%.*} < ${MIN%%.*} || ( ${V%%.*} == ${MIN%%.*} && ${V##*.} < ${MIN##*.} ) )) ; then
     error=1
-    found_error "OpenShift version ${V} is too old. Minimum required version is: ${MIN}"
+    found_warning "OpenShift version ${V} is too old. Minimum required version is: ${MIN}"
+    found_warning "To ensure the driver is fully supported run cert-csi and make sure all tests pass. More details: https://dell.github.io/csm-docs/docs/support/cert-csi/"
   fi
   check_error error
 
@@ -239,6 +253,7 @@ function verify_openshift_versions() {
   if (( ${V%%.*} > ${MAX%%.*} || ( ${V%%.*} == ${MAX%%.*} && ${V##*.} > ${MAX##*.} ) )) ; then
     error=1
     found_warning "OpenShift version ${V} is newer than the version that has been tested. Latest tested version is: ${MAX}"
+    found_warning "To ensure the driver is fully supported run cert-csi and make sure all tests pass. More details: https://dell.github.io/csm-docs/docs/support/cert-csi/"
   fi
   check_error error
 }
@@ -564,6 +579,7 @@ MASTER_NODES=$(run_command kubectl get nodes -o wide | awk ' /master/{ print $6;
 # Get the kubernetes major and minor version numbers.
 kMajorVersion=$(run_command kubectl version -o="yaml" | grep -A8 'serverVersion:' | grep 'major'| egrep -o '[0-9]+')
 kMinorVersion=$(run_command kubectl version -o="yaml" | grep -A8 'serverVersion:' | grep 'minor'| egrep -o '[0-9]+')
+kNonGAVersion=$(run_command kubectl version | grep 'Server Version' | sed -n 's/.*\(-[alpha|beta][^ ]*\).*/\1/p')
 
 while getopts ":h-:" optchar; do
   case "${optchar}" in

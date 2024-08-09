@@ -35,3 +35,5 @@ export ALLOW_RWO_MULTIPOD_ACCESS=
 export MAX_UNITY_VOLUMES_PER_NODE=
 export SYNC_NODE_INFO_TIME_INTERVAL=
 export TENANT_NAME=
+# if user has not provided any allowed networks, set it to empty else provide comma separated allowed networks
+export X_CSI_ALLOWED_NETWORKS=""

@@ -16,10 +16,10 @@ PROG="${0}"
 NODE_VERIFY=1
 VERIFY=1
 MODE="install"
-DEFAULT_DRIVER_VERSION="v2.10.0"
+DEFAULT_DRIVER_VERSION="v2.11.0"
 WATCHLIST=""
 
-DRIVERVERSION="csi-unity-2.10.0"
+DRIVERVERSION="csi-unity-2.11.0"
 
 # usage will print command execution help and then exit
 function usage() {
@@ -418,6 +418,7 @@ OPENSHIFT=$(isOpenShift)
 # Get the kubernetes major and minor version numbers.
 kMajorVersion=$(run_command kubectl version -o="yaml" | grep -A8 'serverVersion:' | grep 'major'| egrep -o '[0-9]+')
 kMinorVersion=$(run_command kubectl version -o="yaml" | grep -A8 'serverVersion:' | grep 'minor'| egrep -o '[0-9]+')
+kNonGAVersion=$(run_command kubectl version | grep 'Server Version' | sed -n 's/.*\(-[alpha|beta][^ ]*\).*/\1/p')
 
 # validate the parameters passed in
 validate_params "${MODE}"

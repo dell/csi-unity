@@ -174,6 +174,16 @@ func GetHostIP() ([]string, error) {
 		}
 	}
 	if len(lookupIps) == 0 {
+		// Compute host ip from 'hostname -i' when lookup address fails
+		cmd = exec.Command("hostname", "-i")
+		cmdOutput = &bytes.Buffer{}
+		cmd.Stdout = cmdOutput
+		err = cmd.Run()
+		if err != nil {
+			return nil, err
+		}
+		output := string(cmdOutput.Bytes())
+		ips := strings.Split(strings.TrimSpace(output), " ")
 		lookupIps = append(lookupIps, ips[0])
 	}
 	return lookupIps, nil
@@ -197,6 +207,7 @@ func GetAddresses(allowedNetworks []string, addrs []net.Addr) ([]string, error) 
 	var nodeIPs []string
 	networks := make(map[string]bool)
 	for _, cnet := range allowedNetworks {
+		cnet = strings.TrimSpace(cnet)
 		_, cnet, err := net.ParseCIDR(cnet)
 		if err != nil {
 			return nil, err
