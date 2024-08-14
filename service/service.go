@@ -544,6 +544,15 @@ func (s *service) syncDriverSecret(ctx context.Context) error {
 			if err != nil {
 				return fmt.Errorf("unable to initialize the Unity client [%v]", err)
 			}
+			err = unityClient.Authenticate(ctx, &gounity.ConfigConnect{
+				Endpoint: endpoint,
+				Username: secret.Username,
+				Password: secret.Password,
+				Insecure: insecure,
+			})
+			if err != nil {
+				log.Errorf("unable to authenticate [%v]", err)
+			}
 			secret.UnityClient = unityClient
 
 			copyStorage := StorageArrayConfig{}
