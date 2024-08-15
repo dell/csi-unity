@@ -1,6 +1,6 @@
 <!--
- Copyright © 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
- 
+ Copyright © 2020-2024 Dell Inc. or its subsidiaries. All Rights Reserved.
+
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -45,7 +45,7 @@ This project provides the following capabilitites, each one is discussed in deta
 * Install a driver. When installing a driver, options are provided to specify the target namespace as well as options to control the types of verifications to be performed on the target system.
 * Upgrade a driver. Upgrading a driver is an effective way to either deploy a new version of the driver or to modify the parameters used in an initial deployment.
 * Uninstall a driver. This removes the driver and any installed storage classes.
-* Verify a Kubernetes system for suitability with a driver. These verification steps differ, slightly, from driver to driver but include verifiying version compatibility, namespace availability, existance of required secrets, and validating worker node compatibility with driver protocols such as iSCSI, Fibre Channel, NFS, etc 
+* Verify a Kubernetes system for suitability with a driver. These verification steps differ, slightly, from driver to driver but include verifiying version compatibility, namespace availability, existance of required secrets, and validating worker node compatibility with driver protocols such as iSCSI, Fibre Channel, NFS, etc
 
 
 Most of these usages require the creation/specification of a values file. These files specify configuration settings that are passed into the driver and configure it for use. To create one of these files, the following steps should be followed:
@@ -166,4 +166,3 @@ Options:
   --node-verify-user[=]<username> Username to SSH to worker nodes as, used to validate node requirements. Default is root
   -h                              Help                           Help
 ```
-

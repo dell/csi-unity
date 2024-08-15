@@ -12,7 +12,7 @@
  limitations under the License.
 */
 
-package unit_test
+package bdd_test
 
 import (
 	"context"

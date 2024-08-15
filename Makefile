@@ -18,13 +18,17 @@ go-build: clean
 	cd core && go generate
 	go build .
 
+# Only unit testing utils for now. More work to do but need to start somewhere.
+unit-test:
+	( cd service/utils; go clean -cache; go test -v -coverprofile=c.out ./... )
+
 # Integration tests using Godog. Populate env.sh with the hardware parameters
 integration-test:
 	( cd test/integration-test; sh run.sh )
 
-# Unit tests using Godog. Populate env.sh with the hardware parameters
-unit-test:
-	( cd test/unit-test; sh run.sh )
+# BDD tests using Godog. Populate env.sh with the hardware parameters
+bdd-test:
+	( cd test/bdd-test; sh run.sh )
 
 .PHONY: download-csm-common
 download-csm-common:
