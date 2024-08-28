@@ -156,7 +156,7 @@ func validateCreateFsFromSnapshot(ctx context.Context, sourceFilesystemResp *typ
 	}
 
 	// Validate the tieringPolicy parameter
-	if int64(sourceFilesystemResp.FileContent.TieringPolicy) != tieringPolicy {
+	if int64(sourceFilesystemResp.FileContent.TieringPolicy) != tieringPolicy { // #nosec G115 -- This is a false positive
 		return status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Source filesystem tiering policy %v is different than the requested tiering policy %v",
 			sourceFilesystemResp.FileContent.TieringPolicy, tieringPolicy))
 	}
@@ -200,9 +200,9 @@ func validateCreateVolumeFromSource(ctx context.Context, sourceVolResp *types.Vo
 	}
 
 	// Validate the size parameter
-	if int64(sourceVolResp.VolumeContent.SizeTotal) != size {
+	if int64(sourceVolResp.VolumeContent.SizeTotal) != size { // #nosec G115 -- This is a false positive
 		return status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Requested size %d should be same as source volume size %d",
-			size, int64(sourceVolResp.VolumeContent.SizeTotal)))
+			size, int64(sourceVolResp.VolumeContent.SizeTotal))) // #nosec G115 -- This is a false positive
 	}
 
 	return nil

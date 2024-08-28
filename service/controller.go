@@ -193,7 +193,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 		filesystem, _ := fileAPI.FindFilesystemByName(ctx, volName)
 		if filesystem != nil {
 			content := filesystem.FileContent
-			if int64(content.SizeTotal) == size && content.NASServer.ID == nasServer && content.Pool.ID == storagePool {
+			if int64(content.SizeTotal) == size && content.NASServer.ID == nasServer && content.Pool.ID == storagePool { // #nosec G115 -- This is a false positive
 				log.Info("Filesystem exists in the requested state with same size, NAS server and storage pool")
 				filesystem.FileContent.SizeTotal -= AdditionalFilesystemSize
 				return utils.GetVolumeResponseFromFilesystem(filesystem, arrayID, protocol, preferredAccessibility), nil
@@ -252,7 +252,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 		vol, _ := volumeAPI.FindVolumeByName(ctx, volName)
 		if vol != nil {
 			content := vol.VolumeContent
-			if int64(content.SizeTotal) == size {
+			if int64(content.SizeTotal) == size { // #nosec G115 -- This is a false positive
 				log.Info("Volume exists in the requested state with same size")
 				return utils.GetVolumeResponseFromVolume(vol, arrayID, protocol, preferredAccessibility), nil
 			}
@@ -846,7 +846,7 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 		if err != nil {
 			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find filesystem failed with error: %v", err))
 		}
-		expandVolumeResp.CapacityBytes = int64(filesystem.FileContent.SizeTotal) - AdditionalFilesystemSize
+		expandVolumeResp.CapacityBytes = int64(filesystem.FileContent.SizeTotal) - AdditionalFilesystemSize // #nosec G115 -- This is a false positive
 		expandVolumeResp.NodeExpansionRequired = false
 		return expandVolumeResp, err
 	}
@@ -878,7 +878,7 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 	if err != nil {
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find volume failed with error: %v", err))
 	}
-	expandVolumeResp.CapacityBytes = int64(volume.VolumeContent.SizeTotal)
+	expandVolumeResp.CapacityBytes = int64(volume.VolumeContent.SizeTotal) // #nosec G115 -- This is a false positive
 	expandVolumeResp.NodeExpansionRequired = nodeExpansionRequired
 	return expandVolumeResp, err
 }
@@ -896,7 +896,7 @@ func (s *service) getCSIVolumes(volumes []types.Volume) ([]*csi.ListVolumesRespo
 		// Create CSI volume
 		vi := &csi.Volume{
 			VolumeId:      vol.VolumeContent.ResourceID,
-			CapacityBytes: int64(vol.VolumeContent.SizeTotal),
+			CapacityBytes: int64(vol.VolumeContent.SizeTotal), // #nosec G115 -- This is a false positive
 			VolumeContext: attributes,
 		}
 
@@ -1170,7 +1170,7 @@ func (s *service) createVolumeClone(ctx context.Context, crParams *CRParams, sou
 			csiVolResp.Volume.ContentSource = contentSource
 			return csiVolResp, nil
 		}
-		fsSize := int64(filesystem.FileContent.SizeTotal - AdditionalFilesystemSize)
+		fsSize := int64(filesystem.FileContent.SizeTotal - AdditionalFilesystemSize) // #nosec G115 -- This is a false positive
 		if size != fsSize {
 			return nil, status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Requested size %d should be same as source volume size %d",
 				size, fsSize))

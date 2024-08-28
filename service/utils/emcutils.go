@@ -75,7 +75,7 @@ func getVolumeResponse(name, protocol, arrayID, resourceID string, size uint64, 
 
 	volumeReq := &csi.Volume{
 		VolumeId:           volID,
-		CapacityBytes:      int64(size),
+		CapacityBytes:      int64(size), // #nosec G115 -- This is a false positive
 		VolumeContext:      VolumeContext,
 		AccessibleTopology: preferredAccessibility,
 	}
