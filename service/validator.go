@@ -156,7 +156,7 @@ func validateCreateFsFromSnapshot(ctx context.Context, sourceFilesystemResp *typ
 	}
 
 	// Validate the tieringPolicy parameter
-	if int64(sourceFilesystemResp.FileContent.TieringPolicy) != tieringPolicy { // #nosec G115 -- This is a false positive
+	if int64(sourceFilesystemResp.FileContent.TieringPolicy) /* #nosec G115 -- This is a false positive */ != tieringPolicy {
 		return status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Source filesystem tiering policy %v is different than the requested tiering policy %v",
 			sourceFilesystemResp.FileContent.TieringPolicy, tieringPolicy))
 	}
