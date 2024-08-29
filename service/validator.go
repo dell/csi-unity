@@ -201,7 +201,7 @@ func validateCreateVolumeFromSource(ctx context.Context, sourceVolResp *types.Vo
 
 	// Validate the size parameter
 	if int64(sourceVolResp.VolumeContent.SizeTotal) /* #nosec G115 -- This is a false positive */ != size {
-		return status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Requested size %d should be same as source volume size %d",
+		return status.Errorf(codes.InvalidArgument, "%s", utils.GetMessageWithRunID(rid, "Requested size %d should be same as source volume size %d",
 			size, int64(sourceVolResp.VolumeContent.SizeTotal))) /* #nosec G115 -- This is a false positive */
 	}
 

@@ -1482,7 +1482,7 @@ func (s *service) disconnectVolume(ctx context.Context, volumeWWN, protocol stri
 		log.Debugf("Disconnect succesful for colume wwn %s", volumeWWN)
 		return nil
 	}
-	return status.Errorf(codes.Internal, utils.GetMessageWithRunID(rid, "disconnectVolume exceeded retry limit WWN %s devPath %s", volumeWWN, devPath))
+	return status.Errorf(codes.Internal, "%s", utils.GetMessageWithRunID(rid, "disconnectVolume exceeded retry limit WWN %s devPath %s", volumeWWN, devPath))
 }
 
 type publishContextData struct {
