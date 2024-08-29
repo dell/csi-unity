@@ -17,7 +17,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path"
@@ -1205,7 +1204,7 @@ func (s *service) checkVolumeMapping(ctx context.Context, volume *types.Volume, 
 		hostcontent := hostaccess.HostContent
 		hostAccessID := hostcontent.ID
 		if hostAccessID == hostID {
-			log.Debugf(fmt.Sprintf("Volume %s has been published to the current node %s.", volName, host.HostContent.Name))
+			log.Debugf("Volume %s has been published to the current node %s.", volName, host.HostContent.Name)
 			return hostaccess.HLU, nil
 		}
 	}
