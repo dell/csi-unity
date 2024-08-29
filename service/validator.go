@@ -281,12 +281,12 @@ func ValidateCreateVolumeRequest(ctx context.Context, req *csi.CreateVolumeReque
 	// Validate volume capabilities
 	vcs := req.GetVolumeCapabilities()
 	if len(vcs) == 0 {
-		return "", "", 0, 0, 0, false, false, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Controller Volume Capability are not provided"))
+		return "", "", 0, 0, 0, false, false, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "%s", "Controller Volume Capability are not provided"))
 	}
 
 	supported, reason := valVolumeCaps(vcs, protocol)
 	if !supported {
-		return "", "", 0, 0, 0, false, false, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Volume Capabilities are not supported. Reason=["+reason+"]"))
+		return "", "", 0, 0, 0, false, false, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "%s", "Volume Capabilities are not supported. Reason=["+reason+"]"))
 	}
 
 	return
