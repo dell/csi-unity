@@ -168,7 +168,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 
 		nasServer, ok := params[keyNasServer]
 		if !ok {
-			return nil, status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "`%s` is a required parameter", keyNasServer))
+			return nil, status.Errorf(codes.InvalidArgument, "%s", utils.GetMessageWithRunID(rid, "`%s` is a required parameter", keyNasServer))
 		}
 
 		// Add AdditionalFilesystemSize in size as Unity XT use this much size for metadata in filesystem
@@ -1152,7 +1152,7 @@ func (s *service) createVolumeClone(ctx context.Context, crParams *CRParams, sou
 			// Validate the size parameter
 			snapSize := int64(snapResp.SnapshotContent.Size - AdditionalFilesystemSize)
 			if snapSize != size {
-				return nil, status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Requested size %d should be same as source filesystem size %d", size, snapSize))
+				return nil, status.Errorf(codes.InvalidArgument, "%s", utils.GetMessageWithRunID(rid, "Requested size %d should be same as source filesystem size %d", size, snapSize))
 			}
 			// Idempotency check
 			snapResp, err := snapAPI.FindSnapshotByName(ctx, volName)
