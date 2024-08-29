@@ -287,7 +287,7 @@ func (s *service) checkIfNodeIsConnected(ctx context.Context, arrayID string, no
 		} else {
 			message = fmt.Sprintf("Host lookup failed. Error: %v", err)
 		}
-		log.Infof(message)
+		log.Infof("%s", message)
 		rep.Messages = append(rep.Messages, message)
 		rep.Connected = false
 		return nil
@@ -307,7 +307,7 @@ func (s *service) checkIfNodeIsConnected(ctx context.Context, arrayID string, no
 				healthContent := hostInitiator.HostInitiatorContent.Health
 				if healthContent.DescriptionIDs[0] == componentOkMessage {
 					message = fmt.Sprintf("FC Health is good for array:%s, Health:%s", arrayID, healthContent.DescriptionIDs[0])
-					log.Infof(message)
+					log.Infof("%s", message)
 					rep.Messages = append(rep.Messages, message)
 					rep.Connected = true
 					fcConnectivity = true
@@ -332,7 +332,7 @@ func (s *service) checkIfNodeIsConnected(ctx context.Context, arrayID string, no
 				healthContent := hostInitiator.HostInitiatorContent.Health
 				if healthContent.DescriptionIDs[0] == componentOkMessage {
 					message = fmt.Sprintf("iSCSI Health is good for array:%s, Health:%s", arrayID, healthContent.DescriptionIDs[0])
-					log.Infof(message)
+					log.Infof("%s", message)
 					rep.Messages = append(rep.Messages, message)
 					rep.Connected = true
 					break

@@ -17,7 +17,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path"
@@ -322,12 +321,12 @@ func (s *service) NodeUnstageVolume(
 		// Get the device mounts
 		dev, err := GetDevice(ctx, devicePath)
 		if err != nil {
-			return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, err.Error()))
+			return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "%s", err.Error()))
 		}
 		log.Debug("Rechecking dev mounts")
 		mnts, err := getDevMounts(ctx, dev)
 		if err != nil {
-			return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, err.Error()))
+			return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "%s", err.Error()))
 		}
 		if len(mnts) > 0 {
 			return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Device mounts still present after unmounting target and staging mounts %#v", mnts))
@@ -1205,7 +1204,7 @@ func (s *service) checkVolumeMapping(ctx context.Context, volume *types.Volume, 
 		hostcontent := hostaccess.HostContent
 		hostAccessID := hostcontent.ID
 		if hostAccessID == hostID {
-			log.Debugf(fmt.Sprintf("Volume %s has been published to the current node %s.", volName, host.HostContent.Name))
+			log.Debugf("Volume %s has been published to the current node %s.", volName, host.HostContent.Name)
 			return hostaccess.HLU, nil
 		}
 	}
@@ -1482,7 +1481,7 @@ func (s *service) disconnectVolume(ctx context.Context, volumeWWN, protocol stri
 		log.Debugf("Disconnect succesful for colume wwn %s", volumeWWN)
 		return nil
 	}
-	return status.Errorf(codes.Internal, utils.GetMessageWithRunID(rid, "disconnectVolume exceeded retry limit WWN %s devPath %s", volumeWWN, devPath))
+	return status.Errorf(codes.Internal, "%s", utils.GetMessageWithRunID(rid, "disconnectVolume exceeded retry limit WWN %s devPath %s", volumeWWN, devPath))
 }
 
 type publishContextData struct {
