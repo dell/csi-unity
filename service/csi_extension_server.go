@@ -287,7 +287,7 @@ func (s *service) checkIfNodeIsConnected(ctx context.Context, arrayID string, no
 		} else {
 			message = fmt.Sprintf("Host lookup failed. Error: %v", err)
 		}
-		log.Infof(message)
+		log.Infof("%s", message)
 		rep.Messages = append(rep.Messages, message)
 		rep.Connected = false
 		return nil

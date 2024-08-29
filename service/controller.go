@@ -1172,7 +1172,7 @@ func (s *service) createVolumeClone(ctx context.Context, crParams *CRParams, sou
 		}
 		fsSize := int64(filesystem.FileContent.SizeTotal - AdditionalFilesystemSize) /* #nosec G115 -- This is a false positive */
 		if size != fsSize {
-			return nil, status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Requested size %d should be same as source volume size %d",
+			return nil, status.Errorf(codes.InvalidArgument, "%s", utils.GetMessageWithRunID(rid, "Requested size %d should be same as source volume size %d",
 				size, fsSize))
 		}
 
@@ -1274,7 +1274,7 @@ func (s *service) createVolumeFromSnap(ctx context.Context, crParams *CRParams, 
 		// Validate the size parameter
 		snapSize := int64(snapResp.SnapshotContent.Size - AdditionalFilesystemSize)
 		if snapSize != size {
-			return nil, status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Requested size %d should be same as source snapshot size %d", size, snapSize))
+			return nil, status.Errorf(codes.InvalidArgument, "%s", utils.GetMessageWithRunID(rid, "Requested size %d should be same as source snapshot size %d", size, snapSize))
 		}
 
 		snapResp, err := snapAPI.FindSnapshotByName(ctx, volName)
@@ -1320,7 +1320,7 @@ func (s *service) createVolumeFromSnap(ctx context.Context, crParams *CRParams, 
 
 	// Validate the size parameter
 	if snapResp.SnapshotContent.Size != size {
-		return nil, status.Errorf(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Requested size %d should be same as source snapshot size %d", size, snapResp.SnapshotContent.Size))
+		return nil, status.Errorf(codes.InvalidArgument, "%s", utils.GetMessageWithRunID(rid, "Requested size %d should be same as source snapshot size %d", size, snapResp.SnapshotContent.Size))
 	}
 
 	volResp, _ := volumeAPI.FindVolumeByName(ctx, volName)
