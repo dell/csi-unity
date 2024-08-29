@@ -321,12 +321,12 @@ func (s *service) NodeUnstageVolume(
 		// Get the device mounts
 		dev, err := GetDevice(ctx, devicePath)
 		if err != nil {
-			return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, err.Error()))
+			return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "%s", err.Error()))
 		}
 		log.Debug("Rechecking dev mounts")
 		mnts, err := getDevMounts(ctx, dev)
 		if err != nil {
-			return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, err.Error()))
+			return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "%s", err.Error()))
 		}
 		if len(mnts) > 0 {
 			return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Device mounts still present after unmounting target and staging mounts %#v", mnts))

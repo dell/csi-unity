@@ -666,7 +666,7 @@ func (s *service) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsReque
 	// Process the source snapshots and make CSI Snapshot
 	entries, err := s.getCSISnapshots(snaps, req.SourceVolumeId, protocol, arrayID)
 	if err != nil {
-		return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, err.Error()))
+		return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "%s", err.Error()))
 	}
 	log.Debugf("ListSnapshot successful for snapid: [%s]", req.SnapshotId)
 	return &csi.ListSnapshotsResponse{
