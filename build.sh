@@ -34,7 +34,7 @@ function build_image {
    echo ${DEFAULT_GOIMAGE}
    bash build_ubi_micro.sh ${BASE_UBI_IMAGE}
    echo $BUILDCMD build -t ${IMAGE_NAME}:${IMAGE_TAG} .
-   (cd .. && $BUILDCMD build -t ${IMAGE_NAME}:${IMAGE_TAG} --build-arg GOIMAGE=$DEFAULT_GOIMAGE --build-arg GOPROXY=$GOPROXY -f csi-unity/Dockerfile.podman . --format=docker)
+   (cd .. && $BUILDCMD build ${NOCACHE} -t ${IMAGE_NAME}:${IMAGE_TAG} --build-arg GOIMAGE=$DEFAULT_GOIMAGE --build-arg GOPROXY=$GOPROXY -f csi-unity/Dockerfile.podman . --format=docker)
    echo $BUILDCMD tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_REPO}/${IMAGE_REPO_NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}
    $BUILDCMD tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_REPO}/${IMAGE_REPO_NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}
 }
@@ -51,6 +51,7 @@ BIN_NAME=${NAME}
 IMAGE_REPO=dellemc
 IMAGE_REPO_NAMESPACE=csi-unity
 IMAGE_TAG=${IMAGE_TAG:-$(date +%Y%m%d%H%M%S)}
+NOCACHE=
 
 # Read options
 for param in $*; do
@@ -69,6 +70,10 @@ for param in $*; do
     shift
     PUSH_IMAGE='true'
     ;;
+  "--no-cache")
+      shift
+      NOCACHE='--no-cache'
+      ;;
   esac
 done
 

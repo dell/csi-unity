@@ -46,6 +46,14 @@ podman-push: download-csm-common go-build
 	$(eval include csm-common.mk)
 	sh build.sh --baseubi $(DEFAULT_BASEIMAGE) --goimage $(DEFAULT_GOIMAGE) --push
 
+podman-build-no-cache: download-csm-common go-build
+	$(eval include csm-common.mk)
+	sh build.sh --baseubi $(DEFAULT_BASEIMAGE) --goimage $(DEFAULT_GOIMAGE) --no-cache
+
+podman-no-cachepush: download-csm-common go-build
+	$(eval include csm-common.mk)
+	sh build.sh --baseubi $(DEFAULT_BASEIMAGE) --goimage $(DEFAULT_GOIMAGE) --push --no-cache
+
 #
 # Docker-related tasks
 #
