@@ -205,7 +205,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 
 		log.Debug("Filesystem does not exist, proceeding to create new filesystem")
 		// Hardcoded ProtocolNFS to 0 in order to support only NFS
-		resp, err := fileAPI.CreateFilesystem(ctx, volName, storagePool, desc, nasServer, uint64(size), int(tieringPolicy), int(hostIoSize), ProtocolNFS, thin, dataReduction)
+		resp, err := fileAPI.CreateFilesystem(ctx, volName, storagePool, desc, nasServer, uint64(size), int(tieringPolicy), int(hostIoSize), ProtocolNFS, thin, dataReduction) // #nosec G115 - This is a false positive
 		// Add method to create filesystem
 		if err != nil {
 			log.Debugf("Filesystem create response:%v Error:%v", resp, err)
@@ -261,7 +261,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 		}
 
 		log.Debug("Volume does not exist, proceeding to create new volume")
-		resp, err := volumeAPI.CreateLun(ctx, volName, storagePool, desc, uint64(size), int(tieringPolicy), hostIOLimitID, thin, dataReduction)
+		resp, err := volumeAPI.CreateLun(ctx, volName, storagePool, desc, uint64(size), int(tieringPolicy), hostIOLimitID, thin, dataReduction) // #nosec G115 - This is a false positive
 		if err != nil {
 			return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Create Volume %s failed with error: %v", volName, err))
 		}
@@ -831,13 +831,13 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 		}
 
 		// Idempotency check
-		if filesystem.FileContent.SizeTotal >= uint64(capacity) {
+		if filesystem.FileContent.SizeTotal >= uint64(capacity) { // #nosec G115 - This is a false positive
 			log.Infof("New Filesystem size (%d) is lower or same as existing Filesystem size. Ignoring expand volume operation.", filesystem.FileContent.SizeTotal)
 			expandVolumeResp.NodeExpansionRequired = false
 			return expandVolumeResp, nil
 		}
 
-		err = filesystemAPI.ExpandFilesystem(ctx, volID, uint64(capacity))
+		err = filesystemAPI.ExpandFilesystem(ctx, volID, uint64(capacity)) // #nosec G115 - This is a false positive
 		if err != nil {
 			return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Expand filesystem failed with error: %v", err))
 		}
