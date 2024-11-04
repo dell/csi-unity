@@ -11,5 +11,5 @@ on:
         default: 'none'
 jobs:
   csm-release:
-    uses: dell/common-github-actions/.github/workflows/csm-release-libs.yaml@feature/driver-automation
-    name: Release CSI Driver
+    uses: dell/common-github-actions/.github/workflows/csm-release-driver-module.yaml@feature/driver-automation
+    name: Release CSM Drivers and Modules
