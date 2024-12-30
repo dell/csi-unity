@@ -10,5 +10,5 @@ driver: csi-unity.dellemc.com
 #   Retain: both the underlying snapshot and VolumeSnapshotContent remain.
 # Default value: None
 # Optional: false
-# Examples: Delete  
+# Examples: Delete
 deletionPolicy: Delete
