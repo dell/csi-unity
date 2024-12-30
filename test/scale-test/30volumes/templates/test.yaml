@@ -1,324 +1,387 @@
 kind: StatefulSet
 apiVersion: apps/v1
 metadata:
-    name: unitytest
-    namespace: test
+  name: unitytest
+  namespace: test
 spec:
-    serviceName: unitytest-30vol
-    replicas: {{ required "replicas required" .Values.replicas }}
-    selector:
-        matchLabels:
-          app: unitytest
-    template:
-      metadata:
-        labels:
-          app: unitytest
-      spec:
-        serviceAccount: unitytest
-        hostNetwork: true
-        containers:
-          - name: test
-            image: docker.io/centos:latest
-            command: [ "/bin/sleep", "3600" ]
-            volumeMounts:
-              - mountPath: "/data0"
-                name: unityvolx0
-              - mountPath: "/data1"
-                name: unityvolx1
-              - mountPath: "/data2"
-                name: unityvolx2
-              - mountPath: "/data3"
-                name: unityvolx3
-              - mountPath: "/data4"
-                name: unityvolx4
-              - mountPath: "/data5"
-                name: unityvolx5
-              - mountPath: "/data6"
-                name: unityvolx6
-              - mountPath: "/data7"
-                name: unityvolx7
-              - mountPath: "/data8"
-                name: unityvolx8
-              - mountPath: "/data9"
-                name: unityvolx9
-              - mountPath: "/data10"
-                name: unityvolx10
-              - mountPath: "/data11"
-                name: unityvolx11
-              - mountPath: "/data12"
-                name: unityvolx12
-              - mountPath: "/data13"
-                name: unityvolx13
-              - mountPath: "/data14"
-                name: unityvolx14
-              - mountPath: "/data15"
-                name: unityvolx15
-              - mountPath: "/data16"
-                name: unityvolx16
-              - mountPath: "/data17"
-                name: unityvolx17
-              - mountPath: "/data18"
-                name: unityvolx18
-              - mountPath: "/data19"
-                name: unityvolx19
-              - mountPath: "/data20"
-                name: unityvolx20
-              - mountPath: "/data21"
-                name: unityvolx21
-              - mountPath: "/data22"
-                name: unityvolx22
-              - mountPath: "/data23"
-                name: unityvolx23
-              - mountPath: "/data24"
-                name: unityvolx24
-              - mountPath: "/data25"
-                name: unityvolx25
-              - mountPath: "/data26"
-                name: unityvolx26
-              - mountPath: "/data27"
-                name: unityvolx27
-              - mountPath: "/data28"
-                name: unityvolx28
-              - mountPath: "/data29"
-                name: unityvolx29
-    volumeClaimTemplates:
+  serviceName: unitytest-30vol
+  replicas:
+    '[object Object]': null
+  selector:
+    matchLabels:
+      app: unitytest
+  template:
+    metadata:
+      labels:
+        app: unitytest
+    spec:
+      serviceAccount: unitytest
+      hostNetwork: true
+      containers:
+        - name: test
+          image: 'docker.io/centos:latest'
+          command:
+            - /bin/sleep
+            - '3600'
+          volumeMounts:
+            - mountPath: /data0
+              name: unityvolx0
+            - mountPath: /data1
+              name: unityvolx1
+            - mountPath: /data2
+              name: unityvolx2
+            - mountPath: /data3
+              name: unityvolx3
+            - mountPath: /data4
+              name: unityvolx4
+            - mountPath: /data5
+              name: unityvolx5
+            - mountPath: /data6
+              name: unityvolx6
+            - mountPath: /data7
+              name: unityvolx7
+            - mountPath: /data8
+              name: unityvolx8
+            - mountPath: /data9
+              name: unityvolx9
+            - mountPath: /data10
+              name: unityvolx10
+            - mountPath: /data11
+              name: unityvolx11
+            - mountPath: /data12
+              name: unityvolx12
+            - mountPath: /data13
+              name: unityvolx13
+            - mountPath: /data14
+              name: unityvolx14
+            - mountPath: /data15
+              name: unityvolx15
+            - mountPath: /data16
+              name: unityvolx16
+            - mountPath: /data17
+              name: unityvolx17
+            - mountPath: /data18
+              name: unityvolx18
+            - mountPath: /data19
+              name: unityvolx19
+            - mountPath: /data20
+              name: unityvolx20
+            - mountPath: /data21
+              name: unityvolx21
+            - mountPath: /data22
+              name: unityvolx22
+            - mountPath: /data23
+              name: unityvolx23
+            - mountPath: /data24
+              name: unityvolx24
+            - mountPath: /data25
+              name: unityvolx25
+            - mountPath: /data26
+              name: unityvolx26
+            - mountPath: /data27
+              name: unityvolx27
+            - mountPath: /data28
+              name: unityvolx28
+            - mountPath: /data29
+              name: unityvolx29
+  volumeClaimTemplates:
     - metadata:
         name: unityvolx0
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx1
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx2
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx3
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx4
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx5
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx6
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx7
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx8
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx9
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx10
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx11
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx12
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx13
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx14
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx15
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx16
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx17
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx18
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx19
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx20
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx21
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx22
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx23
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx24
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx25
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx26
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx27
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx28
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
     - metadata:
         name: unityvolx29
       spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: {{ required "StorageClassName required" .Values.StorageClassName }}
+        accessModes:
+          - ReadWriteOnce
+        storageClassName:
+          '[object Object]': null
         resources:
           requests:
             storage: 8Gi
