@@ -41,6 +41,11 @@ function source-verify-driver() {
   fi
 }
 
+function is_snapshot_enabled() {
+snapshot_enabled=$(sed -n '/snapshot:/,/resizer:/p' "$VALUES" | grep -v '^\s*#' | grep "enabled:" | awk '{print $2}')
+echo ${snapshot_enabled}
+}
+
 
 #
 # verify-driver will call the proper method to verify a specific driver
