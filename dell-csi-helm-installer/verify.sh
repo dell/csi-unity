@@ -43,7 +43,6 @@ function source-verify-driver() {
 
 function is_snapshot_enabled() {
 snapshot_enabled=$(sed -n '/snapshot:/,/resizer:/p' "$VALUES" | grep -v '^\s*#' | grep "enabled:" | awk '{print $2}')
-echo ${snapshot_enabled}
 }
 
 
