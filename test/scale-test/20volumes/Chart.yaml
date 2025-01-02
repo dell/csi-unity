@@ -4,6 +4,6 @@ appVersion: 1.0.0
 description: |
   Tests CSI Unity XT deployments.
 keywords:
-- csi-unity
-- storage
+ - csi-unity
+ - storage
 engine: gotpl

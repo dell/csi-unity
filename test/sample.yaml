@@ -13,7 +13,7 @@
 #
 # After that you can uninstall the testing PVCs and StatefulSet
 # > kubectl delete -f ./tests/simple/
-# 
+#
 apiVersion: v1
 kind: Namespace
 metadata:

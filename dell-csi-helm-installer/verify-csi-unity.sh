@@ -15,13 +15,17 @@ function verify-csi-unity() {
   verify_namespace "${NS}"
   verify_required_secrets "${RELEASE}-creds"
   verify_optional_secrets "${RELEASE}-certs"
-  verify_alpha_snap_resources
+  snapshot_value=$(is_snapshot_enabled)
+  if [ "$snapshot_value" == "true" ]; then
+    verify_alpha_snap_resources
+  fi
   verify_unity_protocol_installation
-  verify_snap_requirements  
+  if [ "$snapshot_value" == "true" ]; then
+    verify_snap_requirements 
+  fi
   verify_helm_3
   verify_helm_values_version "${DRIVER_VERSION}"
 }
-
 
 function verify_unity_protocol_installation() {
 if [ ${NODE_VERIFY} -eq 0 ]; then
