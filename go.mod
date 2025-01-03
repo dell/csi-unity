@@ -1,7 +1,8 @@
 module github.com/dell/csi-unity
 
 go 1.23
-toolchain go1.23.2
+
+toolchain go1.23.4
 
 require (
 	github.com/container-storage-interface/spec v1.11.0
