@@ -65,13 +65,15 @@ func TestMain(m *testing.M) {
 	grpcClient, stop = startServer(ctx)
 	fmt.Printf("back from startServer")
 	time.Sleep(5 * time.Second)
-
-	exitVal := godog.RunWithOptions("godog", func(s *godog.Suite) {
-		FeatureContext(s)
-	}, godog.Options{
+	opt := godog.Options{
 		Format: "pretty",
 		Paths:  []string{"features"},
-	})
+	}
+	exitVal := godog.TestSuite{
+		Name:                "godog",
+		ScenarioInitializer: FeatureContext,
+		Options:             &opt,
+	}.Run()
 	if st := m.Run(); st > exitVal {
 		exitVal = st
 	}
