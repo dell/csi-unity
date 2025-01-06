@@ -1310,7 +1310,7 @@ func (f *feature) whenICallGetCapacity() error {
 	return nil
 }
 
-func FeatureContext(s *godog.Suite) {
+func FeatureContext(s *godog.ScenarioContext) {
 	f := &feature{}
 	s.Step(`^a CSI service$`, f.aCSIService)
 	s.Step(`^a CSI service with node$`, f.aCSIServiceWithNode)

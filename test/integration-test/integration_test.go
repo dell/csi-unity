@@ -707,7 +707,7 @@ func (f *feature) whenICallNodeGetCapabilities() error {
 	return nil
 }
 
-func FeatureContext(s *godog.Suite) {
+func FeatureContext(s *godog.ScenarioContext) {
 	f := &feature{}
 	s.Step(`^a CSI service$`, f.aCSIService)
 	s.Step(`^a basic block volume request name "([^"]*)" arrayId "([^"]*)" protocol "([^"]*)" size "(\d+)"$`, f.aBasicBlockVolumeRequest)

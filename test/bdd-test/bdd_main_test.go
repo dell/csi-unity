@@ -79,10 +79,11 @@ func TestMain(m *testing.M) {
 	flag.Parse()
 	opt.Format = "pretty"
 	opt.Paths = []string{"features"}
-
-	exitVal := godog.RunWithOptions("godog", func(s *godog.Suite) {
-		FeatureContext(s)
-	}, opt)
+	exitVal := godog.TestSuite{
+		Name:                "godog",
+		ScenarioInitializer: FeatureContext,
+		Options:             &opt,
+	}.Run()
 	if st := m.Run(); st > exitVal {
 		exitVal = st
 	}
