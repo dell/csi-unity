@@ -24,10 +24,12 @@ ENTRYPOINT ["/run.sh"]
 # final stage
 FROM driver as final
 
-LABEL vendor="Dell Inc." \
+LABEL vendor="Dell Technologies" \
+      maintainer="Dell Technologies" \
       name="csi-unity" \
       summary="CSI Driver for Dell Unity XT" \
       description="CSI Driver for provisioning persistent storage from Dell Unity XT" \
+      release="1.13.0" \
       version="2.13.0" \
       license="Apache-2.0"
 COPY csi-unity/licenses /licenses
