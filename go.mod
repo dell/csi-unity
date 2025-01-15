@@ -8,7 +8,7 @@ require (
 	github.com/container-storage-interface/spec v1.6.0
 	github.com/cucumber/godog v0.15.0
 	github.com/dell/dell-csi-extensions/podmon v1.7.0
-	github.com/dell/gobrick v1.13.0
+	github.com/dell/gobrick v1.13.1
 	github.com/dell/gocsi v1.13.0
 	github.com/dell/gofsutil v1.18.0
 	github.com/dell/goiscsi v1.11.0
@@ -21,7 +21,7 @@ require (
 	go.uber.org/atomic v1.11.0
 	golang.org/x/net v0.34.0
 	google.golang.org/grpc v1.69.4
-	google.golang.org/protobuf v1.36.2
+	google.golang.org/protobuf v1.36.3
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/apimachinery v0.22.2

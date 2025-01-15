@@ -74,8 +74,8 @@ github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dell/dell-csi-extensions/podmon v1.7.0 h1:gIxhaUB6rwLFMnj+xVk/GSEOW0EGHT5BiI8aI59DaaA=
 github.com/dell/dell-csi-extensions/podmon v1.7.0/go.mod h1:ODlchec6u+c05nnQ/IlkY94ctnvcr4LATl2PuYt7Hfk=
-github.com/dell/gobrick v1.13.0 h1:8CWC1NLC/F87SfO7fEA68WVvgkNZwykoZU+hevERt7g=
-github.com/dell/gobrick v1.13.0/go.mod h1:uxvqhDXo4GrfPJP+VKi/95rxmxkqa0GcLOzkeJi//ok=
+github.com/dell/gobrick v1.13.1 h1:RGSTw8f+qqT8S06a2R4pDjEXyl/07hpdFduJ1YR5dWA=
+github.com/dell/gobrick v1.13.1/go.mod h1:KDuns/FhqbcYgOV/VULvgema8t4sF35oxbBTW7Nw+cg=
 github.com/dell/gocsi v1.13.0 h1:agiPFOYlcnoe4bdBXu8zECfNAspm51Vb/MgSlYVaxvU=
 github.com/dell/gocsi v1.13.0/go.mod h1:G74XoRObNZyO/H3g/h3yJzNf1TyoyaBaLPt/kg+8EcU=
 github.com/dell/gofsutil v1.18.0 h1:dZiZjBZLqHqEQw97yU4x0SR3ydF22dw7tqNS8Fvvl2c=
@@ -615,8 +615,8 @@ google.golang.org/protobuf v1.22.0/go.mod h1:EGpADcykh3NcUnDUJcl1+ZksZNG86OlYog2
 google.golang.org/protobuf v1.23.0/go.mod h1:EGpADcykh3NcUnDUJcl1+ZksZNG86OlYog2l/sGQquU=
 google.golang.org/protobuf v1.23.1-0.20200526195155-81db48ad09cc/go.mod h1:EGpADcykh3NcUnDUJcl1+ZksZNG86OlYog2l/sGQquU=
 google.golang.org/protobuf v1.25.0/go.mod h1:9JNX74DMeImyA3h4bdi1ymwjUzf21/xIlbajtzgsN7c=
-google.golang.org/protobuf v1.36.2 h1:R8FeyR1/eLmkutZOM5CWghmo5itiG9z0ktFlTVLuTmU=
-google.golang.org/protobuf v1.36.2/go.mod h1:9fA7Ob0pmnwhb644+1+CVWFRbNajQ6iRojtC/QF5bRE=
+google.golang.org/protobuf v1.36.3 h1:82DV7MYdb8anAVi3qge1wSnMDrnKK7ebr+I0hHRN1BU=
+google.golang.org/protobuf v1.36.3/go.mod h1:9fA7Ob0pmnwhb644+1+CVWFRbNajQ6iRojtC/QF5bRE=
 gopkg.in/alecthomas/kingpin.v2 v2.2.6/go.mod h1:FMv+mEhP44yOT+4EoQTLFTRgOQ1FBLkstjWtayDeSgw=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
