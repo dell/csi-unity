@@ -40,19 +40,19 @@ download-csm-common:
 # Generates the docker container (but does not push)
 podman-build: download-csm-common go-build
 	$(eval include csm-common.mk)
-	sh build.sh --baseubi $(DEFAULT_BASEIMAGE) --goimage $(DEFAULT_GOIMAGE)
+	sh build.sh --baseimage $(CSM_BASEIMAGE) --goimage $(DEFAULT_GOIMAGE)
 
 podman-push: download-csm-common go-build
 	$(eval include csm-common.mk)
-	sh build.sh --baseubi $(DEFAULT_BASEIMAGE) --goimage $(DEFAULT_GOIMAGE) --push
+	sh build.sh --baseimage $(CSM_BASEIMAGE) --goimage $(DEFAULT_GOIMAGE) --push
 
 podman-build-no-cache: download-csm-common go-build
 	$(eval include csm-common.mk)
-	sh build.sh --baseubi $(DEFAULT_BASEIMAGE) --goimage $(DEFAULT_GOIMAGE) --no-cache
+	sh build.sh --baseimage $(CSM_BASEIMAGE) --goimage $(DEFAULT_GOIMAGE) --no-cache
 
 podman-no-cachepush: download-csm-common go-build
 	$(eval include csm-common.mk)
-	sh build.sh --baseubi $(DEFAULT_BASEIMAGE) --goimage $(DEFAULT_GOIMAGE) --push --no-cache
+	sh build.sh --baseimage $(CSM_BASEIMAGE) --goimage $(DEFAULT_GOIMAGE) --push --no-cache
 
 #
 # Docker-related tasks

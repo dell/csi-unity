@@ -14,7 +14,7 @@ RUN go run core/semver/semver.go -f mk
 
 # Dockerfile to build Unity CSI Driver
 # Fetching the base ubi micro image with the require packges committed using buildah
-FROM localhost/csiunity-ubimicro as driver
+FROM BASEIMAGE as driver
 
 COPY --from=builder /go/src/csi-unity/bin/csi-unity /
 COPY csi-unity/scripts/run.sh /

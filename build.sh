@@ -30,11 +30,8 @@ function git_version {
 
 
 function build_image {
-   echo ${BASE_UBI_IMAGE}
-   echo ${DEFAULT_GOIMAGE}
-   bash build_ubi_micro.sh ${BASE_UBI_IMAGE}
-   echo $BUILDCMD build ${NOCACHE} -t ${IMAGE_NAME}:${IMAGE_TAG} .
-   (cd .. && $BUILDCMD build ${NOCACHE} -t ${IMAGE_NAME}:${IMAGE_TAG} --build-arg GOIMAGE=$DEFAULT_GOIMAGE --build-arg GOPROXY=$GOPROXY -f csi-unity/Dockerfile.podman . --format=docker)
+   echo $BUILDCMD build ${NOCACHE} -t ${IMAGE_NAME}:${IMAGE_TAG} GOIMAGE=$DEFAULT_GOIMAGE BASEIMAGE=$CSM_BASEIMAGE .
+   (cd .. && $BUILDCMD build ${NOCACHE} -t ${IMAGE_NAME}:${IMAGE_TAG} --build-arg GOIMAGE=$DEFAULT_GOIMAGE --build-arg BASEIMAGE=$CSM_BASEIMAGE --build-arg GOPROXY=$GOPROXY -f csi-unity/Dockerfile.podman . --format=docker)
    echo $BUILDCMD tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_REPO}/${IMAGE_REPO_NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}
    $BUILDCMD tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_REPO}/${IMAGE_REPO_NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}
 }
@@ -56,9 +53,9 @@ NOCACHE=
 # Read options
 for param in $*; do
   case $param in
-  "--baseubi")
+  "--baseimage")
     shift
-    BASE_UBI_IMAGE=$1
+    CSM_BASEIMAGE=$1
     shift
     ;;
   "--goimage")
