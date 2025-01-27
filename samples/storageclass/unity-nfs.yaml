@@ -24,8 +24,8 @@ provisioner: csi-unity.dellemc.com
 reclaimPolicy: Delete
 # allowVolumeExpansion - Attribute to allow volume expansion
 # Allowed values:
-    #   "true"  - Volume can be resized
-    #   "false" - Volume cannot be resized
+#   "true"  - Volume can be resized
+#   "false" - Volume cannot be resized
 # Default value: "true"
 # Optional: true
 allowVolumeExpansion: true
