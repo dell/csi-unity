@@ -31,7 +31,7 @@ function git_version {
 
 function build_image {
    echo $BUILDCMD build ${NOCACHE} -t ${IMAGE_NAME}:${IMAGE_TAG} GOIMAGE=$DEFAULT_GOIMAGE BASEIMAGE=$CSM_BASEIMAGE .
-   (cd .. && $BUILDCMD build ${NOCACHE} -t ${IMAGE_NAME}:${IMAGE_TAG} --build-arg GOIMAGE=$DEFAULT_GOIMAGE --build-arg BASEIMAGE=$CSM_BASEIMAGE --build-arg GOPROXY=$GOPROXY -f csi-unity/Dockerfile.podman . --format=docker)
+   (cd .. && $BUILDCMD build --pull ${NOCACHE} -t ${IMAGE_NAME}:${IMAGE_TAG} --build-arg GOIMAGE=$DEFAULT_GOIMAGE --build-arg BASEIMAGE=$CSM_BASEIMAGE --build-arg GOPROXY=$GOPROXY -f csi-unity/Dockerfile.podman . --format=docker)
    echo $BUILDCMD tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_REPO}/${IMAGE_REPO_NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}
    $BUILDCMD tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_REPO}/${IMAGE_REPO_NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}
 }
