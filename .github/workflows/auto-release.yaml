@@ -1,4 +1,4 @@
-name: Auto Release CSI-Powerscale
+name: Auto Release CSI-Unity
 on:  # yamllint disable-line rule:truthy
   workflow_dispatch:
   repository_dispatch:
