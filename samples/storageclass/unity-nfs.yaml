@@ -24,8 +24,8 @@ provisioner: csi-unity.dellemc.com
 reclaimPolicy: Delete
 # allowVolumeExpansion - Attribute to allow volume expansion
 # Allowed values:
-    #   "true"  - Volume can be resized
-    #   "false" - Volume cannot be resized
+#   "true"  - Volume can be resized
+#   "false" - Volume cannot be resized
 # Default value: "true"
 # Optional: true
 allowVolumeExpansion: true
@@ -53,27 +53,27 @@ parameters:
   # Default value: None
   # Examples: "APM000000001", "APM000000002"
   arrayId: <ARRAY_ID>
-  #storagePool - Defines storage pool. The value should be picked from the column labeled "CLI ID" of Pools in the Unisphere GUI.
+  # storagePool - Defines storage pool. The value should be picked from the column labeled "CLI ID" of Pools in the Unisphere GUI.
   # Allowed values: String
   # Default value: None
   # Optional: false
   # Examples: pool_0
   storagePool: <STORAGE_POOL>
-  #thinProvisioned- Defines Boolean to choose value of thinProvisioned while creating a new volume
+  # thinProvisioned- Defines Boolean to choose value of thinProvisioned while creating a new volume
   # Allowed values:
   #    "true"      - for thin provision
   #    "false"     - for thick provision
   # Default value: false
   # Optional: true
   thinProvisioned: "true"
-  #isDataReductionEnabled - Defines Boolean to choose value of is DataReductionEnabled while creating a new volume
+  # isDataReductionEnabled - Defines Boolean to choose value of is DataReductionEnabled while creating a new volume
   # Allowed values:
   #    "true"      - Enables data reduction for all-flash storage pool.
   #    "false"     - Disables data reduction.
   # Optional: true
   # Default value: false
   isDataReductionEnabled: "true"
-  #TieringPolicy - Tiering policy to be used during provisioning
+  # TieringPolicy - Tiering policy to be used during provisioning
   #                Requires FAST VP license.
   # Allowed values: String
   # Optional: true
