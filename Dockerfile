@@ -35,4 +35,4 @@ LABEL vendor="Dell Technologies" \
       release="1.13.0" \
       version="2.13.0" \
       license="Apache-2.0"
-COPY csi-unity/licenses /licenses
+COPY licenses /licenses
