@@ -24,7 +24,7 @@ docker-build:
 	go run core/semver/semver.go -f mk >semver.mk
 	mkdir -p ${BIN_DIR}
 	GOOS=linux CGO_ENABLED=0 GOARCH=amd64 go build -ldflags '-extldflags "-static"' -o ${BIN_DIR}/${BIN_NAME}
-	docker build -t ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} .
+	docker build --pull -t ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} --build-arg GOPROXY=$(GOPROXY) --build-arg BASEIMAGE=$(CSM_BASEIMAGE) --build-arg GOIMAGE=$(DEFAULT_GOIMAGE) .
 	docker tag ${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} ${DOCKER_REPO}/${DOCKER_NAMESPACE}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}
 
 .PHONY: docker-push

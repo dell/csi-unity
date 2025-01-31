@@ -20,7 +20,7 @@ RUN go run core/semver/semver.go -f mk
 FROM $BASEIMAGE as driver
 
 COPY --from=builder /go/src/csi-unity/bin/csi-unity /
-COPY csi-unity/scripts/run.sh /
+COPY scripts/run.sh /
 RUN chmod 777 /run.sh
 ENTRYPOINT ["/run.sh"]
 
