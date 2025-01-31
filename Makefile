@@ -7,7 +7,7 @@ ifneq (on,$(GO111MODULE))
 export GO111MODULE := on
 endif
 
-IMAGE_NAME=csi-unity-$(USER)
+IMAGE_NAME=csi-unity
 IMAGE_REGISTRY=dellemc
 IMAGE_TAG=$(shell date +%Y%m%d%H%M%S)
 
@@ -58,7 +58,6 @@ podman-push:
 #
 # Generates the docker container (but does not push)
 docker-build: download-csm-common go-build
-	$(eval include csm-common.mk)
 	cd core && go generate
 	go run core/semver/semver.go -f mk >semver.mk
 	make -f docker.mk docker-build
