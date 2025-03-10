@@ -1,5 +1,5 @@
 /*
- Copyright © 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+ Copyright © 2020-2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -206,4 +206,8 @@ func GetRunidAndLogger(ctx context.Context) (string, *logrus.Entry) {
 		return rid, tempLog.(*logrus.Entry)
 	}
 	return rid, nil
+}
+
+var GetRunidAndLoggerWrapper = func(ctx context.Context) (string, *logrus.Entry) {
+	return GetRunidAndLogger(ctx)
 }
