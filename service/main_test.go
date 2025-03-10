@@ -44,20 +44,20 @@ func TestMain(m *testing.M) {
 	os.Setenv("X_CSI_DEBUG", "true")
 
 	// for this tutorial, we will hard code it to config.txt
-	testProp, err := readTestProperties("../test.properties")
-	if err != nil {
-		panic("The system cannot find the file specified")
-	}
+	// testProp, err := readTestProperties("../test.properties")
+	// if err != nil {
+	// 	panic("The system cannot find the file specified")
+	// }
 
-	if err != nil {
-		fmt.Println(err)
-	}
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
 	testConf = &testConfig{}
 
-	testConf.unityConfig = testProp["DRIVER_CONFIG"]
+	// testConf.unityConfig = testProp["DRIVER_CONFIG"]
 	testConf.service = new(service)
 	DriverConfig = testConf.unityConfig
-	os.Setenv("X_CSI_UNITY_NODENAME", testProp["X_CSI_UNITY_NODENAME"])
+	// os.Setenv("X_CSI_UNITY_NODENAME", testProp["X_CSI_UNITY_NODENAME"])
 	testConf.service.BeforeServe(context.Background(), nil, nil)
 	fmt.Println()
 

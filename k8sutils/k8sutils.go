@@ -1,5 +1,5 @@
 /*
- Copyright © 2020 Dell Inc. or its subsidiaries. All Rights Reserved.
+ Copyright © 2020-2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,16 +18,36 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/kubernetes-csi/csi-lib-utils/leaderelection"
+	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+var (
+	buildConfigFromFlags = clientcmd.BuildConfigFromFlags
+	newForConfig         = kubernetes.NewForConfig
+	inClusterConfig      = rest.InClusterConfig
+)
+
+// leaderElection interface
 type leaderElection interface {
 	Run() error
 	WithNamespace(namespace string)
+}
+
+// ExitFunc is a variable that holds the os.Exit function
+var ExitFunc = os.Exit
+
+// RunLeaderElection runs the leader election and handles errors
+func RunLeaderElection(le leaderElection) {
+	if err := le.Run(); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "failed to initialize leader election: %v", err)
+		ExitFunc(1)
+	}
 }
 
 // CreateKubeClientSet - Returns kubeclient set
@@ -59,11 +79,27 @@ func CreateKubeClientSet(kubeconfig string) (*kubernetes.Clientset, error) {
 }
 
 // LeaderElection - Initialize leader selection
-func LeaderElection(clientset *kubernetes.Clientset, lockName string, namespace string, runFunc func(ctx context.Context)) {
+func LeaderElection(clientset *kubernetes.Clientset, lockName string, namespace string,
+	leaderElectionRenewDeadline, leaderElectionLeaseDuration, leaderElectionRetryPeriod time.Duration, runFunc func(ctx context.Context),
+) {
+	log.Info("Starting leader election setup...")
+
 	le := leaderelection.NewLeaderElection(clientset, lockName, runFunc)
+	log.Infof("Leader election created with lock name: %s", lockName)
+
 	le.WithNamespace(namespace)
-	if err := le.Run(); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "failed to initialize leader election: %v", err)
-		os.Exit(1)
-	}
+	log.Infof("Namespace set to: %s", namespace)
+
+	le.WithLeaseDuration(leaderElectionLeaseDuration)
+	log.Infof("Lease duration set to: %v", leaderElectionLeaseDuration)
+
+	le.WithRenewDeadline(leaderElectionRenewDeadline)
+	log.Infof("Renew deadline set to: %v", leaderElectionRenewDeadline)
+
+	le.WithRetryPeriod(leaderElectionRetryPeriod)
+	log.Infof("Retry period set to: %v", leaderElectionRetryPeriod)
+
+	log.Info("Running leader election...")
+	RunLeaderElection(le)
+	log.Info("Leader election completed.")
 }
