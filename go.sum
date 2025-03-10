@@ -1,3 +1,5 @@
+bou.ke/monkey v1.0.2 h1:kWcnsrCNUatbxncxR/ThdYqbytgOIArtYWqcQLQzKLI=
+bou.ke/monkey v1.0.2/go.mod h1:OqickVX3tNx6t33n1xvtTtu85YN5s6cKwVug+oHMaIA=
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.38.0/go.mod h1:990N+gfupTy94rShfmMCWGDn0LpTmnzTp2qbd1dvSRU=
@@ -84,8 +86,8 @@ github.com/dell/goiscsi v1.11.0 h1:DkopmZ1HVa/lueAOgQLfl+z9pntjJzCDTm2ljx9wI5k=
 github.com/dell/goiscsi v1.11.0/go.mod h1:uDXlWSh0w5BdLr5XhPKUyNpkJDTc0jmnz/u6QcPkIyA=
 github.com/dell/gonvme v1.10.1 h1:SNSrp3aI/h2wL0x663iinxrqv5TCNGHgTb/lbYEd+Y4=
 github.com/dell/gonvme v1.10.1/go.mod h1:FdClafOpCLMtvGMLgf7n3SPeDnweKV6eYsaD3AA3qsw=
-github.com/dell/gounity v1.20.0 h1:TjaFmeY3/TqlLpGvSR7OohqbUNIBn129XgkQ6kAC5ds=
-github.com/dell/gounity v1.20.0/go.mod h1:NxxMb2dp6KhkRBQyS5UG9EeXe+zIQRWolSLhmDGGbd0=
+github.com/dell/gounity v1.20.1-0.20250205080336-cc3a07894e34 h1:KPlxIa9CxH/VkSv5R5JaHFC+9BVOQ/M9E33RzNYUFUA=
+github.com/dell/gounity v1.20.1-0.20250205080336-cc3a07894e34/go.mod h1:NxxMb2dp6KhkRBQyS5UG9EeXe+zIQRWolSLhmDGGbd0=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
 github.com/docker/spdystream v0.0.0-20160310174837-449fdfce4d96/go.mod h1:Qh8CwZgvJUkLughtfhJv5dyTYa91l1fOUCrgjqmcifM=
 github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815/go.mod h1:WwZ+bS3ebgob9U8Nd0kOddGdZWjyMGR8Wziv+TBNwSE=

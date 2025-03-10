@@ -11,12 +11,12 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/dell/dell-csi-extensions/podmon"
 	"github.com/dell/gounity"
 	"github.com/dell/gounity/types"
-	"go.uber.org/atomic"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -71,7 +71,7 @@ var (
 	cacheRWLock    sync.RWMutex
 	kickoffOnce    sync.Once
 	refreshCount   atomic.Int32
-	refreshEnabled bool
+	refreshEnabled atomic.Bool
 )
 
 // Constants that can be used across module
@@ -84,7 +84,7 @@ const (
 )
 
 // RefreshDuration - Refresh interval duration
-var RefreshDuration = refreshInterval * time.Second
+var RefreshDuration int64 = int64(refreshInterval * time.Second) // Default value
 
 // MetricsTimeout is a timeout context used in Unity metrics creation/collection calls
 var MetricsTimeout = 30 * time.Second
@@ -93,9 +93,8 @@ var MetricsTimeout = 30 * time.Second
 func (s *service) ValidateVolumeHostConnectivity(ctx context.Context, req *podmon.ValidateVolumeHostConnectivityRequest) (*podmon.ValidateVolumeHostConnectivityResponse, error) {
 	ctx, log, _ := GetRunidLog(ctx)
 	log.Infof("ValidateVolumeHostConnectivity called %+v", req)
-
 	kickoffOnce.Do(func() {
-		refreshEnabled = true
+		refreshEnabled.Store(true)
 		go s.refreshMetricsCollections()
 	})
 
@@ -596,12 +595,11 @@ func (s *service) refreshMetricsCollections() {
 	ctx, log, _ := GetRunidLog(context.Background())
 	var totalInterval int32
 	totalInterval = maxRefresh / refreshInterval
-
-	ticker := time.NewTicker(RefreshDuration)
+	ticker := time.NewTicker(time.Duration(atomic.LoadInt64(&RefreshDuration)))
 	for {
 		select {
 		case <-ticker.C:
-			if !refreshEnabled {
+			if !refreshEnabled.Load() {
 				continue
 			}
 			// Refresh for a certain maximum number of times. The refresh count can be reset
@@ -615,7 +613,7 @@ func (s *service) refreshMetricsCollections() {
 					cancel()
 					return true
 				})
-				refreshCount.Inc()
+				refreshCount.Add(1)
 			}
 		}
 	}
@@ -639,13 +637,12 @@ func getHostID(ctx context.Context, s *service, arrayID, shortHostname, longHost
 	return s.getHostID(ctx, arrayID, shortHostname, longHostname)
 }
 
-func getUnityClient(ctx context.Context, s *service, arrayID string) (*gounity.Client, error) {
+func getUnityClient(ctx context.Context, s *service, arrayID string) (gounity.UnityClient, error) {
 	return s.getUnityClient(ctx, arrayID)
 }
 
-func findHostInitiatorByID(ctx context.Context, unity *gounity.Client, wwnOrIqn string) (*types.HostInitiator, error) {
-	hostAPI := gounity.NewHost(unity)
-	return hostAPI.FindHostInitiatorByID(ctx, wwnOrIqn)
+func findHostInitiatorByID(ctx context.Context, unity gounity.UnityClient, wwnOrIqn string) (*types.HostInitiator, error) {
+	return unity.FindHostInitiatorByID(ctx, wwnOrIqn)
 }
 
 func getMetricsCollection(ctx context.Context, s *service, arrayID string, id int) (*types.MetricQueryResult, error) {

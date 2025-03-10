@@ -342,7 +342,7 @@ func GetIPsFromInferfaces(_ context.Context, ipInterfaces []types.IPInterfaceEnt
 }
 
 // IPReachable checks if a given IP is reachable or not
-func IPReachable(ctx context.Context, ip, port string, pingTimeout int) bool {
+var IPReachable = func(ctx context.Context, ip, port string, pingTimeout int) bool {
 	log := GetRunidLogger(ctx)
 	timeout := time.Duration(pingTimeout) * time.Millisecond
 	log.Debug("Tcp test on IP", ip)

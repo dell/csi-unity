@@ -102,7 +102,8 @@ type StorageArrayConfig struct {
 	IsHostAdded               bool
 	IsHostAdditionFailed      bool
 	IsDefaultArray            bool
-	UnityClient               *gounity.Client
+	UnityClient               gounity.UnityClient
+	mu                        sync.Mutex // Mutex to protect shared variables
 }
 
 // Service is a CSI SP and idempotency.Provider.
@@ -161,7 +162,7 @@ func New() Service {
 }
 
 // To display the StorageArrayConfig content
-func (s StorageArrayConfig) String() string {
+func (s *StorageArrayConfig) String() string {
 	return fmt.Sprintf("ArrayID: %s, Username: %s, Endpoint: %s, SkipCertificateValidation: %v, IsDefaultArray:%v, IsProbeSuccess:%v, IsHostAdded:%v",
 		s.ArrayID, s.Username, s.Endpoint, s.SkipCertificateValidation, s.IsDefaultArray, s.IsProbeSuccess, s.IsHostAdded)
 }
@@ -343,7 +344,7 @@ func (s *service) getStorageArrayList() []*StorageArrayConfig {
 }
 
 // To get the UnityClient for a specific array
-func (s *service) getUnityClient(ctx context.Context, arrayID string) (*gounity.Client, error) {
+func (s *service) getUnityClient(ctx context.Context, arrayID string) (gounity.UnityClient, error) {
 	_, _, rid := GetRunidLog(ctx)
 	if s.getStorageArrayLength() == 0 {
 		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Invalid driver csi-driver configuration provided. At least one array should present or invalid yaml format. "))
@@ -478,7 +479,10 @@ func (s *service) getProtocolFromVolumeContext(contextVolID string) (string, err
 	return "", errors.New("invalid volume context id")
 }
 
-var syncMutex sync.Mutex
+var (
+	syncMutex sync.Mutex
+	readFile  = os.ReadFile
+)
 
 // syncDriverSecret - Reads credentials from secrets and initialize all arrays.
 func (s *service) syncDriverSecret(ctx context.Context) error {
@@ -490,7 +494,7 @@ func (s *service) syncDriverSecret(ctx context.Context) error {
 		s.arrays.Delete(key)
 		return true
 	})
-	secretBytes, err := os.ReadFile(filepath.Clean(DriverSecret))
+	secretBytes, err := readFile(filepath.Clean(DriverSecret))
 	if err != nil {
 		return fmt.Errorf("File ('%s') error: %v", DriverSecret, err)
 	}
@@ -515,7 +519,8 @@ func (s *service) syncDriverSecret(ctx context.Context) error {
 		})
 
 		var noOfDefaultArrays int
-		for i, secret := range secretConfig.StorageArrayList {
+		for i := range secretConfig.StorageArrayList {
+			secret := &secretConfig.StorageArrayList[i] // Get a pointer to avoid copying the struct
 			if secret.ArrayID == "" {
 				return fmt.Errorf("invalid value for ArrayID at index [%d]", i)
 			}
@@ -555,8 +560,19 @@ func (s *service) syncDriverSecret(ctx context.Context) error {
 			}
 			secret.UnityClient = unityClient
 
-			copyStorage := StorageArrayConfig{}
-			copyStorage = secret
+			copyStorage := StorageArrayConfig{
+				ArrayID:                   secret.ArrayID,
+				Username:                  secret.Username,
+				Password:                  secret.Password,
+				Endpoint:                  secret.Endpoint,
+				IsDefault:                 secret.IsDefault,
+				SkipCertificateValidation: secret.SkipCertificateValidation,
+				IsProbeSuccess:            secret.IsProbeSuccess,
+				IsHostAdded:               secret.IsHostAdded,
+				IsHostAdditionFailed:      secret.IsHostAdditionFailed,
+				IsDefaultArray:            secret.IsDefaultArray,
+				UnityClient:               secret.UnityClient,
+			}
 
 			_, ok := s.arrays.Load(secret.ArrayID)
 
@@ -679,12 +695,12 @@ var (
 // Increment run id log
 func incrementLogID(ctx context.Context, runidPrefix string) (context.Context, *logrus.Entry) {
 	if runidPrefix == "node" {
-		runid := fmt.Sprintf("%s-%d", runidPrefix, syncNodeLogCount)
-		atomic.AddInt32(&syncNodeLogCount, 1)
+		newID := atomic.AddInt32(&syncNodeLogCount, 1) - 1
+		runid := fmt.Sprintf("%s-%d", runidPrefix, newID)
 		return setRunIDContext(ctx, runid)
 	} else if runidPrefix == "config" {
-		runid := fmt.Sprintf("%s-%d", runidPrefix, syncConfigLogCount)
-		atomic.AddInt32(&syncConfigLogCount, 1)
+		newID := atomic.AddInt32(&syncConfigLogCount, 1) - 1
+		runid := fmt.Sprintf("%s-%d", runidPrefix, newID)
 		return setRunIDContext(ctx, runid)
 	}
 	return nil, nil
@@ -814,14 +830,21 @@ func singleArrayProbe(ctx context.Context, probeType string, array *StorageArray
 		log.Errorf("Unity probe failed for array %s error: %v", array.ArrayID, err)
 		if e, ok := status.FromError(err); ok {
 			if e.Code() == codes.Unauthenticated {
+				array.mu.Lock()
 				array.IsProbeSuccess = false
+				array.mu.Unlock()
 				return status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Unable Get basic system info from Unity. Error: %s", err.Error()))
 			}
 		}
+		array.mu.Lock()
 		array.IsProbeSuccess = false
+		array.mu.Unlock()
 		return status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Unable Get basic system info from Unity. Verify hostname/IP Address of unity. Error: %s", err.Error()))
 	}
+
+	array.mu.Lock()
 	array.IsProbeSuccess = true
+	array.mu.Unlock()
 	log.Debugf("%s Probe Success", probeType)
 	return nil
 }
@@ -854,7 +877,7 @@ func (s *service) probe(ctx context.Context, probeType string, arrayID string) e
 	return nil
 }
 
-func (s *service) validateAndGetResourceDetails(ctx context.Context, resourceContextID string, resourceType resourceType) (resourceID, protocol, arrayID string, unity *gounity.Client, err error) {
+func (s *service) validateAndGetResourceDetails(ctx context.Context, resourceContextID string, resourceType resourceType) (resourceID, protocol, arrayID string, unity gounity.UnityClient, err error) {
 	ctx, _, rid := GetRunidLog(ctx)
 	if s.getStorageArrayLength() == 0 {
 		return "", "", "", nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Invalid driver csi-driver configuration provided. At least one array should present or invalid yaml format. "))

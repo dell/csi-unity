@@ -207,3 +207,7 @@ func GetRunidAndLogger(ctx context.Context) (string, *logrus.Entry) {
 	}
 	return rid, nil
 }
+
+var GetRunidAndLoggerWrapper = func(ctx context.Context) (string, *logrus.Entry) {
+	return GetRunidAndLogger(ctx)
+}
