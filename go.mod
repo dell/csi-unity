@@ -2,7 +2,7 @@ module github.com/dell/csi-unity
 
 go 1.23.0
 
-toolchain go1.23.4
+toolchain go1.23.5
 
 require (
 	bou.ke/monkey v1.0.2
