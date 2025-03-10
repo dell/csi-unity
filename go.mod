@@ -2,8 +2,6 @@ module github.com/dell/csi-unity
 
 go 1.24
 
-toolchain go1.23.5
-
 require (
 	bou.ke/monkey v1.0.2
 	github.com/container-storage-interface/spec v1.6.0
@@ -19,7 +17,6 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.10.0
-	go.uber.org/atomic v1.11.0
 	golang.org/x/net v0.37.0
 	google.golang.org/grpc v1.71.0
 	google.golang.org/protobuf v1.36.5
