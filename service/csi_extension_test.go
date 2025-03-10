@@ -1,5 +1,5 @@
 /*
- Copyright © 2021 Dell Inc. or its subsidiaries. All Rights Reserved.
+ Copyright © 2021-2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -44,6 +45,8 @@ type testCaseSpec struct {
 	expectErrorType  string
 	expectErrorLike  string
 }
+
+var mu sync.Mutex
 
 func TestValidateVolumeHostConnectivityBasic(t *testing.T) {
 	log := utils.GetLogger()
@@ -1427,7 +1430,9 @@ func TestParallelIOCheck(t *testing.T) {
 	ctx = context.WithValue(ctx, utils.UnityLogger, entry)
 
 	// ====== Test setup ======
+	sharedResourceMu.Lock()
 	defaultMocks()
+	sharedResourceMu.Unlock()
 
 	testConf.service.opts.AutoProbe = true
 	testConf.service.arrays.Store("array1", mockStorage(ctx))
@@ -1504,6 +1509,8 @@ func TestParallelIOCheck(t *testing.T) {
 		wg.Add(1)
 		go func(l int) {
 			defer wg.Done()
+			mu.Lock()         // Lock before accessing shared resource
+			defer mu.Unlock() // Unlock after accessing shared resource
 			res[l], err = testConf.service.ValidateVolumeHostConnectivity(ctx, request)
 			if err != nil {
 				t.Errorf("Did not expect error %v", err)
@@ -1536,7 +1543,9 @@ func TestMetricsRefresher(t *testing.T) {
 	ctx = context.WithValue(ctx, utils.UnityLogger, entry)
 
 	// ====== Test setup ======
+	sharedResourceMu.Lock()
 	defaultMocks()
+	sharedResourceMu.Unlock()
 
 	testConf.service.opts.AutoProbe = true
 	testConf.service.arrays.Store("array1", mockStorage(ctx))
@@ -1580,7 +1589,7 @@ func TestMetricsRefresher(t *testing.T) {
 	CollectionWait = 100
 	// Set the count so that refresh attempts will be tried
 	refreshCount.Store(0)
-	refreshEnabled = true
+	refreshEnabled.Store(true)
 
 	// ===== Run test =====
 	res, err := testConf.service.ValidateVolumeHostConnectivity(ctx, request)
@@ -1615,8 +1624,9 @@ func runTestCases(ctx context.Context, t *testing.T, testCases map[string]testCa
 		t.Logf("Attempting test %s", name)
 
 		// Set up the default mocks before each test
+		mu.Lock()
 		defaultMocks()
-
+		mu.Unlock()
 		if tc.setup != nil {
 			tc.setup()
 		}
@@ -1667,7 +1677,7 @@ var (
 	mockRequireProbeErr              error
 	mockGetHost                      *types.Host
 	mockGetHostErr                   error
-	mockGetUnity                     *gounity.Client
+	mockGetUnity                     gounity.UnityClient
 	mockGetUnityErr                  error
 	mockFindHostInitiatorErr         error
 	mockBadInitiator                 string
@@ -1677,6 +1687,8 @@ var (
 	mockMetricsCollectionID          int
 	mockMetricValueMap               map[string]interface{}
 )
+
+var sharedResourceMu sync.Mutex
 
 func defaultMocks() {
 	GetHostID = mockGetHostID
@@ -1712,9 +1724,9 @@ func defaultMocks() {
 		},
 	}
 	// Set a lower refresh interval
-	RefreshDuration = 100 * time.Millisecond
+	atomic.StoreInt64(&RefreshDuration, int64(100*time.Millisecond))
 	// Effectively disable the refresh by default for testing
-	refreshEnabled = false
+	refreshEnabled.Store(false)
 }
 
 func mockGetArrayIDFromVolumeContext(_ *service, contextVolID string) (string, error) {
@@ -1744,7 +1756,7 @@ func mockGetHostID(_ context.Context, _ *service, _, _, _ string) (*types.Host, 
 	return mockGetHost, mockGetHostErr
 }
 
-func mockGetUnityClient(_ context.Context, _ *service, _ string) (*gounity.Client, error) {
+func mockGetUnityClient(_ context.Context, _ *service, _ string) (gounity.UnityClient, error) {
 	return mockGetUnity, mockGetUnityErr
 }
 
@@ -1814,7 +1826,7 @@ func mockAnInitiator(id string) *types.HostInitiator {
 	}
 }
 
-func mockFindHostInitiatorByID(_ context.Context, _ *gounity.Client, wwnOrIqn string) (*types.HostInitiator, error) {
+func mockFindHostInitiatorByID(_ context.Context, _ gounity.UnityClient, wwnOrIqn string) (*types.HostInitiator, error) {
 	return mockAnInitiator(wwnOrIqn), mockFindHostInitiatorErr
 }
 
