@@ -26,8 +26,8 @@ provisioner: csi-unity.dellemc.com
 reclaimPolicy: Delete
 # allowVolumeExpansion - Attribute to allow volume expansion
 # Allowed values:
-    #   "true"  - Volume can be resized
-    #   "false" - Volume cannot be resized
+#   "true"  - Volume can be resized
+#   "false" - Volume cannot be resized
 # Default value: "true"
 # Optional: true
 allowVolumeExpansion: true
@@ -56,7 +56,7 @@ parameters:
   # Optional: false
   # Examples: "APM000000001", "APM000000002"
   arrayId: <ARRAY_ID>
-  #storagePool - Defines storage pool. The value should be picked from the column labeled "CLI ID" of Pools in the Unisphere GUI.
+  # storagePool - Defines storage pool. The value should be picked from the column labeled "CLI ID" of Pools in the Unisphere GUI.
   # Allowed values: String
   # Default value: None
   # Optional: false

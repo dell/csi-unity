@@ -48,4 +48,3 @@ parameters:
   #   "ext4"
   #   "xfs"
   csi.storage.k8s.io/fstype: ext4
-  
