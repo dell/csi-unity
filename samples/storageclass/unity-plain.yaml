@@ -36,7 +36,7 @@ parameters:
   # Optional: false
   # Examples: 0
   tieringPolicy: <TIERING_POLICY>
-  # hostIOLimitName- Insert Host IO Limit Name that is to be used for provisioning here.
+  # hostIOLimitName - Insert Host IO Limit Name that is to be used for provisioning here.
   # Allowed values: String
   # Default value: None
   # Optional: false
