@@ -7,6 +7,10 @@ ifneq (on,$(GO111MODULE))
 export GO111MODULE := on
 endif
 
+IMAGE_NAME=csi-unity
+IMAGE_REGISTRY=dellemc
+IMAGE_TAG=$(shell date +%Y%m%d%H%M%S)
+
 .PHONY: go-vendor
 go-vendor:
 	go mod vendor
@@ -40,27 +44,20 @@ download-csm-common:
 # Generates the docker container (but does not push)
 podman-build: download-csm-common go-build
 	$(eval include csm-common.mk)
-	sh build.sh --baseubi $(DEFAULT_BASEIMAGE) --goimage $(DEFAULT_GOIMAGE)
-
-podman-push: download-csm-common go-build
-	$(eval include csm-common.mk)
-	sh build.sh --baseubi $(DEFAULT_BASEIMAGE) --goimage $(DEFAULT_GOIMAGE) --push
+	podman build --pull -t $(IMAGE_REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG) --build-arg GOIMAGE=$(DEFAULT_GOIMAGE) --build-arg BASEIMAGE=$(CSM_BASEIMAGE) --build-arg GOPROXY=$(GOPROXY) . --format=docker
 
 podman-build-no-cache: download-csm-common go-build
 	$(eval include csm-common.mk)
-	sh build.sh --baseubi $(DEFAULT_BASEIMAGE) --goimage $(DEFAULT_GOIMAGE) --no-cache
+	podman build --pull --no-cache -t $(IMAGE_REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG) --build-arg GOIMAGE=$(DEFAULT_GOIMAGE) --build-arg BASEIMAGE=$(CSM_BASEIMAGE) --build-arg GOPROXY=$(GOPROXY) . --format=docker
 
-podman-no-cachepush: download-csm-common go-build
-	$(eval include csm-common.mk)
-	sh build.sh --baseubi $(DEFAULT_BASEIMAGE) --goimage $(DEFAULT_GOIMAGE) --push --no-cache
+podman-push:
+	podman push $(IMAGE_REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG)
 
 #
 # Docker-related tasks
 #
 # Generates the docker container (but does not push)
-docker-build: go-build
-	cd core && go generate
-	go run core/semver/semver.go -f mk >semver.mk
+docker-build: download-csm-common
 	make -f docker.mk docker-build
 
 docker-push:
@@ -69,7 +66,7 @@ docker-push:
 version:
 	go generate
 	go run core/semver/semver.go -f mk >semver.mk
-	sh build.sh -h
+	make -f docker.mk version
 
 .PHONY: clean
 clean:
