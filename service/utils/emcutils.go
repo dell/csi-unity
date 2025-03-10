@@ -1,5 +1,5 @@
 /*
- Copyright © 2019 Dell Inc. or its subsidiaries. All Rights Reserved.
+ Copyright © 2019-2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -161,13 +161,20 @@ func GetHostIP() ([]string, error) {
 	output := string(cmdOutput.Bytes())
 	ips := strings.Split(strings.TrimSpace(output), " ")
 
+	var ipv4s []string
+	for _, ip := range ips {
+		if parsedIP := net.ParseIP(ip); parsedIP != nil && parsedIP.To4() != nil {
+			ipv4s = append(ipv4s, ip)
+		}
+	}
+
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
 	}
 
 	var lookupIps []string
-	for _, ip := range ips {
+	for _, ip := range ipv4s {
 		lookupResp, err := net.LookupAddr(ip)
 		if err == nil && strings.Contains(lookupResp[0], hostname) {
 			lookupIps = append(lookupIps, ip)
@@ -184,7 +191,10 @@ func GetHostIP() ([]string, error) {
 		}
 		output := string(cmdOutput.Bytes())
 		ips := strings.Split(strings.TrimSpace(output), " ")
-		lookupIps = append(lookupIps, ips[0])
+
+		if parsedIP := net.ParseIP(ips[0]); parsedIP != nil && parsedIP.To4() != nil {
+			lookupIps = append(lookupIps, ips[0])
+		}
 	}
 	return lookupIps, nil
 }
@@ -342,7 +352,7 @@ func GetIPsFromInferfaces(_ context.Context, ipInterfaces []types.IPInterfaceEnt
 }
 
 // IPReachable checks if a given IP is reachable or not
-func IPReachable(ctx context.Context, ip, port string, pingTimeout int) bool {
+var IPReachable = func(ctx context.Context, ip, port string, pingTimeout int) bool {
 	log := GetRunidLogger(ctx)
 	timeout := time.Duration(pingTimeout) * time.Millisecond
 	log.Debug("Tcp test on IP", ip)

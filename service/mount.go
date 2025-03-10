@@ -1,5 +1,5 @@
 /*
- Copyright © 2019-2023 Dell Inc. or its subsidiaries. All Rights Reserved.
+ Copyright © 2019-2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -39,6 +39,9 @@ type Device struct {
 	Name     string
 	RealDev  string
 }
+
+// Define a function variable to allow mocking in tests
+var readFileFunc = os.ReadFile
 
 func stagePublishNFS(ctx context.Context, req *csi.NodeStageVolumeRequest, exportPaths []string, arrayID string, nfsv3, nfsv4 bool) error {
 	ctx, log, rid := GetRunidLog(ctx)
@@ -664,7 +667,7 @@ func getDevMounts(ctx context.Context, sysDevice *Device) ([]gofsutil.Info, erro
 			// Find the multipath device mapper from the device obtained
 			mpDevName := strings.TrimPrefix(sysDevice.RealDev, "/dev/")
 			filename := fmt.Sprintf("/sys/devices/virtual/block/%s/dm/name", mpDevName)
-			if name, err := os.ReadFile(filepath.Clean(filename)); err != nil {
+			if name, err := readFileFunc(filepath.Clean(filename)); err != nil {
 				log.Warn("Could not read mp dev name file ", filename, err)
 			} else {
 				mpathDev := strings.TrimSpace(string(name))
@@ -692,7 +695,7 @@ func getMpathDevFromWwn(ctx context.Context, volumeWwn string) (string, error) {
 
 	mpDevName := strings.TrimPrefix(sysDevice.RealDev, "/dev/")
 	filename := fmt.Sprintf("/sys/devices/virtual/block/%s/dm/name", mpDevName)
-	name, err := os.ReadFile(filepath.Clean(filename))
+	name, err := readFileFunc(filepath.Clean(filename))
 	if err != nil {
 		log.Error("Could not read mp dev name file ", filename, err)
 		return "", err
