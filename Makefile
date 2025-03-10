@@ -57,9 +57,7 @@ podman-push:
 # Docker-related tasks
 #
 # Generates the docker container (but does not push)
-docker-build: download-csm-common go-build
-	cd core && go generate
-	go run core/semver/semver.go -f mk >semver.mk
+docker-build: download-csm-common
 	make -f docker.mk docker-build
 
 docker-push:
