@@ -1,5 +1,5 @@
 /*
- Copyright © 2019 Dell Inc. or its subsidiaries. All Rights Reserved.
+ Copyright © 2019-2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -125,8 +125,7 @@ func (s *service) NodeStageVolume(
 	}
 	// Protocol if FC or iSCSI
 
-	volumeAPI := gounity.NewVolume(unity)
-	volume, err := volumeAPI.FindVolumeByID(ctx, volID)
+	volume, err := unity.FindVolumeByID(ctx, volID)
 	if err != nil {
 		// If the volume isn't found, we cannot stage it
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Volume not found. [%v]", err))
@@ -146,8 +145,7 @@ func (s *service) NodeStageVolume(
 
 	useFC := false
 	if protocol == ISCSI {
-		ipInterfaceAPI := gounity.NewIPInterface(unity)
-		ipInterfaces, err := ipInterfaceAPI.ListIscsiIPInterfaces(ctx)
+		ipInterfaces, err := unity.ListIscsiIPInterfaces(ctx)
 		if err != nil {
 			return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Error retrieving iScsi Interface IPs from the array: [%v]", err))
 		}
@@ -162,25 +160,24 @@ func (s *service) NodeStageVolume(
 		useFC = true
 		var targetWwns []string
 
-		hostAPI := gounity.NewHost(unity)
 		host, err := s.getHostID(ctx, arrayID, s.opts.NodeName, s.opts.LongNodeName)
 		if err != nil {
 			return nil, err
 		}
 
 		for _, initiator := range host.HostContent.FcInitiators {
-			hostInitiator, err := hostAPI.FindHostInitiatorByID(ctx, initiator.ID)
+			hostInitiator, err := unity.FindHostInitiatorByID(ctx, initiator.ID)
 			if err != nil {
 				return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find Host Initiator Failed [%v]", err))
 			}
 
 			for _, initiatorPath := range hostInitiator.HostInitiatorContent.Paths {
-				hostInitiatorPath, err := hostAPI.FindHostInitiatorPathByID(ctx, initiatorPath.ID)
+				hostInitiatorPath, err := unity.FindHostInitiatorPathByID(ctx, initiatorPath.ID)
 				if err != nil {
 					return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find Host Initiator Path Failed [%v]", err))
 				}
 
-				fcPort, err := hostAPI.FindFcPortByID(ctx, hostInitiatorPath.HostInitiatorPathContent.FcPortID.ID)
+				fcPort, err := unity.FindFcPortByID(ctx, hostInitiatorPath.HostInitiatorPathContent.FcPortID.ID)
 				if err != nil {
 					return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find Fc port Failed [%v]", err))
 				}
@@ -284,8 +281,7 @@ func (s *service) NodeUnstageVolume(
 		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Invalid Protocol Value %s after parsing volume context ID %s", protocol, req.GetVolumeId()))
 	}
 
-	volumeAPI := gounity.NewVolume(unity)
-	volume, err := volumeAPI.FindVolumeByID(ctx, volID)
+	volume, err := unity.FindVolumeByID(ctx, volID)
 	if err != nil {
 		// If the volume isn't found, k8s will retry NodeUnstage forever so...
 		// There is no way back if volume isn't found and so considering this scenario idempotent
@@ -430,8 +426,7 @@ func (s *service) NodePublishVolume(
 		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "readonly not supported for Block"))
 	}
 
-	volumeAPI := gounity.NewVolume(unity)
-	volume, err := volumeAPI.FindVolumeByID(ctx, volID)
+	volume, err := unity.FindVolumeByID(ctx, volID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "volume with ID '%s' not found", volID))
 	}
@@ -622,8 +617,7 @@ func (s *service) NodeUnpublishVolume(
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
 
-	volumeAPI := gounity.NewVolume(unity)
-	_, err = volumeAPI.FindVolumeByID(ctx, volID)
+	_, err = unity.FindVolumeByID(ctx, volID)
 	if err != nil {
 		// If the volume isn't found, k8s will retry NodeUnpublish forever so...
 		// There is no way back if volume isn't found and so considering this scenario idempotent
@@ -864,8 +858,7 @@ func (s *service) NodeGetVolumeStats(
 	}
 
 	if protocol == NFS {
-		fileAPI := gounity.NewFilesystem(unity)
-		_, err := fileAPI.FindFilesystemByID(ctx, volumeID)
+		_, err := unity.FindFilesystemByID(ctx, volumeID)
 		if err != nil {
 			if err == gounity.ErrorFilesystemNotFound {
 				resp := &csi.NodeGetVolumeStatsResponse{
@@ -879,8 +872,7 @@ func (s *service) NodeGetVolumeStats(
 			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "FileSystem not found. [%v]", err))
 		}
 	} else {
-		volumeAPI := gounity.NewVolume(unity)
-		_, err := volumeAPI.FindVolumeByID(ctx, volumeID)
+		_, err := unity.FindVolumeByID(ctx, volumeID)
 		if err != nil {
 			if err == gounity.ErrorVolumeNotFound {
 				resp := &csi.NodeGetVolumeStatsResponse{
@@ -979,8 +971,7 @@ func (s *service) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolum
 			utils.GetMessageWithRunID(rid, "Volume path required"))
 	}
 
-	volumeAPI := gounity.NewVolume(unity)
-	volume, err := volumeAPI.FindVolumeByID(ctx, volID)
+	volume, err := unity.FindVolumeByID(ctx, volID)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find volume Failed %v", err))
 	}
@@ -1091,12 +1082,10 @@ func (s *service) getNFSShare(ctx context.Context, filesystemID, arrayID string)
 	}
 
 	isSnapshot := false
-	fileAPI := gounity.NewFilesystem(unity)
-	filesystem, err := fileAPI.FindFilesystemByID(ctx, filesystemID)
+	filesystem, err := unity.FindFilesystemByID(ctx, filesystemID)
 	var snapResp *types.Snapshot
 	if err != nil {
-		snapshotAPI := gounity.NewSnapshot(unity)
-		snapResp, err = snapshotAPI.FindSnapshotByID(ctx, filesystemID)
+		snapResp, err = unity.FindSnapshotByID(ctx, filesystemID)
 		if err != nil {
 			return nil, false, false, err
 		}
@@ -1125,12 +1114,12 @@ func (s *service) getNFSShare(ctx context.Context, filesystemID, arrayID string)
 		return nil, false, false, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "NFS Share for filesystem: %s not found. Error: %v", filesystemID, err))
 	}
 
-	nfsShare, err := fileAPI.FindNFSShareByID(ctx, nfsShareID)
+	nfsShare, err := unity.FindNFSShareByID(ctx, nfsShareID)
 	if err != nil {
 		return nil, false, false, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "NFS Share: %s not found. Error: %v", nfsShareID, err))
 	}
 
-	nasServer, err := fileAPI.FindNASServerByID(ctx, filesystem.FileContent.NASServer.ID)
+	nasServer, err := unity.FindNASServerByID(ctx, filesystem.FileContent.NASServer.ID)
 	if err != nil {
 		return nil, false, false, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "NAS Server: %s not found. Error: %v", filesystem.FileContent.NASServer.ID, err))
 	}
@@ -1236,11 +1225,10 @@ func (s *service) getArrayHostInitiators(ctx context.Context, host *types.Host, 
 	if err != nil {
 		return nil, err
 	}
-	hostAPI := gounity.NewHost(unity)
 	hostInitiators := append(hostContent.FcInitiators, hostContent.IscsiInitiators...)
 	for _, initiator := range hostInitiators {
 		initiatorID := initiator.ID
-		hostInitiator, err := hostAPI.FindHostInitiatorByID(ctx, initiatorID)
+		hostInitiator, err := unity.FindHostInitiatorByID(ctx, initiatorID)
 		if err != nil {
 			return nil, err
 		}
@@ -1279,26 +1267,6 @@ func (s *service) iScsiDiscoverAndLogin(ctx context.Context, interfaceIps []stri
 		}
 	}
 	log.Debug("Completed discovery and rescan of all IP Interfaces")
-}
-
-func (s *service) iScsiDiscoverAndfetchTargets(ctx context.Context, interfaceIps []string) []string {
-	log := utils.GetRunidLogger(ctx)
-	targetIqns := make([]string, 0)
-	validIPs := s.getValidInterfaceIps(ctx, interfaceIps)
-
-	for _, ip := range validIPs {
-		log.Debug("Begin discover on IP: ", ip)
-		targets, err := s.iscsiClient.DiscoverTargets(ip, false)
-		if err != nil {
-			log.Debugf("Error executing iscsiadm discovery: %v", err)
-			continue
-		}
-
-		for _, tgt := range targets {
-			targetIqns = append(targetIqns, tgt.Target)
-		}
-	}
-	return targetIqns
 }
 
 func (s *service) iScsiDiscoverFetchTargets(ctx context.Context, interfaceIps []string) []goiscsi.ISCSITarget {
@@ -1356,8 +1324,10 @@ func (s *service) copyMultipathConfigFile(ctx context.Context, nodeRoot string) 
 		if err != nil {
 			log.Error("Could not open /etc/multipath.conf for writing")
 		} else {
-			written, _ := io.Copy(dstFile, srcFile)
-			log.Debugf("copied %d bytes to /etc/multipath.conf", written)
+			_, err := io.Copy(dstFile, srcFile)
+			if err != nil {
+				log.Error("Could not copy /etc/multipath.conf")
+			}
 			err = dstFile.Close()
 			if err != nil {
 				log.Infof("Error closing file: %v", err)
@@ -1501,7 +1471,6 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 	ctx, log, rid := GetRunidLog(ctx)
 	ctx, log = setArrayIDContext(ctx, array.ArrayID)
 	unity := array.UnityClient
-	hostAPI := gounity.NewHost(unity)
 
 	if err := s.requireProbe(ctx, array.ArrayID); err != nil {
 		log.Debug("AutoProbe has not been called. Executing manual probe")
@@ -1555,10 +1524,10 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 
 	fqdnHost := false
 	// Find Host on the Array
-	host, err := hostAPI.FindHostByName(ctx, s.opts.NodeName)
+	host, err := unity.FindHostByName(ctx, s.opts.NodeName)
 	if err != nil {
 		if err == gounity.ErrorHostNotFound {
-			host, err = hostAPI.FindHostByName(ctx, s.opts.LongNodeName)
+			host, err = unity.FindHostByName(ctx, s.opts.LongNodeName)
 			if err == nil {
 				fqdnHost = true
 			} else {
@@ -1584,7 +1553,7 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 			return err
 		}
 		if fqdnHost {
-			host, err = hostAPI.FindHostByName(ctx, s.opts.LongNodeName)
+			host, err = unity.FindHostByName(ctx, s.opts.LongNodeName)
 			if err != nil {
 				if err == gounity.ErrorHostNotFound {
 					addHostErr := s.addNewNodeToArray(ctx, array, nodeIps, iqns, wwns)
@@ -1607,14 +1576,14 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 			// Modify host operation
 			for _, wwn := range wwns {
 				log.Debugf("Adding wwn Initiator: %s to host: %s ", hostContent.ID, wwn)
-				_, err = hostAPI.CreateHostInitiator(ctx, hostContent.ID, wwn, gounityapi.FCInitiatorType)
+				_, err = unity.CreateHostInitiator(ctx, hostContent.ID, wwn, gounityapi.FCInitiatorType)
 				if err != nil {
 					return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Adding wwn initiator error: %v", err))
 				}
 			}
 			for _, iqn := range iqns {
 				log.Debugf("Adding iSCSI Initiator: %s to host: %s ", hostContent.ID, iqn)
-				_, err = hostAPI.CreateHostInitiator(ctx, hostContent.ID, iqn, gounityapi.ISCSCIInitiatorType)
+				_, err = unity.CreateHostInitiator(ctx, hostContent.ID, iqn, gounityapi.ISCSCIInitiatorType)
 				if err != nil {
 					return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Adding iSCSI initiator error: %v", err))
 				}
@@ -1623,7 +1592,7 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 		// Check Ip of the host with Host IP Port
 		findHostNamePort := false
 		for _, ipPort := range hostContent.IPPorts {
-			hostIPPort, err := hostAPI.FindHostIPPortByID(ctx, ipPort.ID)
+			hostIPPort, err := unity.FindHostIPPortByID(ctx, ipPort.ID)
 			if err != nil {
 				continue
 			}
@@ -1644,13 +1613,13 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 		ipFormat := regexp.MustCompile(`(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}`)
 		if findHostNamePort == false {
 			// Create Host Ip Port
-			_, err = hostAPI.CreateHostIPPort(ctx, hostContent.ID, s.opts.LongNodeName)
+			_, err = unity.CreateHostIPPort(ctx, hostContent.ID, s.opts.LongNodeName)
 			if err != nil {
 				return err
 			}
 		}
 		for _, nodeIP := range nodeIps {
-			_, err = hostAPI.CreateHostIPPort(ctx, hostContent.ID, nodeIP)
+			_, err = unity.CreateHostIPPort(ctx, hostContent.ID, nodeIP)
 			if err != nil && !ipFormat.MatchString(s.opts.NodeName) {
 				return err
 			}
@@ -1662,8 +1631,7 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 		if err != nil {
 			log.Infof("Error copying multipath config file: %v", err)
 		}
-		ipInterfaceAPI := gounity.NewIPInterface(unity)
-		ipInterfaces, err := ipInterfaceAPI.ListIscsiIPInterfaces(ctx)
+		ipInterfaces, err := unity.ListIscsiIPInterfaces(ctx)
 		if err != nil {
 			return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Error retrieving iScsi Interface IPs from the array: %v", err))
 		}
@@ -1711,11 +1679,10 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 	var tenantID string
 
 	// Create Host
-	hostAPI := gounity.NewHost(unity)
 
 	// get tenantid from tenant name
 	if tenantName != "" {
-		tenants, err := hostAPI.FindTenants(ctx)
+		tenants, err := unity.FindTenants(ctx)
 		if err != nil {
 			return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Unable to fetch tenants"))
 		}
@@ -1732,7 +1699,7 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 	if tenantName != "" && tenantID == "" {
 		return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Please enter Valid tenant Name : %s", tenantName))
 	}
-	host, err := hostAPI.CreateHost(ctx, s.opts.LongNodeName, tenantID)
+	host, err := unity.CreateHost(ctx, s.opts.LongNodeName, tenantID)
 	if err != nil {
 		return err
 	}
@@ -1740,13 +1707,13 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 	log.Debugf("New Host Id: %s", hostContent.ID)
 
 	// Create Host Ip Port
-	_, err = hostAPI.CreateHostIPPort(ctx, hostContent.ID, s.opts.LongNodeName)
+	_, err = unity.CreateHostIPPort(ctx, hostContent.ID, s.opts.LongNodeName)
 	if err != nil {
 		return err
 	}
 	ipFormat := regexp.MustCompile(`(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}`)
 	for _, nodeIP := range nodeIps {
-		_, err = hostAPI.CreateHostIPPort(ctx, hostContent.ID, nodeIP)
+		_, err = unity.CreateHostIPPort(ctx, hostContent.ID, nodeIP)
 		if err != nil && !ipFormat.MatchString(s.opts.NodeName) {
 			return err
 		}
@@ -1757,7 +1724,7 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 		log.Debugf("FC Initiators found: %s", wwns)
 		for _, wwn := range wwns {
 			log.Debugf("Adding wwn Initiator: %s to host: %s ", hostContent.ID, wwn)
-			_, err = hostAPI.CreateHostInitiator(ctx, hostContent.ID, wwn, gounityapi.FCInitiatorType)
+			_, err = unity.CreateHostInitiator(ctx, hostContent.ID, wwn, gounityapi.FCInitiatorType)
 			if err != nil {
 				return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Adding wwn initiator error: %v", err))
 			}
@@ -1768,7 +1735,7 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 		log.Debugf("iSCSI Initiators found: %s", iqns)
 		for _, iqn := range iqns {
 			log.Debugf("Adding iSCSI Initiator: %s to host: %s ", hostContent.ID, iqn)
-			_, err = hostAPI.CreateHostInitiator(ctx, hostContent.ID, iqn, gounityapi.ISCSCIInitiatorType)
+			_, err = unity.CreateHostInitiator(ctx, hostContent.ID, iqn, gounityapi.ISCSCIInitiatorType)
 			if err != nil {
 				return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Adding iSCSI initiator error: %v", err))
 			}
@@ -1811,6 +1778,7 @@ func (s *service) syncNodeInfoRoutine(ctx context.Context) {
 func (s *service) syncNodeInfo(ctx context.Context) {
 	nodeMutex.Lock()
 	defer nodeMutex.Unlock()
+
 	length := 0
 	s.arrays.Range(func(_, _ interface{}) bool {
 		length++
@@ -1819,13 +1787,16 @@ func (s *service) syncNodeInfo(ctx context.Context) {
 
 	ctx, log := incrementLogID(ctx, "node")
 	log.Debug("Synchronizing Node Info")
-	// Add a count of three, one for each goroutine.
+
 	s.arrays.Range(func(_, value interface{}) bool {
 		array := value.(*StorageArrayConfig)
+		array.mu.Lock()
 		if !array.IsHostAdded {
-			go func() {
+			array.mu.Unlock() // Unlock before launching goroutine
+			go func(array *StorageArrayConfig) {
 				ctx, log := incrementLogID(ctx, "node")
 				err := s.addNodeInformationIntoArray(ctx, array)
+				array.mu.Lock()
 				if err == nil {
 					array.IsHostAdded = true
 					array.IsHostAdditionFailed = false
@@ -1834,7 +1805,10 @@ func (s *service) syncNodeInfo(ctx context.Context) {
 					array.IsHostAdditionFailed = true
 					log.Debugf("Adding node [%s] failed, Error: [%v]", array.ArrayID, err)
 				}
-			}()
+				array.mu.Unlock()
+			}(array)
+		} else {
+			array.mu.Unlock()
 		}
 		return true
 	})
@@ -1875,7 +1849,6 @@ func (s *service) validateProtocols(ctx context.Context, arraysList []*StorageAr
 					log.Infof("Unable to get unity client for topology validation: %v", err)
 				}
 
-				hostAPI := gounity.NewHost(unity)
 				host, err := s.getHostID(ctx, array.ArrayID, s.opts.NodeName, s.opts.LongNodeName)
 				if err != nil {
 					log.Infof("Host not found. Error: %v", err)
@@ -1884,7 +1857,7 @@ func (s *service) validateProtocols(ctx context.Context, arraysList []*StorageAr
 					log.Infof("Got FC Initiators, Checking health of initiators:%s", host.HostContent.FcInitiators)
 					for _, initiator := range host.HostContent.FcInitiators {
 						initiatorID := initiator.ID
-						hostInitiator, err := hostAPI.FindHostInitiatorByID(ctx, initiatorID)
+						hostInitiator, err := unity.FindHostInitiatorByID(ctx, initiatorID)
 						if err != nil {
 							log.Infof("Unable to get initiators: %s", err)
 						}
@@ -1903,7 +1876,7 @@ func (s *service) validateProtocols(ctx context.Context, arraysList []*StorageAr
 					log.Infof("Got iSCSI Initiators, Checking health of initiators:%s", host.HostContent.IscsiInitiators)
 					for _, initiator := range host.HostContent.IscsiInitiators {
 						initiatorID := initiator.ID
-						hostInitiator, err := hostAPI.FindHostInitiatorByID(ctx, initiatorID)
+						hostInitiator, err := unity.FindHostInitiatorByID(ctx, initiatorID)
 						if err != nil {
 							log.Infof("Unable to get initiators: %s", err)
 						}
