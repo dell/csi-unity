@@ -8,7 +8,7 @@ endif
 
 # local build, use user and timestamp it
 NAME:=csi-unity
-DOCKER_IMAGE_NAME ?= ${NAME}-${USER}
+DOCKER_IMAGE_NAME ?= ${NAME}
 VERSION:=$(shell  date +%Y%m%d%H%M%S)
 BIN_DIR:=bin
 BIN_NAME:=${NAME}
