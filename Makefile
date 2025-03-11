@@ -9,7 +9,10 @@ endif
 
 IMAGE_NAME=csi-unity
 IMAGE_REGISTRY=dellemc
-IMAGE_TAG=$(shell date +%Y%m%d%H%M%S)
+DEFAULT_IMAGE_TAG=$(shell date +%Y%m%d%H%M%S)
+ifeq ($(IMAGETAG),)
+export IMAGETAG="$(DEFAULT_IMAGE_TAG)"
+endif
 
 .PHONY: go-vendor
 go-vendor:
@@ -44,14 +47,14 @@ download-csm-common:
 # Generates the docker container (but does not push)
 podman-build: download-csm-common go-build
 	$(eval include csm-common.mk)
-	podman build --pull -t $(IMAGE_REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG) --build-arg GOIMAGE=$(DEFAULT_GOIMAGE) --build-arg BASEIMAGE=$(CSM_BASEIMAGE) --build-arg GOPROXY=$(GOPROXY) . --format=docker
+	podman build --pull -t $(IMAGE_REGISTRY)/$(IMAGE_NAME):$(IMAGETAG) --build-arg GOIMAGE=$(DEFAULT_GOIMAGE) --build-arg BASEIMAGE=$(CSM_BASEIMAGE) --build-arg GOPROXY=$(GOPROXY) . --format=docker
 
 podman-build-no-cache: download-csm-common go-build
 	$(eval include csm-common.mk)
-	podman build --pull --no-cache -t $(IMAGE_REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG) --build-arg GOIMAGE=$(DEFAULT_GOIMAGE) --build-arg BASEIMAGE=$(CSM_BASEIMAGE) --build-arg GOPROXY=$(GOPROXY) . --format=docker
+	podman build --pull --no-cache -t $(IMAGE_REGISTRY)/$(IMAGE_NAME):$(IMAGETAG) --build-arg GOIMAGE=$(DEFAULT_GOIMAGE) --build-arg BASEIMAGE=$(CSM_BASEIMAGE) --build-arg GOPROXY=$(GOPROXY) . --format=docker
 
 podman-push:
-	podman push $(IMAGE_REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG)
+	podman push $(IMAGE_REGISTRY)/$(IMAGE_NAME):$(IMAGETAG)
 
 #
 # Docker-related tasks
