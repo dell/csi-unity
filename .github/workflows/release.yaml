@@ -16,9 +16,9 @@ on:  # yamllint disable-line rule:truthy
           - patch
           - n-1/n-2 patch (Provide input in the below box)
       version:
-          description: "Patch version to release. example: 2.1.x (Use this only if n-1/n-2 patch is selected)"
-          required: false
-          type: string
+        description: "Patch version to release. example: 2.1.x (Use this only if n-1/n-2 patch is selected)"
+        required: false
+        type: string
 jobs:
   process-inputs:
     name: Process Inputs
