@@ -40,7 +40,7 @@ jobs:
             # if only option is provided, then option takes precedence i.e. minor, major or patch release
             echo "versionEnv=${{ github.event.inputs.option }}" >> $GITHUB_OUTPUT
             exit 0
-          fi          
+          fi
           # if neither option nor version is provided, then minor release is taken by default (Auto-release)
           echo "versionEnv=minor" >> $GITHUB_OUTPUT
   csm-release:
