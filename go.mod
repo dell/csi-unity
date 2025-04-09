@@ -12,7 +12,7 @@ require (
 	github.com/dell/gofsutil v1.18.1-0.20250402125640-883e291241f3
 	github.com/dell/goiscsi v1.11.1-0.20250327070438-0d5eaba96f39
 	github.com/dell/gounity v1.20.1-0.20250327091031-a8238887f0fe
-	github.com/fsnotify/fsnotify v1.8.0
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/kubernetes-csi/csi-lib-utils v0.7.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.20.0
