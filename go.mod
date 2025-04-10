@@ -6,13 +6,13 @@ require (
 	bou.ke/monkey v1.0.2
 	github.com/container-storage-interface/spec v1.6.0
 	github.com/cucumber/godog v0.15.0
-	github.com/dell/dell-csi-extensions/podmon v1.7.1-0.20250325135746-bee5d830cdce
-	github.com/dell/gobrick v1.13.2-0.20250324100052-8d8c8046d514
+	github.com/dell/dell-csi-extensions/podmon v1.7.1-0.20250404130030-01c3966b4bf6
+	github.com/dell/gobrick v1.13.2-0.20250402132208-a383585969b3
 	github.com/dell/gocsi v1.13.1-0.20250327070427-854e59aaa95d
-	github.com/dell/gofsutil v1.18.1-0.20250327105432-7491c13030fd
+	github.com/dell/gofsutil v1.18.1-0.20250402125640-883e291241f3
 	github.com/dell/goiscsi v1.11.1-0.20250327070438-0d5eaba96f39
 	github.com/dell/gounity v1.20.1-0.20250327091031-a8238887f0fe
-	github.com/fsnotify/fsnotify v1.8.0
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/kubernetes-csi/csi-lib-utils v0.7.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.20.0
