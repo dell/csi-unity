@@ -6,12 +6,12 @@ require (
 	bou.ke/monkey v1.0.2
 	github.com/container-storage-interface/spec v1.6.0
 	github.com/cucumber/godog v0.15.0
-	github.com/dell/dell-csi-extensions/podmon v1.7.1-0.20250417144221-6fcddedebf59
+	github.com/dell/dell-csi-extensions/podmon v1.7.1-0.20250429070859-de50563d621e
 	github.com/dell/gobrick v1.13.2-0.20250421073258-7cd497fd44fe
-	github.com/dell/gocsi v1.13.1-0.20250423132914-5966abd5770a
+	github.com/dell/gocsi v1.13.1-0.20250429191623-c3d2d8e59834
 	github.com/dell/gofsutil v1.18.1-0.20250424071242-3e01ce487273
 	github.com/dell/goiscsi v1.11.1-0.20250414073142-a69a338c4871
-	github.com/dell/gounity v1.20.1-0.20250414085137-1862a9279c3a
+	github.com/dell/gounity v1.20.1-0.20250428054549-76691a4c4e35
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/kubernetes-csi/csi-lib-utils v0.7.0
 	github.com/sirupsen/logrus v1.9.3
@@ -33,7 +33,7 @@ require (
 	github.com/cucumber/gherkin/go/v26 v26.2.0 // indirect
 	github.com/cucumber/messages/go/v21 v21.0.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/dell/gonvme v1.10.2-0.20250414072949-5654e72314ec // indirect
+	github.com/dell/gonvme v1.10.2-0.20250502050802-983cf3a533b7 // indirect
 	github.com/evanphx/json-patch v4.9.0+incompatible // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
