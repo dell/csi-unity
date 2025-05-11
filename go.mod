@@ -6,8 +6,8 @@ require (
 	bou.ke/monkey v1.0.2
 	github.com/container-storage-interface/spec v1.6.0
 	github.com/cucumber/godog v0.15.0
-	github.com/dell/dell-csi-extensions/podmon v1.7.1-0.20250429070859-de50563d621e
-	github.com/dell/gobrick v1.13.2-0.20250421073258-7cd497fd44fe
+	github.com/dell/dell-csi-extensions/podmon v1.7.1-0.20250505133644-1c9a32b5c0d0
+	github.com/dell/gobrick v1.13.2-0.20250505070918-a64b56d5a9f7
 	github.com/dell/gocsi v1.13.1-0.20250429191623-c3d2d8e59834
 	github.com/dell/gofsutil v1.18.1-0.20250424071242-3e01ce487273
 	github.com/dell/goiscsi v1.11.1-0.20250414073142-a69a338c4871
