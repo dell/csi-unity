@@ -46,11 +46,13 @@ The test is run using the script file scaletest.sh in the directory test/scale-t
 
 Examples:
 
-To scale the statefulset to 3 resplicas and then re-scale it back to 0 replicas
-./scaletest.sh -r 3 -t 10volumes -n test
+To scale the statefulset to 3 resplicas and then re-scale it back to 0 replicas:
 
-To rescale the statefulset to 2 replicas
-sh rescaletest.sh -r 0 -t 10volumes -n test
+> ./scaletest.sh -r 3 -t 10volumes -n test
+
+To rescale the statefulset to 2 replicas:
+
+> sh rescaletest.sh -r 0 -t 10volumes -n test
 
 
 

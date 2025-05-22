@@ -19,7 +19,7 @@ spec:
       hostNetwork: true
       containers:
         - name: test
-          image: 'docker.io/centos:latest'
+          image: 'quay.io/centos/centos:latest'
           command:
             - /bin/sleep
             - '3600'
