@@ -414,8 +414,32 @@ func (s *service) ControllerUnpublishVolume(
 			}
 			return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "%v", err))
 		}
+		if vol != nil {
+			log.Infof("[OCP DEBUG] Volume: %v", vol)
+		}
 
 		// Idempotency check
+		iterations := 1
+		for iterations < 11 && len(vol.VolumeContent.HostAccessResponse) == 0 {
+			log.Infof("[OCP DEBUG] Checking len hostAccessResponse, iteration %d", iterations)
+			vol, err = unity.FindVolumeByID(ctx, volID)
+			if err != nil {
+				// If the volume isn't found, k8s will retry Controller Unpublish forever so...
+				// There is no way back if volume isn't found and so considering this scenario idempotent
+				if err == gounity.ErrorVolumeNotFound {
+					log.Debugf("Volume %s not found on the array %s during Controller Unpublish. Hence considering the call to be idempotent", volID, arrayID)
+					return &csi.ControllerUnpublishVolumeResponse{}, nil
+				}
+				return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "%v", err))
+			}
+			if vol != nil {
+				log.Infof("[OCP DEBUG] Volume: %v", vol)
+				if len(vol.VolumeContent.HostAccessResponse) != 0 {
+					log.Infof("[OCP DEBUG] VOLUME CHANGED HOST COUNT!")
+				}
+			}
+			iterations++
+		}
 		content := vol.VolumeContent
 		if len(content.HostAccessResponse) > 0 {
 
