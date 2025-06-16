@@ -405,6 +405,15 @@ func (s *service) ControllerUnpublishVolume(
 	if protocol != NFS {
 
 		vol, err := unity.FindVolumeByID(ctx, volID)
+
+		log.Infof("[OCP DEBUG] Volume %s Health Value: %v", vol.VolumeContent.Name, vol.VolumeContent.Health.Value)
+		log.Infof("[OCP DEBUG] Volume %s Health DescriptionIDs: %v", vol.VolumeContent.Name, vol.VolumeContent.Health.DescriptionIDs)
+		log.Infof("[OCP DEBUG] Volume %s Health Descriptions: %v", vol.VolumeContent.Name, vol.VolumeContent.Health.Descriptions)
+
+		// if volume is not healthy, don't unpublish it
+		if vol.VolumeContent.Health.Value != 5 {
+			return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Volume %s is not healthy, aborting unpublish", volID))
+		}
 		if err != nil {
 			// If the volume isn't found, k8s will retry Controller Unpublish forever so...
 			// There is no way back if volume isn't found and so considering this scenario idempotent
