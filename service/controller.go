@@ -31,6 +31,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/wrapperspb"
+	"errors"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -1384,7 +1386,7 @@ func (s *service) deleteFilesystem(ctx context.Context, volID string, unity goun
 
 // deleteBlockVolume - Method to handle delete FC and iSCSI volumes
 func (s *service) deleteBlockVolume(ctx context.Context, volID string, unity gounity.UnityClient) (error, error) {
-	ctx, _, rid := GetRunidLog(ctx)
+	ctx, log, rid := GetRunidLog(ctx)
 	// Check stale snapshots used for volume cloning and delete if exist
 	snapsResp, _, snapshotErr := unity.ListSnapshots(ctx, 0, 0, volID, "")
 	if snapshotErr != nil {
@@ -1406,9 +1408,70 @@ func (s *service) deleteBlockVolume(ctx context.Context, volID string, unity gou
 	if totalSnaps > 0 {
 		return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Volume %s can not be deleted as it has associated snapshots.", volID))
 	}
+
+	// Check if any host still has access to the volume. This can happen if ControllerPublishVolume timed out,
+	// and ControllerUnpublishVolume ran before host access was fully established. In that case, Unpublish does nothing.
+	// If host access addition in the array completes just before DeleteVolume,
+	// the array will fail the delete call unless we remove the host access first.
+
+	vol, err := unity.FindVolumeByID(ctx, volID)
+	if err != nil {
+		if errors.Is(err, gounity.ErrorVolumeNotFound) {
+			return gounity.ErrorVolumeNotFound, nil // already deleted, nothing more to do
+		}
+		return nil, status.Error(codes.Unavailable, utils.GetMessageWithRunID(rid, "Failed to fetch volume %s details from storage array.", volID))
+	}
+
+	if len(vol.VolumeContent.HostAccessResponse) > 0 {
+		log.Infof("Removing host access for volume %s: %v", volID, vol.VolumeContent.HostAccessResponse)
+		err = unity.UnexportVolume(ctx, volID)
+		unexpErr, statusErr := checkVolumeUnexportError(err, volID, rid, log)
+		if unexpErr != nil || statusErr != nil {
+			return unexpErr, statusErr
+		}
+	}
+
 	// Delete the block volume
-	err := unity.DeleteVolume(ctx, volID)
-	return err, nil
+	err = unity.DeleteVolume(ctx, volID)
+	return checkVolumeDeleteError(err, volID, rid, log)
+}
+
+func checkVolumeUnexportError(err error, volID, rid string, log *logrus.Entry) (error, error) {
+	if err == nil {
+		return nil, nil
+	} else if strings.Contains(err.Error(), gounity.NothingToModifyErrorCode) {
+		log.Debugf("Host access for volume %s already removed", volID)
+		return nil, nil
+	} else if strings.Contains(err.Error(), gounity.VolumeNotFoundErrorCode) {
+		return gounity.ErrorVolumeNotFound, nil // volume already deleted, nothing more to do
+	} else if strings.Contains(err.Error(), "context deadline exceeded") {
+		log.Debugf("Remove host access request for volume %s timed out, try again", volID)
+		return nil, status.Error(codes.DeadlineExceeded, utils.GetMessageWithRunID(rid, "Remove host access for volume timed out."))
+	} else if strings.Contains(err.Error(), gounity.LUNModifiedErrorCode) {
+		log.Debugf("Failed to remove host access for volume %s, LUN modified by another request, try again", volID)
+		return nil, status.Error(codes.Unavailable, utils.GetMessageWithRunID(rid, "Remove host access for volume failed."))
+	}
+	log.Errorf("Failed to remove host access for volume %s: %v", volID, err)
+	return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Remove host access for volume failed."))
+}
+
+func checkVolumeDeleteError(err error, volID, rid string, log *logrus.Entry) (error, error) {
+	if err == nil {
+		return nil, nil
+	} else if strings.Contains(err.Error(), gounity.LUNModifiedErrorCode) {
+		log.Debugf("Failed to delete volume %s, LUN modified by another requested, try again", volID)
+		return nil, status.Error(codes.Unavailable, utils.GetMessageWithRunID(rid, "Delete volume from storage array failed."))
+	} else if strings.Contains(err.Error(), gounity.VolumeHostAccessErrorCode) {
+		log.Debugf("Failed to delete volume %s, remove host access", volID)
+		return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Delete volume from storage array failed, since it still has host access."))
+	} else if errors.Is(err, gounity.ErrorVolumeNotFound) {
+		return gounity.ErrorVolumeNotFound, nil // already deleted, nothing more to do
+	} else if strings.Contains(err.Error(), "context deadline exceeded") { // Host access
+		log.Debugf("Delete volume %s from array timed out, try again", volID)
+		return nil, status.Error(codes.DeadlineExceeded, utils.GetMessageWithRunID(rid, "Delete volume from storage array timed out."))
+	}
+	log.Errorf("Failed to delete volume %s from array: %v", volID, err)
+	return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Delete volume from storage array failed."))
 }
 
 // exportFilesystem - Method to export filesystem with idempotency
