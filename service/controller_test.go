@@ -2003,6 +2003,175 @@ func TestDeleteBlockVolume(t *testing.T) {
 	assert.Error(t, err2)
 }
 
+// TODO: group some cases into table-based loops
+func TestDeleteExportedVolume(t *testing.T) {
+	ctx := context.Background()
+	arrayID := "testarrayid"
+	mockUnity := &gounitymocks.UnityClient{}
+	boolTrue := true
+	volID := "vol-ID"
+	testConf.service.arrays.Store(arrayID, &StorageArrayConfig{ArrayID: arrayID, UnityClient: mockUnity, SkipCertificateValidation: &boolTrue, IsDefault: &boolTrue})
+
+	// test-case: volume has already been deleted
+
+	mockUnity.On("ListSnapshots", mock.Anything, 0, 0, volID, "").Return(nil, 0, nil)
+	mockUnity.On("FindVolumeByID", mock.Anything, volID).Return(nil, gounity.ErrorVolumeNotFound)
+
+	err1, err2 := testConf.service.deleteBlockVolume(ctx, volID, mockUnity)
+	assert.ErrorIs(t, err1, gounity.ErrorVolumeNotFound)
+	assert.NoError(t, err2)
+
+	// test-case: volume get failed with unexpected error
+
+	mockUnity.ExpectedCalls = nil
+	mockUnity.On("ListSnapshots", mock.Anything, 0, 0, volID, "").Return(nil, 0, nil)
+	mockUnity.On("FindVolumeByID", mock.Anything, volID).Return(nil, errors.New("array api error"))
+
+	err1, err2 = testConf.service.deleteBlockVolume(ctx, volID, mockUnity)
+	assert.NoError(t, err1)
+	assert.Equal(t, codes.Unavailable, status.Code(err2))
+
+	// test-case: volume not found during unexport
+
+	vol := gounitytypes.Volume{
+		VolumeContent: gounitytypes.VolumeContent{
+			HostAccessResponse: []gounitytypes.HostAccessResponse{
+				{
+					HostContent: gounitytypes.HostContent{
+						Name: "remaining-host-id",
+					},
+				},
+			},
+		},
+	}
+
+	mockUnity.ExpectedCalls = nil
+	mockUnity.On("ListSnapshots", mock.Anything, 0, 0, volID, "").Return(nil, 0, nil)
+	mockUnity.On("FindVolumeByID", mock.Anything, volID).Return(&vol, nil)
+	mockUnity.On("UnexportVolume", mock.Anything, volID).Return(errors.New(gounity.VolumeNotFoundErrorCode))
+
+	err1, err2 = testConf.service.deleteBlockVolume(ctx, volID, mockUnity)
+	assert.ErrorIs(t, err1, gounity.ErrorVolumeNotFound)
+	assert.NoError(t, err2)
+
+	// test-case: unexport request time out
+
+	mockUnity.ExpectedCalls = nil
+	mockUnity.On("ListSnapshots", mock.Anything, 0, 0, volID, "").Return(nil, 0, nil)
+	mockUnity.On("FindVolumeByID", mock.Anything, volID).Return(&vol, nil)
+	mockUnity.On("UnexportVolume", mock.Anything, volID).Return(errors.New("context deadline exceeded"))
+
+	err1, err2 = testConf.service.deleteBlockVolume(ctx, volID, mockUnity)
+	assert.NoError(t, err1)
+	assert.Equal(t, codes.DeadlineExceeded, status.Code(err2))
+
+	// test-case: unexport failed due to concurrent volume operations
+
+	mockUnity.ExpectedCalls = nil
+	mockUnity.On("ListSnapshots", mock.Anything, 0, 0, volID, "").Return(nil, 0, nil)
+	mockUnity.On("FindVolumeByID", mock.Anything, volID).Return(&vol, nil)
+	mockUnity.On("UnexportVolume", mock.Anything, volID).Return(errors.New(gounity.LUNModifiedErrorCode))
+
+	err1, err2 = testConf.service.deleteBlockVolume(ctx, volID, mockUnity)
+	assert.NoError(t, err1)
+	assert.Equal(t, codes.Unavailable, status.Code(err2))
+
+	// test-case: unexport failed due to other array API error
+
+	mockUnity.ExpectedCalls = nil
+	mockUnity.On("ListSnapshots", mock.Anything, 0, 0, volID, "").Return(nil, 0, nil)
+	mockUnity.On("FindVolumeByID", mock.Anything, volID).Return(&vol, nil)
+	mockUnity.On("UnexportVolume", mock.Anything, volID).Return(errors.New("array api error"))
+
+	err1, err2 = testConf.service.deleteBlockVolume(ctx, volID, mockUnity)
+	assert.NoError(t, err1)
+	assert.Equal(t, codes.FailedPrecondition, status.Code(err2))
+
+	// test-case: unexport failed, because host access has just been concurrently removed
+
+	mockUnity.ExpectedCalls = nil
+	mockUnity.On("ListSnapshots", mock.Anything, 0, 0, volID, "").Return(nil, 0, nil)
+	mockUnity.On("FindVolumeByID", mock.Anything, volID).Return(&vol, nil)
+	mockUnity.On("UnexportVolume", mock.Anything, volID).Return(errors.New(gounity.NothingToModifyErrorCode))
+	mockUnity.On("DeleteVolume", mock.Anything, volID).Return(nil)
+
+	err1, err2 = testConf.service.deleteBlockVolume(ctx, volID, mockUnity)
+	assert.NoError(t, err1)
+	assert.NoError(t, err2)
+
+	// test-case: unexport succeded, delete succeded
+
+	mockUnity.ExpectedCalls = nil
+	mockUnity.On("ListSnapshots", mock.Anything, 0, 0, volID, "").Return(nil, 0, nil)
+	mockUnity.On("FindVolumeByID", mock.Anything, volID).Return(&vol, nil)
+	mockUnity.On("UnexportVolume", mock.Anything, volID).Return(nil)
+	mockUnity.On("DeleteVolume", mock.Anything, volID).Return(nil)
+
+	err1, err2 = testConf.service.deleteBlockVolume(ctx, volID, mockUnity)
+	assert.NoError(t, err1)
+	assert.NoError(t, err2)
+
+	// test-case: delete failed due to concurrent volume operations
+
+	mockUnity.ExpectedCalls = nil
+	mockUnity.On("ListSnapshots", mock.Anything, 0, 0, volID, "").Return(nil, 0, nil)
+	mockUnity.On("FindVolumeByID", mock.Anything, volID).Return(&vol, nil)
+	mockUnity.On("UnexportVolume", mock.Anything, volID).Return(nil)
+	mockUnity.On("DeleteVolume", mock.Anything, volID).Return(errors.New(gounity.LUNModifiedErrorCode))
+
+	err1, err2 = testConf.service.deleteBlockVolume(ctx, volID, mockUnity)
+	assert.NoError(t, err1)
+	assert.Equal(t, codes.Unavailable, status.Code(err2))
+
+	// test-case: delete failed due host access that has just been added in the array (after our last check)
+
+	mockUnity.ExpectedCalls = nil
+	mockUnity.On("ListSnapshots", mock.Anything, 0, 0, volID, "").Return(nil, 0, nil)
+	mockUnity.On("FindVolumeByID", mock.Anything, volID).Return(&vol, nil)
+	mockUnity.On("UnexportVolume", mock.Anything, volID).Return(nil)
+	mockUnity.On("DeleteVolume", mock.Anything, volID).Return(errors.New(gounity.VolumeHostAccessErrorCode))
+
+	err1, err2 = testConf.service.deleteBlockVolume(ctx, volID, mockUnity)
+	assert.NoError(t, err1)
+	assert.Equal(t, codes.FailedPrecondition, status.Code(err2))
+
+	// test-case: delete failed due host access that has just been added in the array (after our last check)
+
+	mockUnity.ExpectedCalls = nil
+	mockUnity.On("ListSnapshots", mock.Anything, 0, 0, volID, "").Return(nil, 0, nil)
+	mockUnity.On("FindVolumeByID", mock.Anything, volID).Return(&vol, nil)
+	mockUnity.On("UnexportVolume", mock.Anything, volID).Return(nil)
+	mockUnity.On("DeleteVolume", mock.Anything, volID).Return(gounity.ErrorVolumeNotFound)
+
+	err1, err2 = testConf.service.deleteBlockVolume(ctx, volID, mockUnity)
+	assert.ErrorIs(t, err1, gounity.ErrorVolumeNotFound)
+	assert.NoError(t, err2)
+
+	// test-case: delete request timed out
+
+	mockUnity.ExpectedCalls = nil
+	mockUnity.On("ListSnapshots", mock.Anything, 0, 0, volID, "").Return(nil, 0, nil)
+	mockUnity.On("FindVolumeByID", mock.Anything, volID).Return(&vol, nil)
+	mockUnity.On("UnexportVolume", mock.Anything, volID).Return(nil)
+	mockUnity.On("DeleteVolume", mock.Anything, volID).Return(errors.New("context deadline exceeded"))
+
+	err1, err2 = testConf.service.deleteBlockVolume(ctx, volID, mockUnity)
+	assert.NoError(t, err1)
+	assert.Equal(t, codes.DeadlineExceeded, status.Code(err2))
+
+	// test-case: delete request failed due to unexpected array error
+
+	mockUnity.ExpectedCalls = nil
+	mockUnity.On("ListSnapshots", mock.Anything, 0, 0, volID, "").Return(nil, 0, nil)
+	mockUnity.On("FindVolumeByID", mock.Anything, volID).Return(&vol, nil)
+	mockUnity.On("UnexportVolume", mock.Anything, volID).Return(nil)
+	mockUnity.On("DeleteVolume", mock.Anything, volID).Return(errors.New("array api error"))
+
+	err1, err2 = testConf.service.deleteBlockVolume(ctx, volID, mockUnity)
+	assert.NoError(t, err1)
+	assert.Equal(t, codes.FailedPrecondition, status.Code(err2))
+}
+
 func TestExportFilesystem(t *testing.T) {
 	ctx := context.Background()
 	arrayID := "testarrayid"

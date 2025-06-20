@@ -1437,6 +1437,8 @@ func (s *service) deleteBlockVolume(ctx context.Context, volID string, unity gou
 }
 
 func checkVolumeUnexportError(err error, volID, rid string, log *logrus.Entry) (error, error) {
+	// TODO: maybe group some of these conditions to reduce code (and tests)
+	// TODO: check with CSI spec regarding codes that guarantee retries
 	if err == nil {
 		return nil, nil
 	} else if strings.Contains(err.Error(), gounity.NothingToModifyErrorCode) {
@@ -1464,7 +1466,7 @@ func checkVolumeDeleteError(err error, volID, rid string, log *logrus.Entry) (er
 	} else if strings.Contains(err.Error(), gounity.VolumeHostAccessErrorCode) {
 		log.Debugf("Failed to delete volume %s, remove host access", volID)
 		return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Delete volume from storage array failed, since it still has host access."))
-	} else if errors.Is(err, gounity.ErrorVolumeNotFound) {
+	} else if errors.Is(err, gounity.ErrorVolumeNotFound) || strings.Contains(err.Error(), gounity.VolumeNotFoundErrorCode) {
 		return gounity.ErrorVolumeNotFound, nil // already deleted, nothing more to do
 	} else if strings.Contains(err.Error(), "context deadline exceeded") { // Host access
 		log.Debugf("Delete volume %s from array timed out, try again", volID)
