@@ -15,6 +15,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -27,12 +28,11 @@ import (
 	"github.com/dell/csi-unity/service/utils"
 	"github.com/dell/gounity"
 	"github.com/dell/gounity/types"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/wrapperspb"
-	"errors"
-	"github.com/sirupsen/logrus"
 )
 
 const (
