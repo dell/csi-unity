@@ -1419,7 +1419,7 @@ func (s *service) deleteBlockVolume(ctx context.Context, volID string, unity gou
 		if errors.Is(err, gounity.ErrorVolumeNotFound) {
 			return gounity.ErrorVolumeNotFound, nil // already deleted, nothing more to do
 		}
-		return nil, status.Error(codes.Unavailable, utils.GetMessageWithRunID(rid, "Failed to fetch volume %s details from storage array.", volID))
+		return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Failed to fetch volume %s details from storage array.", volID))
 	}
 
 	if len(vol.VolumeContent.HostAccessResponse) > 0 {
@@ -1446,13 +1446,14 @@ func checkVolumeUnexportError(err error, volID, rid string, log *logrus.Entry) (
 		return gounity.ErrorVolumeNotFound, nil // volume already deleted, nothing more to do
 	} else if strings.Contains(err.Error(), "context deadline exceeded") {
 		log.Debugf("Remove host access request for volume %s timed out, try again", volID)
-		return nil, status.Error(codes.DeadlineExceeded, utils.GetMessageWithRunID(rid, "Remove host access for volume timed out."))
+		return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Remove host access for volume timed out."))
 	} else if strings.Contains(err.Error(), gounity.LUNModifiedErrorCode) {
 		log.Debugf("Failed to remove host access for volume %s, LUN modified by another request, try again", volID)
-		return nil, status.Error(codes.Unavailable, utils.GetMessageWithRunID(rid, "Remove host access for volume failed."))
+		return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Remove host access for volume failed."))
+	} else {
+		log.Errorf("Failed to remove host access for volume %s: %v", volID, err)
+		return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Remove host access for volume failed."))
 	}
-	log.Errorf("Failed to remove host access for volume %s: %v", volID, err)
-	return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Remove host access for volume failed."))
 }
 
 func checkVolumeDeleteError(err error, volID, rid string, log *logrus.Entry) (error, error) {
@@ -1460,18 +1461,19 @@ func checkVolumeDeleteError(err error, volID, rid string, log *logrus.Entry) (er
 		return nil, nil
 	} else if strings.Contains(err.Error(), gounity.LUNModifiedErrorCode) {
 		log.Debugf("Failed to delete volume %s, LUN modified by another requested, try again", volID)
-		return nil, status.Error(codes.Unavailable, utils.GetMessageWithRunID(rid, "Delete volume from storage array failed."))
+		return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Delete volume from storage array failed."))
 	} else if strings.Contains(err.Error(), gounity.VolumeHostAccessErrorCode) {
 		log.Debugf("Failed to delete volume %s, remove host access", volID)
 		return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Delete volume from storage array failed, since it still has host access."))
-	} else if errors.Is(err, gounity.ErrorVolumeNotFound) {
+	} else if errors.Is(err, gounity.ErrorVolumeNotFound) || strings.Contains(err.Error(), gounity.VolumeNotFoundErrorCode) {
 		return gounity.ErrorVolumeNotFound, nil // already deleted, nothing more to do
 	} else if strings.Contains(err.Error(), "context deadline exceeded") { // Host access
 		log.Debugf("Delete volume %s from array timed out, try again", volID)
-		return nil, status.Error(codes.DeadlineExceeded, utils.GetMessageWithRunID(rid, "Delete volume from storage array timed out."))
+		return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Delete volume from storage array timed out."))
+	} else {
+		log.Errorf("Failed to delete volume %s from array: %v", volID, err)
+		return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Delete volume from storage array failed."))
 	}
-	log.Errorf("Failed to delete volume %s from array: %v", volID, err)
-	return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Delete volume from storage array failed."))
 }
 
 // exportFilesystem - Method to export filesystem with idempotency
