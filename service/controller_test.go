@@ -2003,6 +2003,139 @@ func TestDeleteBlockVolume(t *testing.T) {
 	assert.Error(t, err2)
 }
 
+func TestDeleteExportedVolume(t *testing.T) {
+	testCases := []struct {
+		name              string
+		findVolumeErr     error
+		unexportVolumeErr error
+		deleteVolumeErr   error
+		expectedErr       error
+		expectStatusCode  bool
+	}{
+		{
+			name:          "volume has already been deleted",
+			findVolumeErr: gounity.ErrorVolumeNotFound,
+			expectedErr:   gounity.ErrorVolumeNotFound,
+		},
+		{
+			name:             "volume get failed with unexpected error",
+			findVolumeErr:    errors.New("array api error"),
+			expectedErr:      nil,
+			expectStatusCode: true,
+		},
+		{
+			name:              "volume not found during unexport",
+			unexportVolumeErr: errors.New(gounity.VolumeNotFoundErrorCode),
+			expectedErr:       gounity.ErrorVolumeNotFound,
+			expectStatusCode:  false,
+		},
+		{
+			name:              "unexport request time out",
+			unexportVolumeErr: errors.New("context deadline exceeded"),
+			expectedErr:       nil,
+			expectStatusCode:  true,
+		},
+		{
+			name:              "unexport failed due to concurrent volume operations",
+			unexportVolumeErr: errors.New(gounity.LUNModifiedErrorCode),
+			expectedErr:       nil,
+			expectStatusCode:  true,
+		},
+		{
+			name:              "unexport failed due to other array API error",
+			unexportVolumeErr: errors.New("array api error"),
+			expectedErr:       nil,
+			expectStatusCode:  true,
+		},
+		{
+			name:              "unexport failed, because host access has just been concurrently removed",
+			unexportVolumeErr: errors.New(gounity.NothingToModifyErrorCode),
+			expectedErr:       nil,
+			expectStatusCode:  false,
+		},
+		{
+			name:             "unexport succeeded, delete succeeded",
+			expectedErr:      nil,
+			expectStatusCode: false,
+		},
+		{
+			name:             "delete failed due to concurrent volume operations",
+			deleteVolumeErr:  errors.New(gounity.LUNModifiedErrorCode),
+			expectedErr:      nil,
+			expectStatusCode: true,
+		},
+		{
+			name:             "delete failed due host access that has just been added in the array (after our last check)",
+			deleteVolumeErr:  errors.New(gounity.VolumeHostAccessErrorCode),
+			expectedErr:      nil,
+			expectStatusCode: true,
+		},
+		{
+			name:             "delete failed due host access that has just been added in the array (after our last check)",
+			deleteVolumeErr:  gounity.ErrorVolumeNotFound,
+			expectedErr:      gounity.ErrorVolumeNotFound,
+			expectStatusCode: false,
+		},
+		{
+			name:             "delete request timed out",
+			deleteVolumeErr:  errors.New("context deadline exceeded"),
+			expectedErr:      nil,
+			expectStatusCode: true,
+		},
+		{
+			name:             "delete request failed due to unexpected array error",
+			deleteVolumeErr:  errors.New("array api error"),
+			expectedErr:      nil,
+			expectStatusCode: true,
+		},
+	}
+
+	ctx := context.Background()
+	arrayID := "testarrayid"
+	mockUnity := &gounitymocks.UnityClient{}
+	boolTrue := true
+	volID := "vol-ID"
+	testConf.service.arrays.Store(arrayID, &StorageArrayConfig{ArrayID: arrayID, UnityClient: mockUnity, SkipCertificateValidation: &boolTrue, IsDefault: &boolTrue})
+
+	vol := gounitytypes.Volume{
+		VolumeContent: gounitytypes.VolumeContent{
+			HostAccessResponse: []gounitytypes.HostAccessResponse{
+				{
+					HostContent: gounitytypes.HostContent{
+						Name: "remaining-host-id",
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockUnity.ExpectedCalls = nil
+
+			mockUnity.On("ListSnapshots", mock.Anything, 0, 0, volID, "").Return(nil, 0, nil)
+
+			if tc.findVolumeErr != nil {
+				mockUnity.On("FindVolumeByID", mock.Anything, volID).Return(nil, tc.findVolumeErr)
+			} else {
+				mockUnity.On("FindVolumeByID", mock.Anything, volID).Return(&vol, nil)
+			}
+
+			mockUnity.On("UnexportVolume", mock.Anything, volID).Return(tc.unexportVolumeErr)
+			mockUnity.On("DeleteVolume", mock.Anything, volID).Return(tc.deleteVolumeErr)
+
+			err1, err2 := testConf.service.deleteBlockVolume(ctx, volID, mockUnity)
+			assert.ErrorIs(t, err1, tc.expectedErr)
+
+			if tc.expectStatusCode {
+				assert.Equal(t, codes.FailedPrecondition, status.Code(err2))
+			} else {
+				assert.NoError(t, err2)
+			}
+		})
+	}
+}
+
 func TestExportFilesystem(t *testing.T) {
 	ctx := context.Background()
 	arrayID := "testarrayid"
