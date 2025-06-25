@@ -1466,7 +1466,7 @@ func checkVolumeDeleteError(err error, volID, rid string, log *logrus.Entry) (er
 		return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Delete volume from storage array failed, since it still has host access."))
 	} else if errors.Is(err, gounity.ErrorVolumeNotFound) || strings.Contains(err.Error(), gounity.VolumeNotFoundErrorCode) {
 		return gounity.ErrorVolumeNotFound, nil // already deleted, nothing more to do
-	} else if strings.Contains(err.Error(), "context deadline exceeded") { // Host access
+	} else if strings.Contains(err.Error(), "context deadline exceeded") {
 		log.Debugf("Delete volume %s from array timed out, try again", volID)
 		return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Delete volume from storage array timed out."))
 	}
