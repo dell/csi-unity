@@ -1838,18 +1838,18 @@ func (s *service) validateProtocols(ctx context.Context, arraysList []*StorageAr
 			iscsiInitiators, err := s.iscsiClient.GetInitiators("")
 			fcInitiators, err := utils.GetFCInitiators(ctx)
 
-			unity, err := s.getUnityClient(ctx, array.ArrayID)
+			unityClient, err := s.getUnityClient(ctx, array.ArrayID)
 			if err != nil {
 				log.Errorf("failed to get the unity client, error: %s", err.Error())
-			}
-
-			if nfsServerList, err := unity.GetAllNFSServers(ctx); err != nil {
-				log.Errorf("failed to get the NFS server list, error: %s", err.Error())
-			} else if nfsServerList != nil {
-				for _, nfsServer := range nfsServerList.Entries {
-					if nfsServer.Content.NFSv3Enabled || nfsServer.Content.NFSv4Enabled {
-						connectedSystemID = append(connectedSystemID, array.ArrayID+"/"+strings.ToLower(NFS))
-						break
+			} else {
+				if nfsServerList, err := unityClient.GetAllNFSServers(ctx); err != nil {
+					log.Errorf("failed to get the NFS server list, error: %s", err.Error())
+				} else if nfsServerList != nil {
+					for _, nfsServer := range nfsServerList.Entries {
+						if nfsServer.Content.NFSv3Enabled || nfsServer.Content.NFSv4Enabled {
+							connectedSystemID = append(connectedSystemID, array.ArrayID+"/"+strings.ToLower(NFS))
+							break
+						}
 					}
 				}
 			}
