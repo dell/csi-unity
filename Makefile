@@ -25,9 +25,9 @@ go-build: clean
 	cd core && go generate
 	go build .
 
-# Only unit testing utils for now. More work to do but need to start somewhere.
+# Only unit testing serviceutils for now. More work to do but need to start somewhere.
 unit-test:
-	( cd service/utils; go clean -cache; go test -v -coverprofile=c.out ./... )
+	( cd service/serviceutils; go clean -cache; go test -v -coverprofile=c.out ./... )
 
 # Integration tests using Godog. Populate env.sh with the hardware parameters
 integration-test:
