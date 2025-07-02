@@ -28,7 +28,7 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	constants "github.com/dell/csi-unity/common"
-	"github.com/dell/csi-unity/service/utils"
+	"github.com/dell/csi-unity/service/serviceutils"
 	"github.com/dell/gobrick"
 	"github.com/dell/gocsi"
 	csictx "github.com/dell/gocsi/context"
@@ -194,7 +194,7 @@ func TestGetLogFields(t *testing.T) {
 	})
 
 	t.Run("LogFieldsInContext", func(t *testing.T) {
-		ctx := context.WithValue(context.Background(), utils.LogFields, logrus.Fields{"key": "value"})
+		ctx := context.WithValue(context.Background(), serviceutils.LogFields, logrus.Fields{"key": "value"})
 		fields := getLogFields(ctx)
 		assert.Equal(t, logrus.Fields{"key": "value"}, fields)
 	})
@@ -202,14 +202,14 @@ func TestGetLogFields(t *testing.T) {
 	t.Run("RequestIDInContext", func(t *testing.T) {
 		ctx := context.WithValue(context.Background(), csictx.RequestIDKey, "12345")
 		fields := getLogFields(ctx)
-		assert.Equal(t, logrus.Fields{utils.RUNID: "12345"}, fields)
+		assert.Equal(t, logrus.Fields{serviceutils.RUNID: "12345"}, fields)
 	})
 
 	t.Run("LogFieldsAndRequestIDInContext", func(t *testing.T) {
-		ctx := context.WithValue(context.Background(), utils.LogFields, logrus.Fields{"key": "value"})
+		ctx := context.WithValue(context.Background(), serviceutils.LogFields, logrus.Fields{"key": "value"})
 		ctx = context.WithValue(ctx, csictx.RequestIDKey, "12345")
 		fields := getLogFields(ctx)
-		assert.Equal(t, logrus.Fields{"key": "value", utils.RUNID: "12345"}, fields)
+		assert.Equal(t, logrus.Fields{"key": "value", serviceutils.RUNID: "12345"}, fields)
 	})
 }
 
@@ -355,9 +355,9 @@ func TestSingleArrayProbeSuccess(t *testing.T) {
 	mockLogger := new(MockLogger)
 
 	// Mock the GetRunidAndLoggerWrapper function
-	originalGetRunidAndLoggerWrapper := utils.GetRunidAndLoggerWrapper
-	defer func() { utils.GetRunidAndLoggerWrapper = originalGetRunidAndLoggerWrapper }()
-	utils.GetRunidAndLoggerWrapper = func(_ context.Context) (string, *logrus.Entry) {
+	originalGetRunidAndLoggerWrapper := serviceutils.GetRunidAndLoggerWrapper
+	defer func() { serviceutils.GetRunidAndLoggerWrapper = originalGetRunidAndLoggerWrapper }()
+	serviceutils.GetRunidAndLoggerWrapper = func(_ context.Context) (string, *logrus.Entry) {
 		return "runid123", logger
 	}
 
@@ -395,9 +395,9 @@ func TestSingleArrayProbeFailure(t *testing.T) {
 	mockLogger := new(MockLogger)
 
 	// Mock the GetRunidAndLoggerWrapper function
-	originalGetRunidAndLoggerWrapper := utils.GetRunidAndLoggerWrapper
-	defer func() { utils.GetRunidAndLoggerWrapper = originalGetRunidAndLoggerWrapper }()
-	utils.GetRunidAndLoggerWrapper = func(_ context.Context) (string, *logrus.Entry) {
+	originalGetRunidAndLoggerWrapper := serviceutils.GetRunidAndLoggerWrapper
+	defer func() { serviceutils.GetRunidAndLoggerWrapper = originalGetRunidAndLoggerWrapper }()
+	serviceutils.GetRunidAndLoggerWrapper = func(_ context.Context) (string, *logrus.Entry) {
 		return "runid123", logger
 	}
 
@@ -436,9 +436,9 @@ func TestSingleArrayProbeFailure1(t *testing.T) {
 	mockLogger := new(MockLogger)
 
 	// Mock the GetRunidAndLoggerWrapper function
-	originalGetRunidAndLoggerWrapper := utils.GetRunidAndLoggerWrapper
-	defer func() { utils.GetRunidAndLoggerWrapper = originalGetRunidAndLoggerWrapper }()
-	utils.GetRunidAndLoggerWrapper = func(_ context.Context) (string, *logrus.Entry) {
+	originalGetRunidAndLoggerWrapper := serviceutils.GetRunidAndLoggerWrapper
+	defer func() { serviceutils.GetRunidAndLoggerWrapper = originalGetRunidAndLoggerWrapper }()
+	serviceutils.GetRunidAndLoggerWrapper = func(_ context.Context) (string, *logrus.Entry) {
 		return "runid123", logger
 	}
 	t.Run("Probe Failure - Other Error", func(t *testing.T) {
@@ -634,10 +634,10 @@ func TestGetRunidLog(t *testing.T) {
 			assert.Equal(t, test.expectedRID, rid)
 
 			if test.ctx != nil {
-				fields, _ := ctx.Value(utils.LogFields).(logrus.Fields)
+				fields, _ := ctx.Value(serviceutils.LogFields).(logrus.Fields)
 				assert.NotNil(t, fields)
 				if test.expectedRID != "" {
-					assert.Equal(t, test.expectedRID, fields[utils.RUNID])
+					assert.Equal(t, test.expectedRID, fields[serviceutils.RUNID])
 				}
 			}
 		})
@@ -709,7 +709,7 @@ func TestSetLogFieldsInContext(t *testing.T) {
 	newCtx, ulog := setLogFieldsInContext(ctx, logID, logType)
 
 	// Assert that the context contains the updated log fields
-	fields, ok := newCtx.Value(utils.LogFields).(logrus.Fields)
+	fields, ok := newCtx.Value(serviceutils.LogFields).(logrus.Fields)
 	assert.True(t, ok)
 	assert.Equal(t, logID, fields[logType])
 
@@ -718,13 +718,13 @@ func TestSetLogFieldsInContext(t *testing.T) {
 	assert.Equal(t, logID, ulog.Data[logType])
 
 	// Create a context with nil log fields
-	ctx = context.WithValue(context.Background(), utils.LogFields, logrus.Fields(nil))
+	ctx = context.WithValue(context.Background(), serviceutils.LogFields, logrus.Fields(nil))
 
 	// Call the function again
 	newCtx, ulog = setLogFieldsInContext(ctx, logID, logType)
 
 	// Assert that the context contains the updated log fields
-	fields, ok = newCtx.Value(utils.LogFields).(logrus.Fields)
+	fields, ok = newCtx.Value(serviceutils.LogFields).(logrus.Fields)
 	assert.True(t, ok)
 	assert.Equal(t, logID, fields[logType])
 
@@ -745,7 +745,7 @@ func TestProbe(t *testing.T) {
 	})
 	testConf.service.mode = "node"
 	logger := logrus.NewEntry(logrus.New())
-	ctx := context.WithValue(context.Background(), utils.UnityLogger, logger)
+	ctx := context.WithValue(context.Background(), serviceutils.UnityLogger, logger)
 	mockUnityClient.On("BasicSystemInfo", mock.Anything, mock.Anything).Return(nil)
 	_, err := testConf.service.Probe(ctx, &csi.ProbeRequest{})
 	assert.Equal(t, nil, err)
@@ -795,7 +795,7 @@ func TestRequireProbeFail(t *testing.T) {
 		SkipCertificateValidation: &skipCertificateValidation,
 	})
 	logger := logrus.NewEntry(logrus.New())
-	ctx := context.WithValue(context.Background(), utils.UnityLogger, logger)
+	ctx := context.WithValue(context.Background(), serviceutils.UnityLogger, logger)
 	testConf.service.opts.AutoProbe = true
 	mockUnityClient.On("BasicSystemInfo", mock.Anything, mock.Anything).Return(errors.New("error"))
 	err := testConf.service.requireProbe(ctx, arrayID)
