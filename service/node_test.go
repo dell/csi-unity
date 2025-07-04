@@ -27,7 +27,7 @@ import (
 
 	"bou.ke/monkey"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/dell/csi-unity/service/serviceutils"
+	"github.com/dell/csi-unity/service/csiutils"
 	"github.com/dell/gobrick"
 	"github.com/dell/gofsutil"
 	"github.com/dell/goiscsi"
@@ -314,11 +314,11 @@ func TestNodeStageVolume(t *testing.T) {
 	mockUnity.On("FindHostInitiatorByID", mock.Anything, "fc-initiator-1").Return(hi, nil)
 	mockUnity.On("FindHostInitiatorPathByID", mock.Anything, "fc-initiator-1").Return(&hip, nil)
 	mockUnity.On("FindFcPortByID", mock.Anything, "fc-initiator-1").Return(&fcp, nil)
-	orgIPReachable := serviceutils.IPReachable
-	serviceutils.IPReachable = func(_ context.Context, _, _ string, _ int) bool {
+	orgIPReachable := csiutils.IPReachable
+	csiutils.IPReachable = func(_ context.Context, _, _ string, _ int) bool {
 		return true
 	}
-	defer func() { serviceutils.IPReachable = orgIPReachable }()
+	defer func() { csiutils.IPReachable = orgIPReachable }()
 	testConf.service.iscsiClient = goiscsi.NewMockISCSI(nil)
 
 	type testCase struct {
@@ -2409,11 +2409,11 @@ func TestIScsiDiscoverAndLogin(_ *testing.T) {
 	}
 
 	validIPs := []string{"127.0.0.1"} // Localhost is always reachable
-	orgIPReachable := serviceutils.IPReachable
-	serviceutils.IPReachable = func(_ context.Context, _, _ string, _ int) bool {
+	orgIPReachable := csiutils.IPReachable
+	csiutils.IPReachable = func(_ context.Context, _, _ string, _ int) bool {
 		return true
 	}
-	defer func() { serviceutils.IPReachable = orgIPReachable }()
+	defer func() { csiutils.IPReachable = orgIPReachable }()
 	s.iScsiDiscoverAndLogin(ctx, validIPs)
 
 	goiscsi.GOISCSIMock.InduceDiscoveryError = true

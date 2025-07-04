@@ -12,7 +12,7 @@
  limitations under the License.
 */
 
-package serviceutils
+package logging
 
 import (
 	"context"

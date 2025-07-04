@@ -12,7 +12,7 @@
  limitations under the License.
 */
 
-package serviceutils
+package csiutils
 
 import (
 	"bytes"
@@ -31,6 +31,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/dell/csi-unity/service/logging"
 	"github.com/dell/gounity/types"
 )
 
@@ -93,7 +94,7 @@ func GetMessageWithRunID(runid string, format string, args ...interface{}) strin
 
 // GetFCInitiators - Get FC initiators
 func GetFCInitiators(ctx context.Context) ([]string, error) {
-	log := GetRunidLogger(ctx)
+	log := logging.GetRunidLogger(ctx)
 	portWWNs := make([]string, 0)
 	// Read the directory entries for fc_remote_ports
 	fcHostsDir := "/sys/class/fc_host"
@@ -305,7 +306,7 @@ func FindAdditionalWwns(stringArray1 []string, stringArray2 []string) []string {
 
 // IpsCompare checks if the given ip is present as IP or FQDN in the given list of host ips
 func IpsCompare(ctx context.Context, ip string, hostIps []string) (bool, []string) {
-	log := GetRunidLogger(ctx)
+	log := logging.GetRunidLogger(ctx)
 	result := false
 	var additionalIps []string
 
@@ -353,7 +354,7 @@ func GetIPsFromInferfaces(_ context.Context, ipInterfaces []types.IPInterfaceEnt
 
 // IPReachable checks if a given IP is reachable or not
 var IPReachable = func(ctx context.Context, ip, port string, pingTimeout int) bool {
-	log := GetRunidLogger(ctx)
+	log := logging.GetRunidLogger(ctx)
 	timeout := time.Duration(pingTimeout) * time.Millisecond
 	log.Debug("Tcp test on IP", ip)
 

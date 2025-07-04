@@ -26,7 +26,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dell/csi-unity/service/serviceutils"
+	"github.com/dell/csi-unity/service/logging"
 	"github.com/dell/dell-csi-extensions/podmon"
 	"github.com/dell/gounity"
 	"github.com/dell/gounity/types"
@@ -49,10 +49,10 @@ type testCaseSpec struct {
 var mu sync.Mutex
 
 func TestValidateVolumeHostConnectivityBasic(t *testing.T) {
-	log := serviceutils.GetLogger()
+	log := logging.GetLogger()
 	ctx := context.Background()
-	entry := log.WithField(serviceutils.RUNID, "1")
-	ctx = context.WithValue(ctx, serviceutils.UnityLogger, entry)
+	entry := log.WithField(logging.RUNID, "1")
+	ctx = context.WithValue(ctx, logging.UnityLogger, entry)
 
 	var testCases map[string]testCaseSpec
 	testCases = map[string]testCaseSpec{
@@ -101,10 +101,10 @@ func TestValidateVolumeHostConnectivityBasic(t *testing.T) {
 }
 
 func TestValidateVolumeHostConnectivityHost(t *testing.T) {
-	log := serviceutils.GetLogger()
+	log := logging.GetLogger()
 	ctx := context.Background()
-	entry := log.WithField(serviceutils.RUNID, "1")
-	ctx = context.WithValue(ctx, serviceutils.UnityLogger, entry)
+	entry := log.WithField(logging.RUNID, "1")
+	ctx = context.WithValue(ctx, logging.UnityLogger, entry)
 
 	var testCases map[string]testCaseSpec
 	testCases = map[string]testCaseSpec{
@@ -196,10 +196,10 @@ func TestValidateVolumeHostConnectivityHost(t *testing.T) {
 }
 
 func TestValidateVolumeHostConnectivityVolumeIds(t *testing.T) {
-	log := serviceutils.GetLogger()
+	log := logging.GetLogger()
 	ctx := context.Background()
-	entry := log.WithField(serviceutils.RUNID, "1")
-	ctx = context.WithValue(ctx, serviceutils.UnityLogger, entry)
+	entry := log.WithField(logging.RUNID, "1")
+	ctx = context.WithValue(ctx, logging.UnityLogger, entry)
 
 	var testCases map[string]testCaseSpec
 	testCases = map[string]testCaseSpec{
@@ -325,10 +325,10 @@ func TestValidateVolumeHostConnectivityVolumeIds(t *testing.T) {
 }
 
 func TestValidateVolumeHostConnectivityISCSI(t *testing.T) {
-	log := serviceutils.GetLogger()
+	log := logging.GetLogger()
 	ctx := context.Background()
-	entry := log.WithField(serviceutils.RUNID, "1")
-	ctx = context.WithValue(ctx, serviceutils.UnityLogger, entry)
+	entry := log.WithField(logging.RUNID, "1")
+	ctx = context.WithValue(ctx, logging.UnityLogger, entry)
 
 	var testCases map[string]testCaseSpec
 	testCases = map[string]testCaseSpec{
@@ -452,10 +452,10 @@ func TestValidateVolumeHostConnectivityISCSI(t *testing.T) {
 }
 
 func TestValidateVolumeHostConnectivityFC(t *testing.T) {
-	log := serviceutils.GetLogger()
+	log := logging.GetLogger()
 	ctx := context.Background()
-	entry := log.WithField(serviceutils.RUNID, "1")
-	ctx = context.WithValue(ctx, serviceutils.UnityLogger, entry)
+	entry := log.WithField(logging.RUNID, "1")
+	ctx = context.WithValue(ctx, logging.UnityLogger, entry)
 
 	var testCases map[string]testCaseSpec
 	testCases = map[string]testCaseSpec{
@@ -556,10 +556,10 @@ func TestValidateVolumeHostConnectivityFC(t *testing.T) {
 }
 
 func TestVolumeIOCheck(t *testing.T) {
-	log := serviceutils.GetLogger()
+	log := logging.GetLogger()
 	ctx := context.Background()
-	entry := log.WithField(serviceutils.RUNID, "1")
-	ctx = context.WithValue(ctx, serviceutils.UnityLogger, entry)
+	entry := log.WithField(logging.RUNID, "1")
+	ctx = context.WithValue(ctx, logging.UnityLogger, entry)
 
 	var testCases map[string]testCaseSpec
 	testCases = map[string]testCaseSpec{
@@ -787,10 +787,10 @@ func TestVolumeIOCheck(t *testing.T) {
 }
 
 func TestFileSystemIOCheck(t *testing.T) {
-	log := serviceutils.GetLogger()
+	log := logging.GetLogger()
 	ctx := context.Background()
-	entry := log.WithField(serviceutils.RUNID, "1")
-	ctx = context.WithValue(ctx, serviceutils.UnityLogger, entry)
+	entry := log.WithField(logging.RUNID, "1")
+	ctx = context.WithValue(ctx, logging.UnityLogger, entry)
 
 	var testCases map[string]testCaseSpec
 	testCases = map[string]testCaseSpec{
@@ -1424,10 +1424,10 @@ func TestFileSystemIOCheck(t *testing.T) {
 }
 
 func TestParallelIOCheck(t *testing.T) {
-	log := serviceutils.GetLogger()
+	log := logging.GetLogger()
 	ctx := context.Background()
-	entry := log.WithField(serviceutils.RUNID, "1")
-	ctx = context.WithValue(ctx, serviceutils.UnityLogger, entry)
+	entry := log.WithField(logging.RUNID, "1")
+	ctx = context.WithValue(ctx, logging.UnityLogger, entry)
 
 	// ====== Test setup ======
 	sharedResourceMu.Lock()
@@ -1537,10 +1537,10 @@ func TestParallelIOCheck(t *testing.T) {
 }
 
 func TestMetricsRefresher(t *testing.T) {
-	log := serviceutils.GetLogger()
+	log := logging.GetLogger()
 	ctx := context.Background()
-	entry := log.WithField(serviceutils.RUNID, "1")
-	ctx = context.WithValue(ctx, serviceutils.UnityLogger, entry)
+	entry := log.WithField(logging.RUNID, "1")
+	ctx = context.WithValue(ctx, logging.UnityLogger, entry)
 
 	// ====== Test setup ======
 	sharedResourceMu.Lock()

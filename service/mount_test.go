@@ -26,7 +26,7 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/dell/csi-unity/service/serviceutils"
+	"github.com/dell/csi-unity/service/logging"
 	"github.com/dell/gofsutil"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
@@ -36,9 +36,9 @@ import (
 // newTestContext returns a context with a logger injected for testing.
 func newTestContext() context.Context {
 	ctx := context.Background()
-	log := serviceutils.GetLogger()
-	entry := log.WithField(serviceutils.RUNID, "1111")
-	return context.WithValue(ctx, serviceutils.UnityLogger, entry)
+	log := logging.GetLogger()
+	entry := log.WithField(logging.RUNID, "1111")
+	return context.WithValue(ctx, logging.UnityLogger, entry)
 }
 
 func TestStagePublishNFS(t *testing.T) {
