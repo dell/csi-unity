@@ -25,7 +25,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/dell/csi-unity/service/utils"
+	"github.com/dell/csi-unity/service/csiutils"
 	"github.com/dell/gounity"
 	"github.com/dell/gounity/types"
 	"github.com/sirupsen/logrus"
@@ -101,7 +101,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 	params := req.GetParameters()
 	arrayID := strings.ToLower(strings.TrimSpace(params[keyArrayID]))
 	if arrayID == "" {
-		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "ArrayId cannot be empty"))
+		return nil, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "ArrayId cannot be empty"))
 	}
 	ctx, log = setArrayIDContext(ctx, arrayID)
 
@@ -170,7 +170,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 
 		nasServer, ok := params[keyNasServer]
 		if !ok {
-			return nil, status.Errorf(codes.InvalidArgument, "%s", utils.GetMessageWithRunID(rid, "`%s` is a required parameter", keyNasServer))
+			return nil, status.Errorf(codes.InvalidArgument, "%s", csiutils.GetMessageWithRunID(rid, "`%s` is a required parameter", keyNasServer))
 		}
 
 		// Add AdditionalFilesystemSize in size as Unity XT use this much size for metadata in filesystem
@@ -197,10 +197,10 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 			if int64(content.SizeTotal) /* #nosec G115 -- This is a false positive */ == size && content.NASServer.ID == nasServer && content.Pool.ID == storagePool {
 				log.Info("Filesystem exists in the requested state with same size, NAS server and storage pool")
 				filesystem.FileContent.SizeTotal -= AdditionalFilesystemSize
-				return utils.GetVolumeResponseFromFilesystem(filesystem, arrayID, protocol, preferredAccessibility), nil
+				return csiutils.GetVolumeResponseFromFilesystem(filesystem, arrayID, protocol, preferredAccessibility), nil
 			}
 			log.Info("'Filesystem name' already exists and size/NAS server/storage pool is different")
-			return nil, status.Error(codes.AlreadyExists, utils.GetMessageWithRunID(rid, "'Filesystem name' already exists and size/NAS server/storage pool is different."))
+			return nil, status.Error(codes.AlreadyExists, csiutils.GetMessageWithRunID(rid, "'Filesystem name' already exists and size/NAS server/storage pool is different."))
 
 		}
 
@@ -210,7 +210,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 		// Add method to create filesystem
 		if err != nil {
 			log.Debugf("Filesystem create response:%v Error:%v", resp, err)
-			return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Create Filesystem %s failed with error: %v", volName, err))
+			return nil, status.Error(codes.Unknown, csiutils.GetMessageWithRunID(rid, "Create Filesystem %s failed with error: %v", volName, err))
 		}
 
 		resp, err = unity.FindFilesystemByName(ctx, volName)
@@ -220,7 +220,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 
 		if resp != nil {
 			resp.FileContent.SizeTotal -= AdditionalFilesystemSize
-			filesystemResp := utils.GetVolumeResponseFromFilesystem(resp, arrayID, protocol, preferredAccessibility)
+			filesystemResp := csiutils.GetVolumeResponseFromFilesystem(resp, arrayID, protocol, preferredAccessibility)
 			return filesystemResp, nil
 		}
 	} else {
@@ -242,7 +242,7 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 		if hostIOLimitName != "" {
 			hostIOLimit, err = unity.FindHostIOLimitByName(ctx, hostIOLimitName)
 			if err != nil {
-				return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "HostIOLimitName %s not found. Error: %v", hostIOLimitName, err))
+				return nil, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "HostIOLimitName %s not found. Error: %v", hostIOLimitName, err))
 			}
 
 			hostIOLimitID = hostIOLimit.IoLimitPolicyContent.ID
@@ -254,27 +254,27 @@ func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest
 			content := vol.VolumeContent
 			if int64(content.SizeTotal) /* #nosec G115 -- This is a false positive */ == size {
 				log.Info("Volume exists in the requested state with same size")
-				return utils.GetVolumeResponseFromVolume(vol, arrayID, protocol, preferredAccessibility), nil
+				return csiutils.GetVolumeResponseFromVolume(vol, arrayID, protocol, preferredAccessibility), nil
 			}
 			log.Info("'Volume name' already exists and size is different")
-			return nil, status.Error(codes.AlreadyExists, utils.GetMessageWithRunID(rid, "'Volume name' already exists and size is different."))
+			return nil, status.Error(codes.AlreadyExists, csiutils.GetMessageWithRunID(rid, "'Volume name' already exists and size is different."))
 		}
 
 		log.Debug("Volume does not exist, proceeding to create new volume")
 		resp, err := unity.CreateLun(ctx, volName, storagePool, desc, uint64(size), int(tieringPolicy), hostIOLimitID, thin, dataReduction) // #nosec G115 - This is a false positive
 		if err != nil {
-			return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Create Volume %s failed with error: %v", volName, err))
+			return nil, status.Error(codes.Unknown, csiutils.GetMessageWithRunID(rid, "Create Volume %s failed with error: %v", volName, err))
 		}
 
 		resp, err = unity.FindVolumeByName(ctx, volName)
 		if resp != nil {
-			volumeResp := utils.GetVolumeResponseFromVolume(resp, arrayID, protocol, preferredAccessibility)
+			volumeResp := csiutils.GetVolumeResponseFromVolume(resp, arrayID, protocol, preferredAccessibility)
 			log.Debugf("CreateVolume successful for volid: [%s]", volumeResp.Volume.VolumeId)
 			return volumeResp, nil
 		}
 	}
 
-	return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Volume/Filesystem not found after create. %v", err))
+	return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Volume/Filesystem not found after create. %v", err))
 }
 
 func (s *service) DeleteVolume(
@@ -323,7 +323,7 @@ func (s *service) DeleteVolume(
 		log.Debugf("DeleteVolume successful for volid: [%s]", req.VolumeId)
 		return deleteVolumeResp, nil
 	}
-	return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Delete Volume %s failed with error: %v", volID, err))
+	return nil, status.Error(codes.FailedPrecondition, csiutils.GetMessageWithRunID(rid, "Delete Volume %s failed with error: %v", volID, err))
 }
 
 func (s *service) ControllerPublishVolume(
@@ -393,7 +393,7 @@ func (s *service) ControllerUnpublishVolume(
 
 	nodeID := req.GetNodeId()
 	if nodeID == "" {
-		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Node ID is required"))
+		return nil, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "Node ID is required"))
 	}
 
 	hostNames := strings.Split(nodeID, ",")
@@ -414,7 +414,7 @@ func (s *service) ControllerUnpublishVolume(
 				log.Debugf("Volume %s not found on the array %s during Controller Unpublish. Hence considering the call to be idempotent", volID, arrayID)
 				return &csi.ControllerUnpublishVolumeResponse{}, nil
 			}
-			return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "%v", err))
+			return nil, status.Error(codes.Internal, csiutils.GetMessageWithRunID(rid, "%v", err))
 		}
 
 		// Idempotency check
@@ -436,7 +436,7 @@ func (s *service) ControllerUnpublishVolume(
 			log.Debug("List of host access that will be retained on the volume: ", hostIDList)
 			err = unity.ModifyVolumeExport(ctx, volID, hostIDList)
 			if err != nil {
-				return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Unexport Volume Failed. %v", err))
+				return nil, status.Error(codes.Unknown, csiutils.GetMessageWithRunID(rid, "Unexport Volume Failed. %v", err))
 			}
 		} else {
 			log.Info(fmt.Sprintf("The given Node %s does not have access on the given volume %s. Already in Unpublished state.", hostID, volID))
@@ -468,14 +468,14 @@ func (s *service) ValidateVolumeCapabilities(ctx context.Context, req *csi.Valid
 
 	_, err = unity.FindVolumeByID(ctx, volID)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Volume not found. Error: %v", err))
+		return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Volume not found. Error: %v", err))
 	}
 
 	params := req.GetParameters()
 	protocol, _ := params[keyProtocol]
 	if protocol == "" {
 		log.Errorf("Protocol is required to validate capabilities")
-		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Protocol is required to validate capabilities"))
+		return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Protocol is required to validate capabilities"))
 	}
 
 	vcs := req.GetVolumeCapabilities()
@@ -489,7 +489,7 @@ func (s *service) ValidateVolumeCapabilities(ctx context.Context, req *csi.Valid
 		return resp, nil
 	}
 	resp.Message = reason
-	return resp, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Unsupported capability"))
+	return resp, status.Error(codes.Unknown, csiutils.GetMessageWithRunID(rid, "Unsupported capability"))
 }
 
 func (s *service) ListVolumes(_ context.Context, _ *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
@@ -510,7 +510,7 @@ func (s *service) GetCapacity(
 	arrayID := strings.ToLower(strings.TrimSpace(params[keyArrayID]))
 
 	if arrayID == "" {
-		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "ArrayId cannot be empty"))
+		return nil, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "ArrayId cannot be empty"))
 	}
 	ctx, log = setArrayIDContext(ctx, arrayID)
 
@@ -559,12 +559,12 @@ func (s *service) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotReq
 	log.Debugf("Executing CreateSnapshot with args: %+v", *req)
 
 	if len(req.SourceVolumeId) == 0 {
-		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Storage Resource ID cannot be empty"))
+		return nil, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "Storage Resource ID cannot be empty"))
 	}
 	var err error
 	req.Name, err = util.ValidateResourceName(req.Name, api.MaxResourceNameLength)
 	if err != nil {
-		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "invalid snapshot name [%v]", err))
+		return nil, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "invalid snapshot name [%v]", err))
 	}
 
 	// Source volume is for volume clone or snapshot clone
@@ -583,7 +583,7 @@ func (s *service) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotReq
 	if err != nil {
 		return nil, err
 	}
-	return utils.GetSnapshotResponseFromSnapshot(snap, protocol, arrayID), nil
+	return csiutils.GetSnapshotResponseFromSnapshot(snap, protocol, arrayID), nil
 }
 
 func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
@@ -609,7 +609,7 @@ func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotReq
 	if snap != nil {
 		err := unity.DeleteSnapshot(ctx, snapID)
 		if err != nil {
-			return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Delete Snapshot error: %v", err))
+			return nil, status.Error(codes.Unknown, csiutils.GetMessageWithRunID(rid, "Delete Snapshot error: %v", err))
 		}
 	}
 
@@ -645,20 +645,20 @@ func (s *service) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsReque
 	if req.StartingToken != "" {
 		i, err := strconv.ParseInt(req.StartingToken, 10, 64)
 		if err != nil {
-			return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Unable to parse StartingToken: %v into uint32", req.StartingToken))
+			return nil, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "Unable to parse StartingToken: %v into uint32", req.StartingToken))
 		}
 		startToken = int(i)
 	}
 
 	snaps, nextToken, err := unity.ListSnapshots(ctx, startToken, maxEntries, "", snapID)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Unable to get the snapshots: %v", err))
+		return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Unable to get the snapshots: %v", err))
 	}
 
 	// Process the source snapshots and make CSI Snapshot
 	entries, err := s.getCSISnapshots(snaps, req.SourceVolumeId, protocol, arrayID)
 	if err != nil {
-		return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "%s", err.Error()))
+		return nil, status.Error(codes.Unknown, csiutils.GetMessageWithRunID(rid, "%s", err.Error()))
 	}
 	log.Debugf("ListSnapshot successful for snapid: [%s]", req.SnapshotId)
 	return &csi.ListSnapshotsResponse{
@@ -777,7 +777,7 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 	log.Debugf("Executing ControllerExpandVolume with args: %+v", *req)
 
 	if req.VolumeId == "" {
-		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "volumeId is mandatory parameter"))
+		return nil, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "volumeId is mandatory parameter"))
 	}
 
 	volID, protocol, arrayID, unity, err := s.validateAndGetResourceDetails(ctx, req.VolumeId, volumeType)
@@ -800,7 +800,7 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 		}
 	}
 	if capacity <= 0 {
-		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Required bytes can not be 0 or less"))
+		return nil, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "Required bytes can not be 0 or less"))
 	}
 
 	expandVolumeResp := &csi.ControllerExpandVolumeResponse{
@@ -815,9 +815,9 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 		if err != nil {
 			_, err = unity.FindSnapshotByID(ctx, volID)
 			if err != nil {
-				return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find filesystem %s failed with error: %v", volID, err))
+				return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Find filesystem %s failed with error: %v", volID, err))
 			}
-			return nil, status.Error(codes.Unimplemented, utils.GetMessageWithRunID(rid, "Expand Volume not supported for cloned filesystems(snapshot on array)"))
+			return nil, status.Error(codes.Unimplemented, csiutils.GetMessageWithRunID(rid, "Expand Volume not supported for cloned filesystems(snapshot on array)"))
 		}
 
 		// Idempotency check
@@ -829,12 +829,12 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 
 		err = unity.ExpandFilesystem(ctx, volID, uint64(capacity)) // #nosec G115 - This is a false positive
 		if err != nil {
-			return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Expand filesystem failed with error: %v", err))
+			return nil, status.Error(codes.Unknown, csiutils.GetMessageWithRunID(rid, "Expand filesystem failed with error: %v", err))
 		}
 
 		filesystem, err = unity.FindFilesystemByID(ctx, volID)
 		if err != nil {
-			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find filesystem failed with error: %v", err))
+			return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Find filesystem failed with error: %v", err))
 		}
 		expandVolumeResp.CapacityBytes = int64(filesystem.FileContent.SizeTotal) /* #nosec G115 -- This is a false positive */ - AdditionalFilesystemSize
 		expandVolumeResp.NodeExpansionRequired = false
@@ -843,7 +843,7 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 	// Idempotency check
 	volume, err := unity.FindVolumeByID(ctx, volID)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find volume failed with error: %v", err))
+		return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Find volume failed with error: %v", err))
 	}
 
 	nodeExpansionRequired := false
@@ -860,12 +860,12 @@ func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.Controlle
 
 	err = unity.ExpandVolume(ctx, volID, uint64(capacity))
 	if err != nil {
-		return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Expand volume failed with error: %v", err))
+		return nil, status.Error(codes.Unknown, csiutils.GetMessageWithRunID(rid, "Expand volume failed with error: %v", err))
 	}
 
 	volume, err = unity.FindVolumeByID(ctx, volID)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find volume failed with error: %v", err))
+		return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Find volume failed with error: %v", err))
 	}
 	expandVolumeResp.CapacityBytes = int64(volume.VolumeContent.SizeTotal) /* #nosec G115 -- This is a false positive */
 	expandVolumeResp.NodeExpansionRequired = nodeExpansionRequired
@@ -941,11 +941,11 @@ func (s *service) getFilesystemByResourceID(ctx context.Context, resourceID, arr
 
 	filesystemID, err := unity.GetFilesystemIDFromResID(ctx, resourceID)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Storage resource: %s filesystem Id not found. Error: %v", resourceID, err))
+		return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Storage resource: %s filesystem Id not found. Error: %v", resourceID, err))
 	}
 	sourceFilesystemResp, err := unity.FindFilesystemByID(ctx, filesystemID)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Filesystem: %s not found. Error: %v", filesystemID, err))
+		return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Filesystem: %s not found. Error: %v", filesystemID, err))
 	}
 	return sourceFilesystemResp, nil
 }
@@ -960,12 +960,12 @@ func (s *service) createFilesystemFromSnapshot(ctx context.Context, snapID, volu
 
 	snapResp, err := unity.CopySnapshot(ctx, snapID, volumeName)
 	if err != nil {
-		return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Create Filesystem from snapshot failed with error. Error: %v", err))
+		return nil, status.Error(codes.Unknown, csiutils.GetMessageWithRunID(rid, "Create Filesystem from snapshot failed with error. Error: %v", err))
 	}
 
 	snapResp, err = unity.FindSnapshotByName(ctx, volumeName)
 	if err != nil {
-		return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Create Filesystem from snapshot failed with error. Error: %v", err))
+		return nil, status.Error(codes.Unknown, csiutils.GetMessageWithRunID(rid, "Create Filesystem from snapshot failed with error. Error: %v", err))
 	}
 
 	return snapResp, nil
@@ -986,7 +986,7 @@ func (s *service) createIdempotentSnapshot(ctx context.Context, snapshotName, so
 		if err != nil {
 			snapResp, err = unity.FindSnapshotByID(ctx, sourceVolID)
 			if err != nil {
-				return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find source filesystem: %s failed with error: %v", sourceVolID, err))
+				return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Find source filesystem: %s failed with error: %v", sourceVolID, err))
 			}
 			isSnapshot = true
 			filesystemResp, err = s.getFilesystemByResourceID(ctx, snapResp.SnapshotContent.StorageResource.ID, arrayID)
@@ -1010,14 +1010,14 @@ func (s *service) createIdempotentSnapshot(ctx context.Context, snapshotName, so
 			log.Infof("Snapshot already exists with same name %s for same storage resource %s", snapshotName, sourceVolID)
 			return snap, nil
 		}
-		return nil, status.Error(codes.AlreadyExists, utils.GetMessageWithRunID(rid, "Snapshot with same name %s already exists for storage resource %s", snapshotName, snap.SnapshotContent.StorageResource.ID))
+		return nil, status.Error(codes.AlreadyExists, csiutils.GetMessageWithRunID(rid, "Snapshot with same name %s already exists for storage resource %s", snapshotName, snap.SnapshotContent.StorageResource.ID))
 	}
 
 	var newSnapshot *types.Snapshot
 	if isSnapshot {
 		newSnapshot, err = unity.CopySnapshot(ctx, sourceVolID, snapshotName)
 		if err != nil {
-			return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Create Snapshot error: %v", err))
+			return nil, status.Error(codes.Unknown, csiutils.GetMessageWithRunID(rid, "Create Snapshot error: %v", err))
 		}
 		err = unity.ModifySnapshot(ctx, newSnapshot.SnapshotContent.ResourceID, description, retentionDuration)
 		if err != nil {
@@ -1030,7 +1030,7 @@ func (s *service) createIdempotentSnapshot(ctx context.Context, snapshotName, so
 			newSnapshot, err = unity.CreateSnapshot(ctx, sourceVolID, snapshotName, description, retentionDuration)
 		}
 		if err != nil {
-			return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Create Snapshot error: %v", err))
+			return nil, status.Error(codes.Unknown, csiutils.GetMessageWithRunID(rid, "Create Snapshot error: %v", err))
 		}
 	}
 
@@ -1042,20 +1042,20 @@ func (s *service) createIdempotentSnapshot(ctx context.Context, snapshotName, so
 		}
 		return newSnapshot, nil
 	}
-	return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Find Snapshot error after create. %v", err))
+	return nil, status.Error(codes.Unknown, csiutils.GetMessageWithRunID(rid, "Find Snapshot error after create. %v", err))
 }
 
 func (s *service) getHostID(ctx context.Context, arrayID, shortHostname, longHostname string) (*types.Host, error) {
 	ctx, _, rid := GetRunidLog(ctx)
 	unity, err := s.getUnityClient(ctx, arrayID)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Unable to get Unity client."))
+		return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Unable to get Unity client."))
 	}
 
 	host, err := unity.FindHostByName(ctx, shortHostname)
 	if err != nil {
 		if err != gounity.ErrorHostNotFound {
-			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find Host Failed %v", err))
+			return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Find Host Failed %v", err))
 		}
 	}
 	if host != nil {
@@ -1068,21 +1068,21 @@ func (s *service) getHostID(ctx context.Context, arrayID, shortHostname, longHos
 
 	host, err = unity.FindHostByName(ctx, longHostname)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find Host Failed %v", err))
+		return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Find Host Failed %v", err))
 	}
 	for _, hostIPPort := range host.HostContent.IPPorts {
 		if hostIPPort.Address == longHostname {
 			return host, nil
 		}
 	}
-	return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find Host Id Failed."))
+	return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Find Host Id Failed."))
 }
 
 // createVolumeClone - Method to create a volume clone with idempotency for all protocols
 func (s *service) createVolumeClone(ctx context.Context, crParams *CRParams, sourceVolID, arrayID string, contentSource *csi.VolumeContentSource, unity gounity.UnityClient, preferredAccessibility []*csi.Topology) (*csi.CreateVolumeResponse, error) {
 	ctx, log, rid := GetRunidLog(ctx)
 	if sourceVolID == "" {
-		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Source volume ID cannot be empty"))
+		return nil, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "Source volume ID cannot be empty"))
 	}
 
 	sourceVolID, _, sourceArrayID, _, err := s.validateAndGetResourceDetails(ctx, sourceVolID, volumeType)
@@ -1091,7 +1091,7 @@ func (s *service) createVolumeClone(ctx context.Context, crParams *CRParams, sou
 	}
 
 	if arrayID != sourceArrayID {
-		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Source volume array id: %s is different than required volume array id: %s", sourceArrayID, arrayID))
+		return nil, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "Source volume array id: %s is different than required volume array id: %s", sourceArrayID, arrayID))
 	}
 
 	volName := crParams.VolumeName
@@ -1115,7 +1115,7 @@ func (s *service) createVolumeClone(ctx context.Context, crParams *CRParams, sou
 			snapResp, snapErr = unity.FindSnapshotByID(ctx, sourceVolID)
 			if snapErr != nil {
 				log.Debugf("Tried to check if PVC exists as a snapshot: %v", snapErr)
-				return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find source filesystem: %s Failed. Error: %v ", sourceVolID, err))
+				return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Find source filesystem: %s Failed. Error: %v ", sourceVolID, err))
 			}
 			isSnapshot = true
 			filesystem, err = s.getFilesystemByResourceID(ctx, snapResp.SnapshotContent.StorageResource.ID, arrayID)
@@ -1133,7 +1133,7 @@ func (s *service) createVolumeClone(ctx context.Context, crParams *CRParams, sou
 			// Validate the size parameter
 			snapSize := int64(snapResp.SnapshotContent.Size - AdditionalFilesystemSize)
 			if snapSize != size {
-				return nil, status.Errorf(codes.InvalidArgument, "%s", utils.GetMessageWithRunID(rid, "Requested size %d should be same as source filesystem size %d", size, snapSize))
+				return nil, status.Errorf(codes.InvalidArgument, "%s", csiutils.GetMessageWithRunID(rid, "Requested size %d should be same as source filesystem size %d", size, snapSize))
 			}
 			// Idempotency check
 			snapResp, err := unity.FindSnapshotByName(ctx, volName)
@@ -1144,16 +1144,16 @@ func (s *service) createVolumeClone(ctx context.Context, crParams *CRParams, sou
 					return nil, err
 				}
 			} else if snapResp.SnapshotContent.Size != int64(size+AdditionalFilesystemSize) {
-				return nil, status.Error(codes.AlreadyExists, utils.GetMessageWithRunID(rid, "Snapshot with same name %s already exists in different size.", volName))
+				return nil, status.Error(codes.AlreadyExists, csiutils.GetMessageWithRunID(rid, "Snapshot with same name %s already exists in different size.", volName))
 			}
 			snapResp.SnapshotContent.Size -= AdditionalFilesystemSize
-			csiVolResp := utils.GetVolumeResponseFromSnapshot(snapResp, arrayID, protocol, preferredAccessibility)
+			csiVolResp := csiutils.GetVolumeResponseFromSnapshot(snapResp, arrayID, protocol, preferredAccessibility)
 			csiVolResp.Volume.ContentSource = contentSource
 			return csiVolResp, nil
 		}
 		fsSize := int64(filesystem.FileContent.SizeTotal - AdditionalFilesystemSize) /* #nosec G115 -- This is a false positive */
 		if size != fsSize {
-			return nil, status.Errorf(codes.InvalidArgument, "%s", utils.GetMessageWithRunID(rid, "Requested size %d should be same as source volume size %d",
+			return nil, status.Errorf(codes.InvalidArgument, "%s", csiutils.GetMessageWithRunID(rid, "Requested size %d should be same as source volume size %d",
 				size, fsSize))
 		}
 
@@ -1161,7 +1161,7 @@ func (s *service) createVolumeClone(ctx context.Context, crParams *CRParams, sou
 		if err != nil {
 			return nil, err
 		}
-		csiVolResp := utils.GetVolumeResponseFromSnapshot(snap, arrayID, protocol, preferredAccessibility)
+		csiVolResp := csiutils.GetVolumeResponseFromSnapshot(snap, arrayID, protocol, preferredAccessibility)
 		csiVolResp.Volume.ContentSource = contentSource
 		return csiVolResp, nil
 	}
@@ -1169,7 +1169,7 @@ func (s *service) createVolumeClone(ctx context.Context, crParams *CRParams, sou
 	// If protocol is FC or iSCSI
 	sourceVolResp, err := unity.FindVolumeByID(ctx, sourceVolID)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Source volume not found: %s. Error: %v", sourceVolID, err))
+		return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Source volume not found: %s. Error: %v", sourceVolID, err))
 	}
 
 	err = validateCreateVolumeFromSource(ctx, sourceVolResp, storagePool, tieringPolicy, size, thin, dataReduction, false)
@@ -1183,37 +1183,37 @@ func (s *service) createVolumeClone(ctx context.Context, crParams *CRParams, sou
 		if volResp.VolumeContent.IsThinClone && len(volResp.VolumeContent.ParentVolume.ID) > 0 && volResp.VolumeContent.ParentVolume.ID == sourceVolID &&
 			volResp.VolumeContent.SizeTotal == sourceVolResp.VolumeContent.SizeTotal {
 			log.Infof("Volume %s exists in the requested state as a clone of volume %s", volName, sourceVolResp.VolumeContent.Name)
-			csiVolResp := utils.GetVolumeResponseFromVolume(volResp, arrayID, protocol, preferredAccessibility)
+			csiVolResp := csiutils.GetVolumeResponseFromVolume(volResp, arrayID, protocol, preferredAccessibility)
 			csiVolResp.Volume.ContentSource = contentSource
 			return csiVolResp, nil
 		}
-		return nil, status.Error(codes.AlreadyExists, utils.GetMessageWithRunID(rid, "Volume with same name %s already exists", volName))
+		return nil, status.Error(codes.AlreadyExists, csiutils.GetMessageWithRunID(rid, "Volume with same name %s already exists", volName))
 	}
 
 	// Perform volume cloning
 	volResp, err = unity.CreateCloneFromVolume(ctx, volName, sourceVolID)
 	if err != nil {
 		if err == gounity.ErrorCreateSnapshotFailed {
-			return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Unable to Create Snapshot for Volume Cloning for source volume: %s", sourceVolID))
+			return nil, status.Error(codes.Unknown, csiutils.GetMessageWithRunID(rid, "Unable to Create Snapshot for Volume Cloning for source volume: %s", sourceVolID))
 		} else if err == gounity.ErrorCloningFailed {
-			return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Volume cloning for source volume: %s failed.", sourceVolID))
+			return nil, status.Error(codes.Unknown, csiutils.GetMessageWithRunID(rid, "Volume cloning for source volume: %s failed.", sourceVolID))
 		}
 	}
 
 	volResp, err = unity.FindVolumeByName(ctx, volName)
 	if volResp != nil {
-		csiVolResp := utils.GetVolumeResponseFromVolume(volResp, arrayID, protocol, preferredAccessibility)
+		csiVolResp := csiutils.GetVolumeResponseFromVolume(volResp, arrayID, protocol, preferredAccessibility)
 		csiVolResp.Volume.ContentSource = contentSource
 		return csiVolResp, nil
 	}
-	return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Volume not found after create. %v", err))
+	return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Volume not found after create. %v", err))
 }
 
 // createVolumeFromSnap - Method to create a volume from snapshot with idempotency for all protocols
 func (s *service) createVolumeFromSnap(ctx context.Context, crParams *CRParams, snapshotID, arrayID string, contentSource *csi.VolumeContentSource, unity gounity.UnityClient, preferredAccessibility []*csi.Topology) (*csi.CreateVolumeResponse, error) {
 	ctx, log, rid := GetRunidLog(ctx)
 	if snapshotID == "" {
-		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Source snapshot ID cannot be empty"))
+		return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Source snapshot ID cannot be empty"))
 	}
 
 	snapshotID, _, sourceArrayID, _, err := s.validateAndGetResourceDetails(ctx, snapshotID, snapshotType)
@@ -1222,7 +1222,7 @@ func (s *service) createVolumeFromSnap(ctx context.Context, crParams *CRParams, 
 	}
 
 	if arrayID != sourceArrayID {
-		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Source snapshot array id: %s is different than required volume array id: %s", sourceArrayID, arrayID))
+		return nil, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "Source snapshot array id: %s is different than required volume array id: %s", sourceArrayID, arrayID))
 	}
 
 	volName := crParams.VolumeName
@@ -1236,7 +1236,7 @@ func (s *service) createVolumeFromSnap(ctx context.Context, crParams *CRParams, 
 
 	snapResp, err := unity.FindSnapshotByID(ctx, snapshotID)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Source snapshot not found: %s", snapshotID))
+		return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Source snapshot not found: %s", snapshotID))
 	}
 
 	if protocol == NFS {
@@ -1253,7 +1253,7 @@ func (s *service) createVolumeFromSnap(ctx context.Context, crParams *CRParams, 
 		// Validate the size parameter
 		snapSize := int64(snapResp.SnapshotContent.Size - AdditionalFilesystemSize)
 		if snapSize != size {
-			return nil, status.Errorf(codes.InvalidArgument, "%s", utils.GetMessageWithRunID(rid, "Requested size %d should be same as source snapshot size %d", size, snapSize))
+			return nil, status.Errorf(codes.InvalidArgument, "%s", csiutils.GetMessageWithRunID(rid, "Requested size %d should be same as source snapshot size %d", size, snapSize))
 		}
 
 		snapResp, err := unity.FindSnapshotByName(ctx, volName)
@@ -1262,11 +1262,11 @@ func (s *service) createVolumeFromSnap(ctx context.Context, crParams *CRParams, 
 			if snapResp.SnapshotContent.ParentSnap.ID == snapshotID && snapResp.SnapshotContent.AccessType == int(gounity.ProtocolAccessType) {
 				log.Infof("Filesystem %s exists in the requested state as a volume from snapshot(snapshot on array) %s", volName, snapshotID)
 				snapResp.SnapshotContent.Size -= AdditionalFilesystemSize
-				csiVolResp := utils.GetVolumeResponseFromSnapshot(snapResp, arrayID, protocol, preferredAccessibility)
+				csiVolResp := csiutils.GetVolumeResponseFromSnapshot(snapResp, arrayID, protocol, preferredAccessibility)
 				csiVolResp.Volume.ContentSource = contentSource
 				return csiVolResp, nil
 			}
-			return nil, status.Error(codes.AlreadyExists, utils.GetMessageWithRunID(rid, "Filesystem with same name %s already exists", volName))
+			return nil, status.Error(codes.AlreadyExists, csiutils.GetMessageWithRunID(rid, "Filesystem with same name %s already exists", volName))
 		}
 
 		// Create Volume from Snapshot(Copy snapshot on array)
@@ -1277,18 +1277,18 @@ func (s *service) createVolumeFromSnap(ctx context.Context, crParams *CRParams, 
 
 		if snapResp != nil {
 			snapResp.SnapshotContent.Size -= AdditionalFilesystemSize
-			csiVolResp := utils.GetVolumeResponseFromSnapshot(snapResp, arrayID, protocol, preferredAccessibility)
+			csiVolResp := csiutils.GetVolumeResponseFromSnapshot(snapResp, arrayID, protocol, preferredAccessibility)
 			csiVolResp.Volume.ContentSource = contentSource
 			return csiVolResp, nil
 		}
-		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Filesystem: %s not found after create. Error: %v", volName, err))
+		return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Filesystem: %s not found after create. Error: %v", volName, err))
 	}
 
 	// If protocol is FC or iSCSI
 	volID := snapResp.SnapshotContent.StorageResource.ID
 	sourceVolResp, err := unity.FindVolumeByID(ctx, volID)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Source volume not found: %s", volID))
+		return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Source volume not found: %s", volID))
 	}
 
 	err = validateCreateVolumeFromSource(ctx, sourceVolResp, storagePool, tieringPolicy, size, thin, dataReduction, true)
@@ -1298,7 +1298,7 @@ func (s *service) createVolumeFromSnap(ctx context.Context, crParams *CRParams, 
 
 	// Validate the size parameter
 	if snapResp.SnapshotContent.Size != size {
-		return nil, status.Errorf(codes.InvalidArgument, "%s", utils.GetMessageWithRunID(rid, "Requested size %d should be same as source snapshot size %d", size, snapResp.SnapshotContent.Size))
+		return nil, status.Errorf(codes.InvalidArgument, "%s", csiutils.GetMessageWithRunID(rid, "Requested size %d should be same as source snapshot size %d", size, snapResp.SnapshotContent.Size))
 	}
 
 	volResp, _ := unity.FindVolumeByName(ctx, volName)
@@ -1306,23 +1306,23 @@ func (s *service) createVolumeFromSnap(ctx context.Context, crParams *CRParams, 
 		// Idempotency Check
 		if volResp.VolumeContent.IsThinClone == true && len(volResp.VolumeContent.ParentSnap.ID) > 0 && volResp.VolumeContent.ParentSnap.ID == snapshotID {
 			log.Info("Volume exists in the requested state")
-			csiVolResp := utils.GetVolumeResponseFromVolume(volResp, arrayID, protocol, preferredAccessibility)
+			csiVolResp := csiutils.GetVolumeResponseFromVolume(volResp, arrayID, protocol, preferredAccessibility)
 			csiVolResp.Volume.ContentSource = contentSource
 			return csiVolResp, nil
 		}
-		return nil, status.Error(codes.AlreadyExists, utils.GetMessageWithRunID(rid, "Volume with same name %s already exists", volName))
+		return nil, status.Error(codes.AlreadyExists, csiutils.GetMessageWithRunID(rid, "Volume with same name %s already exists", volName))
 	}
 
 	if snapResp.SnapshotContent.IsAutoDelete == true {
 		err = unity.ModifySnapshotAutoDeleteParameter(ctx, snapshotID)
 		if err != nil {
-			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Unable to modify auto-delete parameter for snapshot %s", snapshotID))
+			return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Unable to modify auto-delete parameter for snapshot %s", snapshotID))
 		}
 	}
 
 	volResp, err = unity.CreteLunThinClone(ctx, volName, snapshotID, volID)
 	if err != nil {
-		return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Create volume from snapshot failed with error %v", err))
+		return nil, status.Error(codes.Unknown, csiutils.GetMessageWithRunID(rid, "Create volume from snapshot failed with error %v", err))
 	}
 	volResp, err = unity.FindVolumeByName(ctx, volName)
 	if err != nil {
@@ -1330,11 +1330,11 @@ func (s *service) createVolumeFromSnap(ctx context.Context, crParams *CRParams, 
 	}
 
 	if volResp != nil {
-		csiVolResp := utils.GetVolumeResponseFromVolume(volResp, arrayID, protocol, preferredAccessibility)
+		csiVolResp := csiutils.GetVolumeResponseFromVolume(volResp, arrayID, protocol, preferredAccessibility)
 		csiVolResp.Volume.ContentSource = contentSource
 		return csiVolResp, nil
 	}
-	return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Volume not found after create. %v", err))
+	return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Volume not found after create. %v", err))
 }
 
 // deleteFilesystem - Method to handle delete filesystem logic
@@ -1346,16 +1346,16 @@ func (s *service) deleteFilesystem(ctx context.Context, volID string, unity goun
 	if err == nil {
 		// Validate if filesystem has any NFS or SMB shares or snapshots attached
 		if len(filesystemResp.FileContent.NFSShare) > 0 || len(filesystemResp.FileContent.CIFSShare) > 0 {
-			return nil, nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Filesystem %s can not be deleted as it has associated NFS or SMB shares.", volID))
+			return nil, nil, status.Error(codes.FailedPrecondition, csiutils.GetMessageWithRunID(rid, "Filesystem %s can not be deleted as it has associated NFS or SMB shares.", volID))
 		}
 		snapsResp, _, snapshotErr := unity.ListSnapshots(ctx, 0, 0, filesystemResp.FileContent.StorageResource.ID, "")
 		if snapshotErr != nil {
-			return nil, nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "List snapshots for filesystem %s failed with error: %v", volID, snapshotErr))
+			return nil, nil, status.Error(codes.FailedPrecondition, csiutils.GetMessageWithRunID(rid, "List snapshots for filesystem %s failed with error: %v", volID, snapshotErr))
 		}
 
 		for _, snapResp := range snapsResp {
 			if snapResp.SnapshotContent.AccessType == int(gounity.CheckpointAccessType) {
-				return nil, nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Filesystem %s can not be deleted as it has associated snapshots.", volID))
+				return nil, nil, status.Error(codes.FailedPrecondition, csiutils.GetMessageWithRunID(rid, "Filesystem %s can not be deleted as it has associated snapshots.", volID))
 			}
 		}
 		err = unity.DeleteFilesystem(ctx, volID)
@@ -1367,15 +1367,15 @@ func (s *service) deleteFilesystem(ctx context.Context, volID string, unity goun
 			// Validate if snapshot has any NFS or SMB shares
 			sourceVolID, err := unity.GetFilesystemIDFromResID(ctx, snapResp.SnapshotContent.StorageResource.ID)
 			if err != nil {
-				return nil, nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Source storage resource: %s filesystem Id not found. Error: %v", snapResp.SnapshotContent.StorageResource.ID, err))
+				return nil, nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Source storage resource: %s filesystem Id not found. Error: %v", snapResp.SnapshotContent.StorageResource.ID, err))
 			}
 			filesystemResp, err = unity.FindFilesystemByID(ctx, sourceVolID)
 			if err != nil {
-				return nil, nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find source filesystem: %s failed with error: %v", sourceVolID, err))
+				return nil, nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Find source filesystem: %s failed with error: %v", sourceVolID, err))
 			}
 			for _, nfsShare := range filesystemResp.FileContent.NFSShare {
 				if nfsShare.ParentSnap.ID == volID {
-					return nil, nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Snapshot %s can not be deleted as it has associated NFS or SMB shares.", volID))
+					return nil, nil, status.Error(codes.FailedPrecondition, csiutils.GetMessageWithRunID(rid, "Snapshot %s can not be deleted as it has associated NFS or SMB shares.", volID))
 				}
 			}
 			err = unity.DeleteFilesystemAsSnapshot(ctx, volID, filesystemResp)
@@ -1390,7 +1390,7 @@ func (s *service) deleteBlockVolume(ctx context.Context, volID string, unity gou
 	// Check stale snapshots used for volume cloning and delete if exist
 	snapsResp, _, snapshotErr := unity.ListSnapshots(ctx, 0, 0, volID, "")
 	if snapshotErr != nil {
-		return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "List snapshots for volume %s failed with error: %v", volID, snapshotErr))
+		return nil, status.Error(codes.FailedPrecondition, csiutils.GetMessageWithRunID(rid, "List snapshots for volume %s failed with error: %v", volID, snapshotErr))
 	}
 	totalSnaps := len(snapsResp)
 	for _, snapResp := range snapsResp {
@@ -1400,13 +1400,13 @@ func (s *service) deleteBlockVolume(ctx context.Context, volID string, unity gou
 			reqDeleteSnapshot.SnapshotId = snapResp.SnapshotContent.ResourceID
 			_, snapshotErr = s.DeleteSnapshot(ctx, reqDeleteSnapshot)
 			if snapshotErr != nil {
-				return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Volume %s can not be deleted as it has associated snapshots.", volID))
+				return nil, status.Error(codes.FailedPrecondition, csiutils.GetMessageWithRunID(rid, "Volume %s can not be deleted as it has associated snapshots.", volID))
 			}
 			totalSnaps--
 		}
 	}
 	if totalSnaps > 0 {
-		return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Volume %s can not be deleted as it has associated snapshots.", volID))
+		return nil, status.Error(codes.FailedPrecondition, csiutils.GetMessageWithRunID(rid, "Volume %s can not be deleted as it has associated snapshots.", volID))
 	}
 
 	// Check if any host still has access to the volume. This can happen if ControllerPublishVolume timed out,
@@ -1419,7 +1419,7 @@ func (s *service) deleteBlockVolume(ctx context.Context, volID string, unity gou
 		if errors.Is(err, gounity.ErrorVolumeNotFound) {
 			return gounity.ErrorVolumeNotFound, nil // already deleted, nothing more to do
 		}
-		return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Failed to fetch volume %s details from storage array.", volID))
+		return nil, status.Error(codes.FailedPrecondition, csiutils.GetMessageWithRunID(rid, "Failed to fetch volume %s details from storage array.", volID))
 	}
 
 	if len(vol.VolumeContent.HostAccessResponse) > 0 {
@@ -1446,13 +1446,13 @@ func checkVolumeUnexportError(err error, volID, rid string, log *logrus.Entry) (
 		return gounity.ErrorVolumeNotFound, nil // volume already deleted, nothing more to do
 	} else if strings.Contains(err.Error(), "context deadline exceeded") {
 		log.Debugf("Remove host access request for volume %s timed out, try again", volID)
-		return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Remove host access for volume timed out."))
+		return nil, status.Error(codes.FailedPrecondition, csiutils.GetMessageWithRunID(rid, "Remove host access for volume timed out."))
 	} else if strings.Contains(err.Error(), gounity.LUNModifiedErrorCode) {
 		log.Debugf("Failed to remove host access for volume %s, LUN modified by another request, try again", volID)
-		return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Remove host access for volume failed."))
+		return nil, status.Error(codes.FailedPrecondition, csiutils.GetMessageWithRunID(rid, "Remove host access for volume failed."))
 	}
 	log.Errorf("Failed to remove host access for volume %s: %v", volID, err)
-	return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Remove host access for volume failed."))
+	return nil, status.Error(codes.FailedPrecondition, csiutils.GetMessageWithRunID(rid, "Remove host access for volume failed."))
 }
 
 func checkVolumeDeleteError(err error, volID, rid string, log *logrus.Entry) (error, error) {
@@ -1460,18 +1460,18 @@ func checkVolumeDeleteError(err error, volID, rid string, log *logrus.Entry) (er
 		return nil, nil
 	} else if strings.Contains(err.Error(), gounity.LUNModifiedErrorCode) {
 		log.Debugf("Failed to delete volume %s, LUN modified by another requested, try again", volID)
-		return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Delete volume from storage array failed."))
+		return nil, status.Error(codes.FailedPrecondition, csiutils.GetMessageWithRunID(rid, "Delete volume from storage array failed."))
 	} else if strings.Contains(err.Error(), gounity.VolumeHostAccessErrorCode) {
 		log.Debugf("Failed to delete volume %s, remove host access", volID)
-		return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Delete volume from storage array failed, since it still has host access."))
+		return nil, status.Error(codes.FailedPrecondition, csiutils.GetMessageWithRunID(rid, "Delete volume from storage array failed, since it still has host access."))
 	} else if errors.Is(err, gounity.ErrorVolumeNotFound) || strings.Contains(err.Error(), gounity.VolumeNotFoundErrorCode) {
 		return gounity.ErrorVolumeNotFound, nil // already deleted, nothing more to do
 	} else if strings.Contains(err.Error(), "context deadline exceeded") {
 		log.Debugf("Delete volume %s from array timed out, try again", volID)
-		return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Delete volume from storage array timed out."))
+		return nil, status.Error(codes.FailedPrecondition, csiutils.GetMessageWithRunID(rid, "Delete volume from storage array timed out."))
 	}
 	log.Errorf("Failed to delete volume %s from array: %v", volID, err)
-	return nil, status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Delete volume from storage array failed."))
+	return nil, status.Error(codes.FailedPrecondition, csiutils.GetMessageWithRunID(rid, "Delete volume from storage array failed."))
 }
 
 // exportFilesystem - Method to export filesystem with idempotency
@@ -1485,7 +1485,7 @@ func (s *service) exportFilesystem(ctx context.Context, volID, hostID, nodeID, a
 	if err != nil {
 		snapResp, err = unity.FindSnapshotByID(ctx, volID)
 		if err != nil {
-			return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find filesystem: %s failed with error: %v", volID, err))
+			return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Find filesystem: %s failed with error: %v", volID, err))
 		}
 		isSnapshot = true
 
@@ -1520,13 +1520,13 @@ func (s *service) exportFilesystem(ctx context.Context, volID, hostID, nodeID, a
 		if isSnapshot {
 			nfsShareResp, err := unity.CreateNFSShareFromSnapshot(ctx, nfsShareName, NFSShareLocalPath, volID, gounity.NoneDefaultAccess)
 			if err != nil {
-				return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Create NFS Share failed. Error: %v", err))
+				return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Create NFS Share failed. Error: %v", err))
 			}
 			nfsShareID = nfsShareResp.NFSShareContent.ID
 		} else {
 			filesystemResp, err = unity.CreateNFSShare(ctx, nfsShareName, NFSShareLocalPath, volID, gounity.NoneDefaultAccess)
 			if err != nil {
-				return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Create NFS Share failed. Error: %v", err))
+				return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Create NFS Share failed. Error: %v", err))
 			}
 		}
 		for _, nfsShare := range filesystemResp.FileContent.NFSShare {
@@ -1539,7 +1539,7 @@ func (s *service) exportFilesystem(ctx context.Context, volID, hostID, nodeID, a
 	// Allocate host access to NFS Share with appropriate access mode
 	nfsShareResp, err := unity.FindNFSShareByID(ctx, nfsShareID)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find NFS Share: %s failed. Error: %v", nfsShareID, err))
+		return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Find NFS Share: %s failed. Error: %v", nfsShareID, err))
 	}
 	readOnlyHosts := nfsShareResp.NFSShareContent.ReadOnlyHosts
 	readWriteHosts := nfsShareResp.NFSShareContent.ReadWriteHosts
@@ -1593,10 +1593,10 @@ func (s *service) exportFilesystem(ctx context.Context, volID, hostID, nodeID, a
 		}
 	}
 	if foundIncompatible {
-		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Host: %s has access on NFS Share: %s with incompatible access mode.", nodeID, nfsShareID))
+		return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Host: %s has access on NFS Share: %s with incompatible access mode.", nodeID, nfsShareID))
 	}
 	if (am.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER || am.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_SINGLE_WRITER || am.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_MULTI_WRITER) && otherHostsWithAccess > 0 {
-		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Other hosts have access on NFS Share: %s", nfsShareID))
+		return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Other hosts have access on NFS Share: %s", nfsShareID))
 	}
 	// Idempotent case
 	if foundIdempotent {
@@ -1619,7 +1619,7 @@ func (s *service) exportFilesystem(ctx context.Context, volID, hostID, nodeID, a
 		}
 	}
 	if err != nil {
-		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Allocating host %s access to NFS Share failed. Error: %v", nodeID, err))
+		return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Allocating host %s access to NFS Share failed. Error: %v", nodeID, err))
 	}
 	log.Debugf("NFS Share: %s is accessible to host: %s with access mode: %s", nfsShareID, nodeID, am.Mode)
 	log.Debugf("ControllerPublishVolume successful for volid: [%s]", pinfo["volumeContextId"])
@@ -1633,14 +1633,14 @@ func (s *service) exportVolume(ctx context.Context, protocol, volID, hostID, _, 
 	am := vc.GetAccessMode()
 	hostContent := host.HostContent
 	if protocol == FC && len(hostContent.FcInitiators) == 0 {
-		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Cannot publish volume as protocol in the Storage class is 'FC' but the node has no valid FC initiators"))
+		return nil, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "Cannot publish volume as protocol in the Storage class is 'FC' but the node has no valid FC initiators"))
 	} else if protocol == ISCSI && len(hostContent.IscsiInitiators) == 0 {
-		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Cannot publish volume as protocol in the Storage class is 'iSCSI' but the node has no valid iSCSI initiators"))
+		return nil, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "Cannot publish volume as protocol in the Storage class is 'iSCSI' but the node has no valid iSCSI initiators"))
 	}
 
 	vol, err := unity.FindVolumeByID(ctx, volID)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find volume Failed %v", err))
+		return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Find volume Failed %v", err))
 	}
 
 	content := vol.VolumeContent
@@ -1654,7 +1654,7 @@ func (s *service) exportVolume(ctx context.Context, protocol, volID, hostID, _, 
 			log.Debug("Volume has been published to the given host and exists in the required state.")
 			return &csi.ControllerPublishVolumeResponse{PublishContext: pinfo}, nil
 		} else if vc.GetMount() != nil && (am.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER || am.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_SINGLE_WRITER || am.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_MULTI_WRITER || am.Mode == csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY) {
-			return nil, status.Error(codes.Aborted, utils.GetMessageWithRunID(rid, "Volume has been published to a different host already."))
+			return nil, status.Error(codes.Aborted, csiutils.GetMessageWithRunID(rid, "Volume has been published to a different host already."))
 		}
 		// Gather list of hosts to which the volume is already published to
 		hostIDList = append(hostIDList, hostAccessID)
@@ -1667,7 +1667,7 @@ func (s *service) exportVolume(ctx context.Context, protocol, volID, hostID, _, 
 	log.Debug("List of all hosts to which the volume will have access: ", hostIDList)
 	err = unity.ModifyVolumeExport(ctx, volID, hostIDList)
 	if err != nil {
-		return nil, status.Error(codes.Unknown, utils.GetMessageWithRunID(rid, "Export Volume Failed %v", err))
+		return nil, status.Error(codes.Unknown, csiutils.GetMessageWithRunID(rid, "Export Volume Failed %v", err))
 	}
 	log.Debugf("ControllerPublishVolume successful for volid: [%s]", pinfo["volumeContextId"])
 	return &csi.ControllerPublishVolumeResponse{PublishContext: pinfo}, nil
@@ -1688,7 +1688,7 @@ func (s *service) unexportFilesystem(ctx context.Context, volID, hostID, nodeID,
 				log.Debugf("Filesystem %s not found on the array %s during Controller Unpublish. Hence considering the call to be idempotent", volID, arrayID)
 				return nil
 			}
-			return status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Find filesystem %s failed with error: %v", volID, err))
+			return status.Error(codes.Internal, csiutils.GetMessageWithRunID(rid, "Find filesystem %s failed with error: %v", volID, err))
 		}
 		isSnapshot = true
 		filesystem, err = s.getFilesystemByResourceID(ctx, snapResp.SnapshotContent.StorageResource.ID, arrayID)
@@ -1734,7 +1734,7 @@ func (s *service) unexportFilesystem(ctx context.Context, volID, hostID, nodeID,
 
 	nfsShareResp, err := unity.FindNFSShareByID(ctx, nfsShareID)
 	if err != nil {
-		return status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find NFS Share: %s failed. Error: %v", nfsShareID, err))
+		return status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Find NFS Share: %s failed. Error: %v", nfsShareID, err))
 	}
 	readOnlyHosts := nfsShareResp.NFSShareContent.ReadOnlyHosts
 	readWriteHosts := nfsShareResp.NFSShareContent.ReadWriteHosts
@@ -1784,7 +1784,7 @@ func (s *service) unexportFilesystem(ctx context.Context, volID, hostID, nodeID,
 		}
 	}
 	if foundIncompatible {
-		return status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Cannot remove host access. Host: %s has access on NFS Share: %s with incompatible access mode.", nodeID, nfsShareID))
+		return status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Cannot remove host access. Host: %s has access on NFS Share: %s with incompatible access mode.", nodeID, nfsShareID))
 	}
 	if foundReadOnly {
 		if isSnapshot {
@@ -1803,7 +1803,7 @@ func (s *service) unexportFilesystem(ctx context.Context, volID, hostID, nodeID,
 		log.Infof("Host: %s has no access on NFS Share: %s", nodeID, nfsShareID)
 	}
 	if err != nil {
-		return status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Removing host %s access to NFS Share failed. Error: %v", nodeID, err))
+		return status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Removing host %s access to NFS Share failed. Error: %v", nodeID, err))
 	}
 	log.Debugf("Host: %s access is removed from NFS Share: %s", nodeID, nfsShareID)
 
@@ -1818,7 +1818,7 @@ func (s *service) unexportFilesystem(ctx context.Context, volID, hostID, nodeID,
 				err = unity.DeleteNFSShare(ctx, filesystem.FileContent.ID, nfsShareID)
 			}
 			if err != nil {
-				return status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Delete NFS Share: %s Failed with error: %v", nfsShareID, err))
+				return status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Delete NFS Share: %s Failed with error: %v", nfsShareID, err))
 			}
 			log.Debugf("NFS Share: %s deleted successfully.", nfsShareID)
 		}
@@ -1833,7 +1833,7 @@ func (s *service) createMetricsCollection(ctx context.Context, arrayID string, m
 	ctx, _, rid := GetRunidLog(ctx)
 	unity, err := s.getUnityClient(ctx, arrayID)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Unable to get Unity client."))
+		return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Unable to get Unity client."))
 	}
 
 	query, err := unity.CreateRealTimeMetricsQuery(ctx, metricPaths, interval)
@@ -1849,7 +1849,7 @@ func (s *service) getMetricsCollection(ctx context.Context, arrayID string, id i
 	ctx, _, rid := GetRunidLog(ctx)
 	unity, err := s.getUnityClient(ctx, arrayID)
 	if err != nil {
-		return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Unable to get Unity client."))
+		return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Unable to get Unity client."))
 	}
 
 	collection, err := unity.GetMetricsCollection(ctx, id)
@@ -1883,7 +1883,7 @@ func (s *service) ControllerGetVolume(ctx context.Context,
 		vol, err := unity.FindVolumeByID(ctx, volID)
 		if err != nil {
 			if err != gounity.ErrorVolumeNotFound {
-				return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find volume failed with error: %v", err))
+				return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Find volume failed with error: %v", err))
 			}
 			abnormal = true
 			message = "Volume not found"
@@ -1914,7 +1914,7 @@ func (s *service) ControllerGetVolume(ctx context.Context,
 			snapResp, err = unity.FindSnapshotByID(ctx, volID)
 			if err != nil {
 				if err != gounity.ErrorSnapshotNotFound {
-					return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find filesystem: %s failed with error: %v", volID, err))
+					return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Find filesystem: %s failed with error: %v", volID, err))
 				}
 				abnormal = true
 				message = "Filesystem not found"
@@ -1946,7 +1946,7 @@ func (s *service) ControllerGetVolume(ctx context.Context,
 			if nfsShareID != "" {
 				nfsShareResp, err := unity.FindNFSShareByID(ctx, nfsShareID)
 				if err != nil {
-					return nil, status.Error(codes.NotFound, utils.GetMessageWithRunID(rid, "Find NFS Share: %s failed. Error: %v", nfsShareID, err))
+					return nil, status.Error(codes.NotFound, csiutils.GetMessageWithRunID(rid, "Find NFS Share: %s failed. Error: %v", nfsShareID, err))
 				}
 				readOnlyHosts := nfsShareResp.NFSShareContent.ReadOnlyHosts
 				readWriteHosts := nfsShareResp.NFSShareContent.ReadWriteHosts
