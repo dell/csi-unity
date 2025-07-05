@@ -35,7 +35,7 @@ import (
 	"github.com/dell/goiscsi"
 	"github.com/dell/gounity"
 	gounityapi "github.com/dell/gounity/api"
-	"github.com/dell/gounity/types"
+	types "github.com/dell/gounity/apitypes"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -1837,7 +1837,7 @@ func (s *service) validateProtocols(ctx context.Context, arraysList []*StorageAr
 	for _, array := range arraysList {
 		if array.IsHostAdded {
 			iscsiInitiators, err := s.iscsiClient.GetInitiators("")
-			fcInitiators, err := utils.GetFCInitiators(ctx)
+			fcInitiators, err := csiutils.GetFCInitiators(ctx)
 
 			unityClient, err := s.getUnityClient(ctx, array.ArrayID)
 			if err != nil {

@@ -32,9 +32,8 @@ import (
 	"github.com/dell/gofsutil"
 	"github.com/dell/goiscsi"
 	"github.com/dell/gounity"
+	gounitytypes "github.com/dell/gounity/apitypes"
 	gounitymocks "github.com/dell/gounity/mocks"
-	"github.com/dell/gounity/types"
-	gounitytypes "github.com/dell/gounity/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc/codes"
@@ -536,9 +535,9 @@ func TestNodeStageVolume(t *testing.T) {
 						},
 					},
 				}
-				ipInterfaces := []types.IPInterfaceEntries{
+				ipInterfaces := []gounitytypes.IPInterfaceEntries{
 					{
-						IPInterfaceContent: types.IPInterfaceContent{
+						IPInterfaceContent: gounitytypes.IPInterfaceContent{
 							IPAddress: "1.2.3.4",
 						},
 					},
@@ -579,9 +578,9 @@ func TestNodeStageVolume(t *testing.T) {
 						},
 					},
 				}
-				ipInterfaces := []types.IPInterfaceEntries{
+				ipInterfaces := []gounitytypes.IPInterfaceEntries{
 					{
-						IPInterfaceContent: types.IPInterfaceContent{
+						IPInterfaceContent: gounitytypes.IPInterfaceContent{
 							IPAddress: "10.0.0.1",
 						},
 					},
@@ -658,9 +657,9 @@ func TestNodeStageVolume(t *testing.T) {
 						},
 					},
 				}
-				ipInterfaces := []types.IPInterfaceEntries{
+				ipInterfaces := []gounitytypes.IPInterfaceEntries{
 					{
-						IPInterfaceContent: types.IPInterfaceContent{
+						IPInterfaceContent: gounitytypes.IPInterfaceContent{
 							IPAddress: "1.2.3.4",
 						},
 					},
@@ -2679,8 +2678,8 @@ func TestValidateProtocols(t *testing.T) {
 	// Test case: Error in getting NFS servers
 	connectedSystemID = make([]string, 0)
 	goiscsi.GOISCSIMock.InduceInitiatorError = true
-	mockNFSServerresponse := types.NFSServersResponse{
-		Entries: []types.NFSServerEntry{},
+	mockNFSServerresponse := gounitytypes.NFSServersResponse{
+		Entries: []gounitytypes.NFSServerEntry{},
 	}
 	mockUnity.On("GetAllNFSServers", mock.Anything).Return(&mockNFSServerresponse, errors.New("Error in getting NFS servers")).Once()
 	s.validateProtocols(context.Background(), arraysList)
@@ -2692,10 +2691,10 @@ func TestValidateProtocols(t *testing.T) {
 	// Test case: no iSCSI or FC initiators found
 	connectedSystemID = make([]string, 0)
 	goiscsi.GOISCSIMock.InduceInitiatorError = true
-	mockNFSServerresponse = types.NFSServersResponse{
-		Entries: []types.NFSServerEntry{
+	mockNFSServerresponse = gounitytypes.NFSServersResponse{
+		Entries: []gounitytypes.NFSServerEntry{
 			{
-				Content: types.NFSServer{
+				Content: gounitytypes.NFSServer{
 					NFSv3Enabled: true,
 					NFSv4Enabled: true,
 				},
