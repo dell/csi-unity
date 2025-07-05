@@ -19,7 +19,8 @@ import (
 	"strconv"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/dell/csi-unity/service/utils"
+	"github.com/dell/csi-unity/service/csiutils"
+	"github.com/dell/csi-unity/service/logging"
 	"github.com/dell/gounity/types"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -135,35 +136,35 @@ func valVolumeCaps(vcs []*csi.VolumeCapability, protocol string) (bool, string) 
 
 // validateCreateFsFromSnapshot - Validates idempotency of an existing snapshot created from a filesystem
 func validateCreateFsFromSnapshot(ctx context.Context, sourceFilesystemResp *types.Filesystem, storagePool string, tieringPolicy, hostIoSize int64, thin, dataReduction bool) error {
-	rid, _ := utils.GetRunidAndLogger(ctx)
+	rid, _ := logging.GetRunidAndLogger(ctx)
 
 	// Validate the storagePool parameter
 	if sourceFilesystemResp.FileContent.Pool.ID != storagePool {
-		return status.Errorf(codes.InvalidArgument, "%s", utils.GetMessageWithRunID(rid, "Source filesystem storage pool %s is different than the requested storage pool %s",
+		return status.Errorf(codes.InvalidArgument, "%s", csiutils.GetMessageWithRunID(rid, "Source filesystem storage pool %s is different than the requested storage pool %s",
 			sourceFilesystemResp.FileContent.Pool.ID, storagePool))
 	}
 
 	// Validate the thinProvisioned parameter
 	if sourceFilesystemResp.FileContent.IsThinEnabled != thin {
-		return status.Errorf(codes.InvalidArgument, "%s", utils.GetMessageWithRunID(rid, "Source filesystem thin provision %v is different than the requested thin provision %v",
+		return status.Errorf(codes.InvalidArgument, "%s", csiutils.GetMessageWithRunID(rid, "Source filesystem thin provision %v is different than the requested thin provision %v",
 			sourceFilesystemResp.FileContent.IsThinEnabled, thin))
 	}
 
 	// Validate the dataReduction parameter
 	if sourceFilesystemResp.FileContent.IsDataReductionEnabled != dataReduction {
-		return status.Errorf(codes.InvalidArgument, "%s", utils.GetMessageWithRunID(rid, "Source filesystem data reduction %v is different than the requested data reduction %v",
+		return status.Errorf(codes.InvalidArgument, "%s", csiutils.GetMessageWithRunID(rid, "Source filesystem data reduction %v is different than the requested data reduction %v",
 			sourceFilesystemResp.FileContent.IsDataReductionEnabled, dataReduction))
 	}
 
 	// Validate the tieringPolicy parameter
 	if int64(sourceFilesystemResp.FileContent.TieringPolicy) /* #nosec G115 -- This is a false positive */ != tieringPolicy {
-		return status.Errorf(codes.InvalidArgument, "%s", utils.GetMessageWithRunID(rid, "Source filesystem tiering policy %v is different than the requested tiering policy %v",
+		return status.Errorf(codes.InvalidArgument, "%s", csiutils.GetMessageWithRunID(rid, "Source filesystem tiering policy %v is different than the requested tiering policy %v",
 			sourceFilesystemResp.FileContent.TieringPolicy, tieringPolicy))
 	}
 
 	// Validate the hostIOSize parameter
 	if sourceFilesystemResp.FileContent.HostIOSize != hostIoSize {
-		return status.Errorf(codes.InvalidArgument, "%s", utils.GetMessageWithRunID(rid, "Source filesystem host IO size %v is different than the requested host IO size %v",
+		return status.Errorf(codes.InvalidArgument, "%s", csiutils.GetMessageWithRunID(rid, "Source filesystem host IO size %v is different than the requested host IO size %v",
 			sourceFilesystemResp.FileContent.HostIOSize, hostIoSize))
 	}
 
@@ -172,26 +173,26 @@ func validateCreateFsFromSnapshot(ctx context.Context, sourceFilesystemResp *typ
 
 // validateCreateVolumeFromSource - Validates idempotency of an existing volume created from a volume
 func validateCreateVolumeFromSource(ctx context.Context, sourceVolResp *types.Volume, storagePool string, tieringPolicy, size int64, thin, dataReduction, skipSizeValidation bool) error {
-	rid, _ := utils.GetRunidAndLogger(ctx)
+	rid, _ := logging.GetRunidAndLogger(ctx)
 
 	// Validate the storagePool parameter
 	if sourceVolResp.VolumeContent.Pool.ID != storagePool {
-		return status.Errorf(codes.InvalidArgument, "%s", utils.GetMessageWithRunID(rid, "Source volume storage pool %s is different than the requested storage pool %s",
+		return status.Errorf(codes.InvalidArgument, "%s", csiutils.GetMessageWithRunID(rid, "Source volume storage pool %s is different than the requested storage pool %s",
 			sourceVolResp.VolumeContent.Pool.ID, storagePool))
 	}
 	// Validate the tieringPolicy parameter
 	if int64(sourceVolResp.VolumeContent.TieringPolicy) != tieringPolicy {
-		return status.Errorf(codes.InvalidArgument, "%s", utils.GetMessageWithRunID(rid, "Source volume tiering policy %v is different than the requested tiering policy %v",
+		return status.Errorf(codes.InvalidArgument, "%s", csiutils.GetMessageWithRunID(rid, "Source volume tiering policy %v is different than the requested tiering policy %v",
 			sourceVolResp.VolumeContent.TieringPolicy, tieringPolicy))
 	}
 	// Validate the thinProvisioned parameter
 	if sourceVolResp.VolumeContent.IsThinEnabled != thin {
-		return status.Errorf(codes.InvalidArgument, "%s", utils.GetMessageWithRunID(rid, "Source volume thin provision %v is different than the requested thin provision %v",
+		return status.Errorf(codes.InvalidArgument, "%s", csiutils.GetMessageWithRunID(rid, "Source volume thin provision %v is different than the requested thin provision %v",
 			sourceVolResp.VolumeContent.IsThinEnabled, thin))
 	}
 	// Validate the dataReduction parameter
 	if sourceVolResp.VolumeContent.IsDataReductionEnabled != dataReduction {
-		return status.Errorf(codes.InvalidArgument, "%s", utils.GetMessageWithRunID(rid, "Source volume data reduction %v is different than the requested data reduction %v",
+		return status.Errorf(codes.InvalidArgument, "%s", csiutils.GetMessageWithRunID(rid, "Source volume data reduction %v is different than the requested data reduction %v",
 			sourceVolResp.VolumeContent.IsDataReductionEnabled, dataReduction))
 	}
 
@@ -201,7 +202,7 @@ func validateCreateVolumeFromSource(ctx context.Context, sourceVolResp *types.Vo
 
 	// Validate the size parameter
 	if int64(sourceVolResp.VolumeContent.SizeTotal) /* #nosec G115 -- This is a false positive */ != size {
-		return status.Errorf(codes.InvalidArgument, "%s", utils.GetMessageWithRunID(rid, "Requested size %d should be same as source volume size %d",
+		return status.Errorf(codes.InvalidArgument, "%s", csiutils.GetMessageWithRunID(rid, "Requested size %d should be same as source volume size %d",
 			size, int64(sourceVolResp.VolumeContent.SizeTotal))) /* #nosec G115 -- This is a false positive */
 	}
 
@@ -213,7 +214,7 @@ func ValidateCreateVolumeRequest(ctx context.Context, req *csi.CreateVolumeReque
 	ctx, log, rid := GetRunidLog(ctx)
 
 	if req.GetName() == "" {
-		return "", "", 0, 0, 0, false, false, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Volume Name cannot be empty"))
+		return "", "", 0, 0, 0, false, false, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "Volume Name cannot be empty"))
 	}
 
 	params := req.GetParameters()
@@ -233,16 +234,16 @@ func ValidateCreateVolumeRequest(ctx context.Context, req *csi.CreateVolumeReque
 
 	storagePool, ok := params[keyStoragePool]
 	if !ok {
-		return "", "", 0, 0, 0, false, false, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "`%s` is a required parameter", keyStoragePool))
+		return "", "", 0, 0, 0, false, false, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "`%s` is a required parameter", keyStoragePool))
 	}
 
 	if req.GetCapacityRange() == nil {
-		return "", "", 0, 0, 0, false, false, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "RequiredBytes cannot be empty"))
+		return "", "", 0, 0, 0, false, false, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "RequiredBytes cannot be empty"))
 	}
 
 	size = req.GetCapacityRange().RequiredBytes
 	if size <= 0 {
-		return "", "", 0, 0, 0, false, false, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "RequiredBytes should be greater then 0"))
+		return "", "", 0, 0, 0, false, false, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "RequiredBytes should be greater then 0"))
 	}
 
 	tieringPolicy, err = strconv.ParseInt(params[keyTieringPolicy], 0, 64)
@@ -281,12 +282,12 @@ func ValidateCreateVolumeRequest(ctx context.Context, req *csi.CreateVolumeReque
 	// Validate volume capabilities
 	vcs := req.GetVolumeCapabilities()
 	if len(vcs) == 0 {
-		return "", "", 0, 0, 0, false, false, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "%s", "Controller Volume Capability are not provided"))
+		return "", "", 0, 0, 0, false, false, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "%s", "Controller Volume Capability are not provided"))
 	}
 
 	supported, reason := valVolumeCaps(vcs, protocol)
 	if !supported {
-		return "", "", 0, 0, 0, false, false, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "%s", "Volume Capabilities are not supported. Reason=["+reason+"]"))
+		return "", "", 0, 0, 0, false, false, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "%s", "Volume Capabilities are not supported. Reason=["+reason+"]"))
 	}
 
 	return
@@ -298,11 +299,11 @@ func ValidateControllerPublishRequest(ctx context.Context, req *csi.ControllerPu
 
 	vc := req.GetVolumeCapability()
 	if vc == nil {
-		return "", "", status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "volume capability is required"))
+		return "", "", status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "volume capability is required"))
 	}
 	am := vc.GetAccessMode()
 	if am == nil {
-		return "", "", status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "access mode is required"))
+		return "", "", status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "access mode is required"))
 	}
 
 	protocol, err = ValidateAndGetProtocol(ctx, contextProtocol, req.GetVolumeContext()[keyProtocol])
@@ -312,17 +313,17 @@ func ValidateControllerPublishRequest(ctx context.Context, req *csi.ControllerPu
 
 	supportedAM, _ := valVolumeCaps([]*csi.VolumeCapability{vc}, protocol)
 	if !supportedAM {
-		return "", "", status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Access mode %s is not supported", req.GetVolumeCapability().GetAccessMode().Mode))
+		return "", "", status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "Access mode %s is not supported", req.GetVolumeCapability().GetAccessMode().Mode))
 	}
 
 	nodeID = req.GetNodeId()
 	if nodeID == "" {
-		return "", "", status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Node ID is required"))
+		return "", "", status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "Node ID is required"))
 	}
 
 	if protocol == FC || protocol == ISCSI {
 		if readOnly := req.GetReadonly(); readOnly == true {
-			return "", "", status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Readonly must be false, because it is the supported value for FC/iSCSI"))
+			return "", "", status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "Readonly must be false, because it is the supported value for FC/iSCSI"))
 		}
 	}
 
@@ -338,7 +339,7 @@ func ValidateAndGetProtocol(ctx context.Context, protocol, scProtocol string) (s
 	}
 
 	if protocol != FC && protocol != ISCSI && protocol != NFS {
-		return "", status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Invalid value provided for Protocol: %s", protocol))
+		return "", status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "Invalid value provided for Protocol: %s", protocol))
 	}
 	return protocol, nil
 }

@@ -25,7 +25,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dell/csi-unity/service/utils"
+	"github.com/dell/csi-unity/service/logging"
 	"github.com/sirupsen/logrus"
 )
 
@@ -61,8 +61,8 @@ func TestMain(m *testing.M) {
 	testConf.service.BeforeServe(context.Background(), nil, nil)
 	fmt.Println()
 
-	entry := logrus.WithField(utils.RUNID, "test-1")
-	testConf.ctx = context.WithValue(context.Background(), utils.UnityLogger, entry)
+	entry := logrus.WithField(logging.RUNID, "test-1")
+	testConf.ctx = context.WithValue(context.Background(), logging.UnityLogger, entry)
 
 	for _, v := range testConf.service.getStorageArrayList() {
 		if v.IsDefaultArray {

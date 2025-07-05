@@ -12,7 +12,7 @@
  limitations under the License.
 */
 
-package utils
+package csiutils
 
 import (
 	"bytes"
@@ -28,6 +28,7 @@ import (
 
 	"bou.ke/monkey"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/dell/csi-unity/service/logging"
 	"github.com/dell/gounity/types"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -497,10 +498,10 @@ func TestIpsCompare(t *testing.T) {
 	defer monkey.Unpatch(net.LookupIP)
 
 	// Mock GetRunidLogger
-	monkey.Patch(GetRunidLogger, func(_ context.Context) *logrus.Entry {
+	monkey.Patch(logging.GetRunidLogger, func(_ context.Context) *logrus.Entry {
 		return logrus.NewEntry(logrus.New())
 	})
-	defer monkey.Unpatch(GetRunidLogger)
+	defer monkey.Unpatch(logging.GetRunidLogger)
 
 	// Mock ipListContains
 	monkey.Patch(ipListContains, func(ips []net.IP, ip string) bool {
@@ -568,10 +569,10 @@ func TestGetFCInitiators(t *testing.T) {
 	defer monkey.Unpatch(os.ReadFile)
 
 	// Mock GetRunidLogger
-	monkey.Patch(GetRunidLogger, func(_ context.Context) *logrus.Entry {
+	monkey.Patch(logging.GetRunidLogger, func(_ context.Context) *logrus.Entry {
 		return logrus.NewEntry(logrus.New())
 	})
-	defer monkey.Unpatch(GetRunidLogger)
+	defer monkey.Unpatch(logging.GetRunidLogger)
 
 	ctx := context.Background()
 
@@ -608,10 +609,10 @@ func TestIPReachable(t *testing.T) {
 	defer monkey.Unpatch(net.DialTimeout)
 
 	// Mock GetRunidLogger
-	monkey.Patch(GetRunidLogger, func(_ context.Context) *logrus.Entry {
+	monkey.Patch(logging.GetRunidLogger, func(_ context.Context) *logrus.Entry {
 		return logrus.NewEntry(logrus.New())
 	})
-	defer monkey.Unpatch(GetRunidLogger)
+	defer monkey.Unpatch(logging.GetRunidLogger)
 
 	ctx := context.Background()
 

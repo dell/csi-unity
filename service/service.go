@@ -36,7 +36,8 @@ import (
 	constants "github.com/dell/csi-unity/common"
 	"github.com/dell/csi-unity/core"
 	"github.com/dell/csi-unity/k8sutils"
-	"github.com/dell/csi-unity/service/utils"
+	"github.com/dell/csi-unity/service/csiutils"
+	"github.com/dell/csi-unity/service/logging"
 	"github.com/dell/gobrick"
 	"github.com/dell/gocsi"
 	csictx "github.com/dell/gocsi/context"
@@ -347,7 +348,7 @@ func (s *service) getStorageArrayList() []*StorageArrayConfig {
 func (s *service) getUnityClient(ctx context.Context, arrayID string) (gounity.UnityClient, error) {
 	_, _, rid := GetRunidLog(ctx)
 	if s.getStorageArrayLength() == 0 {
-		return nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Invalid driver csi-driver configuration provided. At least one array should present or invalid yaml format. "))
+		return nil, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "Invalid driver csi-driver configuration provided. At least one array should present or invalid yaml format. "))
 	}
 
 	array := s.getStorageArray(arrayID)
@@ -621,7 +622,7 @@ func (s *service) syncDriverConfig(ctx context.Context, v *viper.Viper) {
 
 		if s.opts.LogLevel != inputLogLevel {
 			s.opts.LogLevel = inputLogLevel
-			utils.ChangeLogLevel(s.opts.LogLevel)
+			logging.ChangeLogLevel(s.opts.LogLevel)
 			// Change log level on gounity
 			util.ChangeLogLevel(s.opts.LogLevel)
 			// Change log level on gocsi
@@ -653,12 +654,12 @@ func (s *service) syncDriverConfig(ctx context.Context, v *viper.Viper) {
 
 // Set arraysId in log messages and re-initialize the context
 func setArrayIDContext(ctx context.Context, arrayID string) (context.Context, *logrus.Entry) {
-	return setLogFieldsInContext(ctx, arrayID, utils.ARRAYID)
+	return setLogFieldsInContext(ctx, arrayID, logging.ARRAYID)
 }
 
 // Set arraysId in log messages and re-initialize the context
 func setRunIDContext(ctx context.Context, runID string) (context.Context, *logrus.Entry) {
-	return setLogFieldsInContext(ctx, runID, utils.RUNID)
+	return setLogFieldsInContext(ctx, runID, logging.RUNID)
 }
 
 var logMutex sync.Mutex
@@ -669,7 +670,7 @@ func setLogFieldsInContext(ctx context.Context, logID string, logType string) (c
 	defer logMutex.Unlock()
 
 	fields := logrus.Fields{}
-	fields, ok := ctx.Value(utils.LogFields).(logrus.Fields)
+	fields, ok := ctx.Value(logging.LogFields).(logrus.Fields)
 	if !ok {
 		fields = logrus.Fields{}
 	}
@@ -677,13 +678,13 @@ func setLogFieldsInContext(ctx context.Context, logID string, logType string) (c
 		fields = logrus.Fields{}
 	}
 	fields[logType] = logID
-	ulog, ok := ctx.Value(utils.UnityLogger).(*logrus.Entry)
+	ulog, ok := ctx.Value(logging.UnityLogger).(*logrus.Entry)
 	if !ok {
-		ulog = utils.GetLogger().WithFields(fields)
+		ulog = logging.GetLogger().WithFields(fields)
 	}
 	ulog = ulog.WithFields(fields)
-	ctx = context.WithValue(ctx, utils.UnityLogger, ulog)
-	ctx = context.WithValue(ctx, utils.LogFields, fields)
+	ctx = context.WithValue(ctx, logging.UnityLogger, ulog)
+	ctx = context.WithValue(ctx, logging.LogFields, fields)
 	return ctx, ulog
 }
 
@@ -711,7 +712,7 @@ func GetRunidLog(ctx context.Context) (context.Context, *logrus.Entry, string) {
 	var rid string
 	fields := logrus.Fields{}
 	if ctx == nil {
-		return ctx, utils.GetLogger().WithFields(fields), rid
+		return ctx, logging.GetLogger().WithFields(fields), rid
 	}
 
 	headers, ok := metadata.FromIncomingContext(ctx)
@@ -725,21 +726,21 @@ func GetRunidLog(ctx context.Context) (context.Context, *logrus.Entry, string) {
 		}
 	}
 
-	fields, _ = ctx.Value(utils.LogFields).(logrus.Fields)
+	fields, _ = ctx.Value(logging.LogFields).(logrus.Fields)
 	if fields == nil {
 		fields = logrus.Fields{}
 	}
 
 	if ok {
-		fields[utils.RUNID] = rid
+		fields[logging.RUNID] = rid
 	}
 
 	logMutex.Lock()
 	defer logMutex.Unlock()
-	l := utils.GetLogger()
+	l := logging.GetLogger()
 	log := l.WithFields(fields)
-	ctx = context.WithValue(ctx, utils.UnityLogger, log)
-	ctx = context.WithValue(ctx, utils.LogFields, fields)
+	ctx = context.WithValue(ctx, logging.UnityLogger, log)
+	ctx = context.WithValue(ctx, logging.LogFields, fields)
 	return ctx, log, rid
 }
 
@@ -748,7 +749,7 @@ func getLogFields(ctx context.Context) logrus.Fields {
 	if ctx == nil {
 		return fields
 	}
-	fields, ok := ctx.Value(utils.LogFields).(logrus.Fields)
+	fields, ok := ctx.Value(logging.LogFields).(logrus.Fields)
 	if !ok {
 		fields = logrus.Fields{}
 	}
@@ -757,7 +758,7 @@ func getLogFields(ctx context.Context) logrus.Fields {
 	if !ok {
 		return fields
 	}
-	fields[utils.RUNID] = csiReqID
+	fields[logging.RUNID] = csiReqID
 	return fields
 }
 
@@ -790,34 +791,34 @@ func (dl *emptyTracer) Trace(_ context.Context, _ string, _ ...interface{}) {
 type customLogger struct{}
 
 func (lg *customLogger) Info(ctx context.Context, format string, args ...interface{}) {
-	log := utils.GetLogger()
+	log := logging.GetLogger()
 	log.WithFields(getLogFields(ctx)).Infof(format, args...)
 }
 
 func (lg *customLogger) Debug(ctx context.Context, format string, args ...interface{}) {
-	log := utils.GetLogger()
+	log := logging.GetLogger()
 	log.WithFields(getLogFields(ctx)).Debugf(format, args...)
 }
 
 func (lg *customLogger) Error(ctx context.Context, format string, args ...interface{}) {
-	log := utils.GetLogger()
+	log := logging.GetLogger()
 	log.WithFields(getLogFields(ctx)).Errorf(format, args...)
 }
 
 func (s *service) requireProbe(ctx context.Context, arrayID string) error {
-	rid, log := utils.GetRunidAndLogger(ctx)
+	rid, log := logging.GetRunidAndLogger(ctx)
 	if !s.opts.AutoProbe {
-		return status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Controller Service has not been probed"))
+		return status.Error(codes.FailedPrecondition, csiutils.GetMessageWithRunID(rid, "Controller Service has not been probed"))
 	}
 	log.Debug("Probing controller service automatically")
 	if err := s.controllerProbe(ctx, arrayID); err != nil {
-		return status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "failed to probe/init plugin: %s", err.Error()))
+		return status.Error(codes.FailedPrecondition, csiutils.GetMessageWithRunID(rid, "failed to probe/init plugin: %s", err.Error()))
 	}
 	return nil
 }
 
 func singleArrayProbe(ctx context.Context, probeType string, array *StorageArrayConfig) error {
-	rid, log := utils.GetRunidAndLogger(ctx)
+	rid, log := logging.GetRunidAndLogger(ctx)
 	ctx, log = setArrayIDContext(ctx, array.ArrayID)
 
 	err := array.UnityClient.BasicSystemInfo(ctx, &gounity.ConfigConnect{
@@ -833,13 +834,13 @@ func singleArrayProbe(ctx context.Context, probeType string, array *StorageArray
 				array.mu.Lock()
 				array.IsProbeSuccess = false
 				array.mu.Unlock()
-				return status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Unable Get basic system info from Unity. Error: %s", err.Error()))
+				return status.Error(codes.FailedPrecondition, csiutils.GetMessageWithRunID(rid, "Unable Get basic system info from Unity. Error: %s", err.Error()))
 			}
 		}
 		array.mu.Lock()
 		array.IsProbeSuccess = false
 		array.mu.Unlock()
-		return status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "Unable Get basic system info from Unity. Verify hostname/IP Address of unity. Error: %s", err.Error()))
+		return status.Error(codes.FailedPrecondition, csiutils.GetMessageWithRunID(rid, "Unable Get basic system info from Unity. Verify hostname/IP Address of unity. Error: %s", err.Error()))
 	}
 
 	array.mu.Lock()
@@ -850,7 +851,7 @@ func singleArrayProbe(ctx context.Context, probeType string, array *StorageArray
 }
 
 func (s *service) probe(ctx context.Context, probeType string, arrayID string) error {
-	rid, log := utils.GetRunidAndLogger(ctx)
+	rid, log := logging.GetRunidAndLogger(ctx)
 	log.Debugf("Inside %s Probe", probeType)
 	if arrayID != "" {
 		if array := s.getStorageArray(arrayID); array != nil {
@@ -870,7 +871,7 @@ func (s *service) probe(ctx context.Context, probeType string, arrayID string) e
 		}
 
 		if !atleastOneArraySuccess {
-			return status.Error(codes.FailedPrecondition, utils.GetMessageWithRunID(rid, "All unity arrays are not working. Could not proceed further"))
+			return status.Error(codes.FailedPrecondition, csiutils.GetMessageWithRunID(rid, "All unity arrays are not working. Could not proceed further"))
 		}
 	}
 	log.Infof("%s Probe Success", probeType)
@@ -880,20 +881,20 @@ func (s *service) probe(ctx context.Context, probeType string, arrayID string) e
 func (s *service) validateAndGetResourceDetails(ctx context.Context, resourceContextID string, resourceType resourceType) (resourceID, protocol, arrayID string, unity gounity.UnityClient, err error) {
 	ctx, _, rid := GetRunidLog(ctx)
 	if s.getStorageArrayLength() == 0 {
-		return "", "", "", nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "Invalid driver csi-driver configuration provided. At least one array should present or invalid yaml format. "))
+		return "", "", "", nil, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "Invalid driver csi-driver configuration provided. At least one array should present or invalid yaml format. "))
 	}
 	resourceID = getVolumeIDFromVolumeContext(resourceContextID)
 	if resourceID == "" {
-		return "", "", "", nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "%sId can't be empty.", resourceType))
+		return "", "", "", nil, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "%sId can't be empty.", resourceType))
 	}
 	arrayID, err = s.getArrayIDFromVolumeContext(resourceContextID)
 	if err != nil {
-		return "", "", "", nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "[%s] [%s] error:[%v]", resourceType, resourceID, err))
+		return "", "", "", nil, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "[%s] [%s] error:[%v]", resourceType, resourceID, err))
 	}
 
 	protocol, err = s.getProtocolFromVolumeContext(resourceContextID)
 	if err != nil {
-		return "", "", "", nil, status.Error(codes.InvalidArgument, utils.GetMessageWithRunID(rid, "[%s] [%s] error:[%v]", resourceType, resourceID, err))
+		return "", "", "", nil, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "[%s] [%s] error:[%v]", resourceType, resourceID, err))
 	}
 
 	unity, err = s.getUnityClient(ctx, arrayID)
@@ -907,12 +908,12 @@ func (s *service) GetNodeLabels(ctx context.Context) (map[string]string, error) 
 	ctx, log, rid := GetRunidLog(ctx)
 	k8sclientset, err := k8sutils.CreateKubeClientSet(s.opts.KubeConfigPath)
 	if err != nil {
-		return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "init client failed with error: %v", err))
+		return nil, status.Error(codes.Internal, csiutils.GetMessageWithRunID(rid, "init client failed with error: %v", err))
 	}
 	// access the API to fetch node object
 	node, err := k8sclientset.CoreV1().Nodes().Get(context.TODO(), s.opts.LongNodeName, v1.GetOptions{})
 	if err != nil {
-		return nil, status.Error(codes.Internal, utils.GetMessageWithRunID(rid, "Unable to fetch the node labels. Error: %v", err))
+		return nil, status.Error(codes.Internal, csiutils.GetMessageWithRunID(rid, "Unable to fetch the node labels. Error: %v", err))
 	}
 	log.Debugf("Node labels: %v\n", node.Labels)
 	return node.Labels, nil
