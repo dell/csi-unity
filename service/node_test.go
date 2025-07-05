@@ -2808,7 +2808,7 @@ func TestValidateProtocols(t *testing.T) {
 		t.Errorf("Expected connectedSystemID to be %v, but got %v", expectedConnectedSystemID, connectedSystemID)
 	}
 
-	// Test case: FC and iSCSI initiators found
+	// Test case: FC and iSCSI initiators found AND NFS is disabled
 	connectedSystemID = make([]string, 0)
 	h.HostContent.IscsiInitiators = []gounitytypes.Initiators{
 		{ID: "iscsi-initiator-1"},
@@ -2834,7 +2834,6 @@ func TestValidateProtocols(t *testing.T) {
 	mockUnity.On("FindHostInitiatorByID", mock.Anything, "iscsi-initiator-1").Return(iscsiHi, nil).Once()
 	s.validateProtocols(context.Background(), arraysList)
 	expectedConnectedSystemID = []string{
-		// arrayID + "/nfs",
 		arrayID + "/fc",
 		arrayID + "/iscsi",
 	}
