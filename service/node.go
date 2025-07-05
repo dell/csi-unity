@@ -1845,7 +1845,7 @@ func (s *service) validateProtocols(ctx context.Context, arraysList []*StorageAr
 			} else {
 				if nfsServerList, err := unityClient.GetAllNFSServers(ctx); err != nil {
 					log.Errorf("failed to get the NFS server list, error: %s", err.Error())
-				} else if nfsServerList != nil {
+				} else {
 					for _, nfsServer := range nfsServerList.Entries {
 						if nfsServer.Content.NFSv3Enabled || nfsServer.Content.NFSv4Enabled {
 							connectedSystemID = append(connectedSystemID, array.ArrayID+"/"+strings.ToLower(NFS))

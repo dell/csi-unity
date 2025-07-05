@@ -2816,15 +2816,25 @@ func TestValidateProtocols(t *testing.T) {
 	h.HostContent.FcInitiators = []gounitytypes.Initiators{
 		{ID: "fc-initiator-1"},
 	}
+	mockNFSServerresponseWithoutNFS := gounitytypes.NFSServersResponse{
+		Entries: []gounitytypes.NFSServerEntry{
+			{
+				Content: gounitytypes.NFSServer{
+					NFSv3Enabled: false,
+					NFSv4Enabled: false,
+				},
+			},
+		},
+	}
 	fcHi := mockAnInitiator("fc-initiator-1")
 	iscsiHi := mockAnInitiator("iscsi-initiator-1")
-	mockUnity.On("GetAllNFSServers", mock.Anything).Return(&mockNFSServerresponse, nil).Once()
+	mockUnity.On("GetAllNFSServers", mock.Anything).Return(&mockNFSServerresponseWithoutNFS, nil).Once()
 	mockUnity.On("FindHostByName", mock.Anything, "test-node").Return(&h, nil).Once()
 	mockUnity.On("FindHostInitiatorByID", mock.Anything, "fc-initiator-1").Return(fcHi, nil).Once()
 	mockUnity.On("FindHostInitiatorByID", mock.Anything, "iscsi-initiator-1").Return(iscsiHi, nil).Once()
 	s.validateProtocols(context.Background(), arraysList)
 	expectedConnectedSystemID = []string{
-		arrayID + "/nfs",
+		// arrayID + "/nfs",
 		arrayID + "/fc",
 		arrayID + "/iscsi",
 	}
