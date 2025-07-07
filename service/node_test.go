@@ -32,9 +32,8 @@ import (
 	"github.com/dell/gofsutil"
 	"github.com/dell/goiscsi"
 	"github.com/dell/gounity"
+	gounitytypes "github.com/dell/gounity/apitypes"
 	gounitymocks "github.com/dell/gounity/mocks"
-	"github.com/dell/gounity/types"
-	gounitytypes "github.com/dell/gounity/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc/codes"
@@ -536,9 +535,9 @@ func TestNodeStageVolume(t *testing.T) {
 						},
 					},
 				}
-				ipInterfaces := []types.IPInterfaceEntries{
+				ipInterfaces := []gounitytypes.IPInterfaceEntries{
 					{
-						IPInterfaceContent: types.IPInterfaceContent{
+						IPInterfaceContent: gounitytypes.IPInterfaceContent{
 							IPAddress: "1.2.3.4",
 						},
 					},
@@ -579,9 +578,9 @@ func TestNodeStageVolume(t *testing.T) {
 						},
 					},
 				}
-				ipInterfaces := []types.IPInterfaceEntries{
+				ipInterfaces := []gounitytypes.IPInterfaceEntries{
 					{
-						IPInterfaceContent: types.IPInterfaceContent{
+						IPInterfaceContent: gounitytypes.IPInterfaceContent{
 							IPAddress: "10.0.0.1",
 						},
 					},
@@ -658,9 +657,9 @@ func TestNodeStageVolume(t *testing.T) {
 						},
 					},
 				}
-				ipInterfaces := []types.IPInterfaceEntries{
+				ipInterfaces := []gounitytypes.IPInterfaceEntries{
 					{
-						IPInterfaceContent: types.IPInterfaceContent{
+						IPInterfaceContent: gounitytypes.IPInterfaceContent{
 							IPAddress: "1.2.3.4",
 						},
 					},
@@ -2676,11 +2675,35 @@ func TestValidateProtocols(t *testing.T) {
 	s.arrays.Store(arrayID, &StorageArrayConfig{ArrayID: arrayID, UnityClient: mockUnity, SkipCertificateValidation: &boolTrue, IsDefault: &boolTrue, IsHostAdded: true})
 	arraysList := s.getStorageArrayList()
 
+	// Test case: Error in getting NFS servers
+	connectedSystemID = make([]string, 0)
+	goiscsi.GOISCSIMock.InduceInitiatorError = true
+	mockNFSServerresponse := gounitytypes.NFSServersResponse{
+		Entries: []gounitytypes.NFSServerEntry{},
+	}
+	mockUnity.On("GetAllNFSServers", mock.Anything).Return(&mockNFSServerresponse, errors.New("Error in getting NFS servers")).Once()
+	s.validateProtocols(context.Background(), arraysList)
+	expectedConnectedSystemID := []string{}
+	if !reflect.DeepEqual(connectedSystemID, expectedConnectedSystemID) {
+		t.Errorf("Expected connectedSystemID to be %v, but got %v", expectedConnectedSystemID, connectedSystemID)
+	}
+
 	// Test case: no iSCSI or FC initiators found
 	connectedSystemID = make([]string, 0)
 	goiscsi.GOISCSIMock.InduceInitiatorError = true
+	mockNFSServerresponse = gounitytypes.NFSServersResponse{
+		Entries: []gounitytypes.NFSServerEntry{
+			{
+				Content: gounitytypes.NFSServer{
+					NFSv3Enabled: true,
+					NFSv4Enabled: true,
+				},
+			},
+		},
+	}
+	mockUnity.On("GetAllNFSServers", mock.Anything).Return(&mockNFSServerresponse, nil).Once()
 	s.validateProtocols(context.Background(), arraysList)
-	expectedConnectedSystemID := []string{arrayID + "/nfs"}
+	expectedConnectedSystemID = []string{arrayID + "/nfs"}
 	if !reflect.DeepEqual(connectedSystemID, expectedConnectedSystemID) {
 		t.Errorf("Expected connectedSystemID to be %v, but got %v", expectedConnectedSystemID, connectedSystemID)
 	}
@@ -2700,6 +2723,7 @@ func TestValidateProtocols(t *testing.T) {
 		},
 	}
 	hi := mockAnInitiator("fc-initiator-1")
+	mockUnity.On("GetAllNFSServers", mock.Anything).Return(&mockNFSServerresponse, nil).Once()
 	mockUnity.On("FindHostByName", mock.Anything, "test-node").Return(&h, nil).Once()
 	mockUnity.On("FindHostInitiatorByID", mock.Anything, "fc-initiator-1").Return(hi, nil).Once()
 	s.validateProtocols(context.Background(), arraysList)
@@ -2713,6 +2737,7 @@ func TestValidateProtocols(t *testing.T) {
 
 	// Test case: FC initiators error
 	connectedSystemID = make([]string, 0)
+	mockUnity.On("GetAllNFSServers", mock.Anything).Return(&mockNFSServerresponse, nil).Once()
 	mockUnity.On("FindHostByName", mock.Anything, "test-node").Return(&h, nil).Once()
 	mockUnity.On("FindHostInitiatorByID", mock.Anything, "fc-initiator-1").Return(nil, errors.New("not found")).Once()
 	s.validateProtocols(context.Background(), arraysList)
@@ -2726,6 +2751,7 @@ func TestValidateProtocols(t *testing.T) {
 	// Test case: FC initiators bad health
 	connectedSystemID = make([]string, 0)
 	hi.HostInitiatorContent.Health.DescriptionIDs = []string{""}
+	mockUnity.On("GetAllNFSServers", mock.Anything).Return(&mockNFSServerresponse, nil).Once()
 	mockUnity.On("FindHostByName", mock.Anything, "test-node").Return(&h, nil).Once()
 	mockUnity.On("FindHostInitiatorByID", mock.Anything, "fc-initiator-1").Return(hi, nil).Once()
 	s.validateProtocols(context.Background(), arraysList)
@@ -2743,6 +2769,7 @@ func TestValidateProtocols(t *testing.T) {
 	}
 	h.HostContent.FcInitiators = nil
 	hi = mockAnInitiator("iscsi-initiator-1")
+	mockUnity.On("GetAllNFSServers", mock.Anything).Return(&mockNFSServerresponse, nil).Once()
 	mockUnity.On("FindHostByName", mock.Anything, "test-node").Return(&h, nil).Once()
 	mockUnity.On("FindHostInitiatorByID", mock.Anything, "iscsi-initiator-1").Return(hi, nil).Once()
 	s.validateProtocols(context.Background(), arraysList)
@@ -2756,6 +2783,7 @@ func TestValidateProtocols(t *testing.T) {
 
 	// Test case: iSCSI initiators error
 	connectedSystemID = make([]string, 0)
+	mockUnity.On("GetAllNFSServers", mock.Anything).Return(&mockNFSServerresponse, nil).Once()
 	mockUnity.On("FindHostByName", mock.Anything, "test-node").Return(&h, nil).Once()
 	mockUnity.On("FindHostInitiatorByID", mock.Anything, "iscsi-initiator-1").Return(nil, errors.New("not found")).Once()
 	s.validateProtocols(context.Background(), arraysList)
@@ -2769,6 +2797,7 @@ func TestValidateProtocols(t *testing.T) {
 	// Test case: iSCSI initiators bad health
 	connectedSystemID = make([]string, 0)
 	hi.HostInitiatorContent.Health.DescriptionIDs = []string{""}
+	mockUnity.On("GetAllNFSServers", mock.Anything).Return(&mockNFSServerresponse, nil).Once()
 	mockUnity.On("FindHostByName", mock.Anything, "test-node").Return(&h, nil).Once()
 	mockUnity.On("FindHostInitiatorByID", mock.Anything, "iscsi-initiator-1").Return(hi, nil).Once()
 	s.validateProtocols(context.Background(), arraysList)
@@ -2779,7 +2808,7 @@ func TestValidateProtocols(t *testing.T) {
 		t.Errorf("Expected connectedSystemID to be %v, but got %v", expectedConnectedSystemID, connectedSystemID)
 	}
 
-	// Test case: FC and iSCSI initiators found
+	// Test case: FC and iSCSI initiators found AND NFS is disabled
 	connectedSystemID = make([]string, 0)
 	h.HostContent.IscsiInitiators = []gounitytypes.Initiators{
 		{ID: "iscsi-initiator-1"},
@@ -2787,14 +2816,24 @@ func TestValidateProtocols(t *testing.T) {
 	h.HostContent.FcInitiators = []gounitytypes.Initiators{
 		{ID: "fc-initiator-1"},
 	}
+	mockNFSServerresponseWithoutNFS := gounitytypes.NFSServersResponse{
+		Entries: []gounitytypes.NFSServerEntry{
+			{
+				Content: gounitytypes.NFSServer{
+					NFSv3Enabled: false,
+					NFSv4Enabled: false,
+				},
+			},
+		},
+	}
 	fcHi := mockAnInitiator("fc-initiator-1")
 	iscsiHi := mockAnInitiator("iscsi-initiator-1")
+	mockUnity.On("GetAllNFSServers", mock.Anything).Return(&mockNFSServerresponseWithoutNFS, nil).Once()
 	mockUnity.On("FindHostByName", mock.Anything, "test-node").Return(&h, nil).Once()
 	mockUnity.On("FindHostInitiatorByID", mock.Anything, "fc-initiator-1").Return(fcHi, nil).Once()
 	mockUnity.On("FindHostInitiatorByID", mock.Anything, "iscsi-initiator-1").Return(iscsiHi, nil).Once()
 	s.validateProtocols(context.Background(), arraysList)
 	expectedConnectedSystemID = []string{
-		arrayID + "/nfs",
 		arrayID + "/fc",
 		arrayID + "/iscsi",
 	}
@@ -2804,6 +2843,7 @@ func TestValidateProtocols(t *testing.T) {
 
 	// Test case: Find Host Failed
 	connectedSystemID = make([]string, 0)
+	mockUnity.On("GetAllNFSServers", mock.Anything).Return(&mockNFSServerresponse, nil).Once()
 	mockUnity.On("FindHostByName", mock.Anything, "test-node").Return(nil, errors.New("not found")).Once()
 	s.validateProtocols(context.Background(), arraysList)
 	expectedConnectedSystemID = []string{arrayID + "/nfs"}
@@ -2816,7 +2856,7 @@ func TestValidateProtocols(t *testing.T) {
 	arraysList[0].ArrayID = ""
 	mockUnity.On("FindHostByName", mock.Anything, "test-node").Return(nil, errors.New("not found")).Once()
 	s.validateProtocols(context.Background(), arraysList)
-	expectedConnectedSystemID = []string{"/nfs"}
+	expectedConnectedSystemID = []string{}
 	if !reflect.DeepEqual(connectedSystemID, expectedConnectedSystemID) {
 		t.Errorf("Expected connectedSystemID to be %v, but got %v", expectedConnectedSystemID, connectedSystemID)
 	}

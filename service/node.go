@@ -35,7 +35,7 @@ import (
 	"github.com/dell/goiscsi"
 	"github.com/dell/gounity"
 	gounityapi "github.com/dell/gounity/api"
-	"github.com/dell/gounity/types"
+	types "github.com/dell/gounity/apitypes"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -1838,8 +1838,22 @@ func (s *service) validateProtocols(ctx context.Context, arraysList []*StorageAr
 		if array.IsHostAdded {
 			iscsiInitiators, err := s.iscsiClient.GetInitiators("")
 			fcInitiators, err := csiutils.GetFCInitiators(ctx)
-			// we will enable NFS by default
-			connectedSystemID = append(connectedSystemID, array.ArrayID+"/"+strings.ToLower(NFS))
+
+			unityClient, err := s.getUnityClient(ctx, array.ArrayID)
+			if err != nil {
+				log.Errorf("failed to get the unity client, error: %s", err.Error())
+			} else {
+				if nfsServerList, err := unityClient.GetAllNFSServers(ctx); err != nil {
+					log.Errorf("failed to get the NFS server list, error: %s", err.Error())
+				} else {
+					for _, nfsServer := range nfsServerList.Entries {
+						if nfsServer.Content.NFSv3Enabled || nfsServer.Content.NFSv4Enabled {
+							connectedSystemID = append(connectedSystemID, array.ArrayID+"/"+strings.ToLower(NFS))
+							break
+						}
+					}
+				}
+			}
 
 			if len(iscsiInitiators) != 0 || len(fcInitiators) != 0 {
 				log.Info("iSCSI/FC package found in this node proceeding to further validations")

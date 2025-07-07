@@ -21,7 +21,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/dell/csi-unity/service/csiutils"
 	"github.com/dell/csi-unity/service/logging"
-	"github.com/dell/gounity/types"
+	types "github.com/dell/gounity/apitypes"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

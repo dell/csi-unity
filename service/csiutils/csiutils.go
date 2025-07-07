@@ -32,7 +32,7 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/dell/csi-unity/service/logging"
-	"github.com/dell/gounity/types"
+	types "github.com/dell/gounity/apitypes"
 )
 
 // GetVolumeResponseFromVolume Utility method to convert Unity XT Rest type Volume to CSI standard Volume Response
