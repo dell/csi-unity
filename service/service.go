@@ -43,7 +43,7 @@ import (
 	csictx "github.com/dell/gocsi/context"
 	"github.com/dell/goiscsi"
 	"github.com/dell/gounity"
-	"github.com/dell/gounity/util"
+	"github.com/dell/gounity/gounityutil"
 	"github.com/fsnotify/fsnotify"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -624,7 +624,7 @@ func (s *service) syncDriverConfig(ctx context.Context, v *viper.Viper) {
 			s.opts.LogLevel = inputLogLevel
 			logging.ChangeLogLevel(s.opts.LogLevel)
 			// Change log level on gounity
-			util.ChangeLogLevel(s.opts.LogLevel)
+			gounityutil.ChangeLogLevel(s.opts.LogLevel)
 			// Change log level on gocsi
 			// set X_CSI_LOG_LEVEL so that gocsi doesn't overwrite the loglevel set by us
 			_ = os.Setenv(gocsi.EnvVarLogLevel, s.opts.LogLevel)

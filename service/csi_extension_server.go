@@ -27,7 +27,7 @@ import (
 
 	"github.com/dell/dell-csi-extensions/podmon"
 	"github.com/dell/gounity"
-	"github.com/dell/gounity/types"
+	types "github.com/dell/gounity/apitypes"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

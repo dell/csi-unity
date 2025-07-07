@@ -24,8 +24,8 @@ import (
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/dell/gounity"
+	gounitytypes "github.com/dell/gounity/apitypes"
 	gounitymocks "github.com/dell/gounity/mocks"
-	gounitytypes "github.com/dell/gounity/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc/codes"
