@@ -1,5 +1,5 @@
 /*
- Copyright © 2019 Dell Inc. or its subsidiaries. All Rights Reserved.
+ Copyright © 2019-2025 Dell Inc. or its subsidiaries. All Rights Reserved.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import (
 	"github.com/cucumber/godog"
 	"github.com/dell/csi-unity/provider"
 	"github.com/dell/csi-unity/service"
-	"github.com/dell/gocsi/utils"
+	csiutils "github.com/dell/gocsi/utils/csi"
 	"google.golang.org/grpc"
 )
 
@@ -97,7 +97,7 @@ func TestIdentityGetPluginInfo(t *testing.T) {
 func startServer(ctx context.Context) (*grpc.ClientConn, func()) {
 	// Create a new SP instance and serve it with a piped connection.
 	sp := provider.New()
-	lis, err := utils.GetCSIEndpointListener()
+	lis, err := csiutils.GetCSIEndpointListener()
 	if err != nil {
 		fmt.Printf("couldn't open listener: %s\n", err.Error())
 		return nil, nil
@@ -111,7 +111,7 @@ func startServer(ctx context.Context) (*grpc.ClientConn, func()) {
 			fmt.Printf("http: Server closed. Error: %v", err)
 		}
 	}()
-	network, addr, err := utils.GetCSIEndpoint()
+	network, addr, err := csiutils.GetCSIEndpoint()
 	if err != nil {
 		return nil, nil
 	}
