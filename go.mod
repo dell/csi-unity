@@ -6,10 +6,10 @@ require (
 	bou.ke/monkey v1.0.2
 	github.com/container-storage-interface/spec v1.6.0
 	github.com/cucumber/godog v0.15.0
-	github.com/dell/dell-csi-extensions/podmon v1.8.0
+	github.com/dell/dell-csi-extensions/podmon v1.8.1-0.20250717054012-23ceaf9c9606
 	github.com/dell/gobrick v1.14.1-0.20250624004701-1c68c8c05f2f
-	github.com/dell/gocsi v1.14.1-0.20250717201424-c79f876a35fe
-	github.com/dell/gofsutil v1.19.0
+	github.com/dell/gocsi v1.14.1-0.20250718150756-9e598eb9e012
+	github.com/dell/gofsutil v1.19.1-0.20250715050132-d6bd228cbcb0
 	github.com/dell/goiscsi v1.12.0
 	github.com/dell/gounity v1.21.1-0.20250707064525-d51270b34e97
 	github.com/fsnotify/fsnotify v1.9.0
@@ -18,7 +18,7 @@ require (
 	github.com/spf13/viper v1.20.0
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/net v0.42.0
-	google.golang.org/grpc v1.73.0
+	google.golang.org/grpc v1.74.0
 	google.golang.org/protobuf v1.36.6
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -35,7 +35,7 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dell/gonvme v1.11.1-0.20250701150147-3adc18df98ba // indirect
 	github.com/evanphx/json-patch v4.9.0+incompatible // indirect
-	github.com/go-logr/logr v1.4.2 // indirect
+	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-viper/mapstructure/v2 v2.3.0 // indirect
 	github.com/gofrs/uuid v4.4.0+incompatible // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
@@ -68,14 +68,14 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/crypto v0.40.0 // indirect
-	golang.org/x/oauth2 v0.28.0 // indirect
+	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
 	golang.org/x/sys v0.34.0 // indirect
 	golang.org/x/term v0.33.0 // indirect
 	golang.org/x/text v0.27.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20250324211829-b45e905df463 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250324211829-b45e905df463 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20250528174236-200df99c418a // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250528174236-200df99c418a // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/api v0.22.2 // indirect
 	k8s.io/klog v1.0.0 // indirect
