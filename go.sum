@@ -81,8 +81,8 @@ github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dell/dell-csi-extensions/podmon v1.8.1-0.20250717054012-23ceaf9c9606 h1:BKJ2dof1dydFgxO33dTO+Yx6T7OPCQPeRIQ+1M3N0MU=
 github.com/dell/dell-csi-extensions/podmon v1.8.1-0.20250717054012-23ceaf9c9606/go.mod h1:SB3W7d7A/0F3SERJOUZfiiVKFtISjAdf6u37O+iKWqk=
-github.com/dell/gobrick v1.14.1-0.20250624004701-1c68c8c05f2f h1:u2zZw6k1GhapS1ex8PyfZtIBTRldF3kHTxxLVM5xxSU=
-github.com/dell/gobrick v1.14.1-0.20250624004701-1c68c8c05f2f/go.mod h1:ML2lu6+tPdLeE+4eF/+Fytl/C8Ekce2qT/AKijjXqFs=
+github.com/dell/gobrick v1.14.1-0.20250725130813-61399ef9776b h1:cigRedc3HhinO20RT39JZi/ZvCuerMgC0gToUtXYtHI=
+github.com/dell/gobrick v1.14.1-0.20250725130813-61399ef9776b/go.mod h1:qkqIh/AI/uf9XwUNdrF7mjEva5w61HIi09WTJo4EjNk=
 github.com/dell/gocsi v1.14.1-0.20250718150756-9e598eb9e012 h1:wXYL0fhnxfJ3kPcJLmdEGWpomoToqkgP9Ygmje+nahc=
 github.com/dell/gocsi v1.14.1-0.20250718150756-9e598eb9e012/go.mod h1:1ThOqVoOZ6B6fMgWWFlv6sGO9ATH5A7sCgRvR40HmVA=
 github.com/dell/gofsutil v1.19.1-0.20250715050132-d6bd228cbcb0 h1:VTI7M+mjSxZStvloljmNT2ad/B6Mt1/1RaND5G+uf8s=
