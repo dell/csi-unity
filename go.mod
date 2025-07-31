@@ -7,7 +7,7 @@ require (
 	github.com/container-storage-interface/spec v1.6.0
 	github.com/cucumber/godog v0.15.0
 	github.com/dell/dell-csi-extensions/podmon v1.8.1-0.20250717054012-23ceaf9c9606
-	github.com/dell/gobrick v1.14.1-0.20250725130813-61399ef9776b
+	github.com/dell/gobrick v1.14.1
 	github.com/dell/gocsi v1.14.1-0.20250718150756-9e598eb9e012
 	github.com/dell/gofsutil v1.19.1-0.20250715050132-d6bd228cbcb0
 	github.com/dell/goiscsi v1.12.0
@@ -33,7 +33,7 @@ require (
 	github.com/cucumber/gherkin/go/v26 v26.2.0 // indirect
 	github.com/cucumber/messages/go/v21 v21.0.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/dell/gonvme v1.11.1-0.20250701150147-3adc18df98ba // indirect
+	github.com/dell/gonvme v1.11.1 // indirect
 	github.com/evanphx/json-patch v4.9.0+incompatible // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-viper/mapstructure/v2 v2.3.0 // indirect
