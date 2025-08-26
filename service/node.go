@@ -1752,7 +1752,7 @@ func (s *service) syncNodeInfoRoutine(ctx context.Context) {
 	for {
 		select {
 		case <-syncNodeInfoChan:
-			log.Debug("Config change identified. Adding node info")
+			log.Info("Config change identified. Adding node info")
 			s.syncNodeInfo(ctx)
 			ctx, log = incrementLogID(ctx, "node")
 		case <-time.After(time.Duration(s.opts.SyncNodeInfoTimeInterval) * time.Minute):
@@ -1768,7 +1768,7 @@ func (s *service) syncNodeInfoRoutine(ctx context.Context) {
 			})
 
 			if !allHostsAdded {
-				log.Debug("Some of the hosts are not added, invoking add host information to array")
+				log.Info("Some of the hosts are not added, invoking add host information to array")
 				s.syncNodeInfo(ctx)
 				ctx, log = incrementLogID(ctx, "node")
 			}
@@ -1865,46 +1865,73 @@ func (s *service) validateProtocols(ctx context.Context, arraysList []*StorageAr
 					log.Infof("Unable to get unity client for topology validation: %v", err)
 				}
 
-				host, err := s.getHostID(ctx, array.ArrayID, s.opts.NodeName, s.opts.LongNodeName)
-				if err != nil {
-					log.Infof("Host not found. Error: %v", err)
-				}
-				if host != nil && len(host.HostContent.FcInitiators) != 0 {
-					log.Infof("Got FC Initiators, Checking health of initiators:%s", host.HostContent.FcInitiators)
-					for _, initiator := range host.HostContent.FcInitiators {
-						initiatorID := initiator.ID
-						hostInitiator, err := unity.FindHostInitiatorByID(ctx, initiatorID)
-						if err != nil {
-							log.Infof("Unable to get initiators: %s", err)
+				for attempt := 1; attempt <= 5; attempt++ {
+					if attempt > 1 {
+						// sleep 20 seconds or until context is closed
+						select {
+						case <-ctx.Done():
+							log.Errorf("context is closed")
+							return
+						case <-time.After(20 * time.Second):
+							log.Info("Re-trying initiators state validation")
 						}
-						if hostInitiator != nil {
-							healtContent := hostInitiator.HostInitiatorContent.Health
-							if healtContent.DescriptionIDs[0] == componentOkMessage {
-								log.Infof("FC Health is good for array:%s, Health:%s", array.ArrayID, healtContent.DescriptionIDs[0])
-								connectedSystemID = append(connectedSystemID, array.ArrayID+"/"+strings.ToLower(FC))
-							} else {
-								log.Infof("FC Health is bad for array:%s, Health:%s", array.ArrayID, healtContent.DescriptionIDs[0])
+					}
+					validationFailed := false
+
+					host, err := s.getHostID(ctx, array.ArrayID, s.opts.NodeName, s.opts.LongNodeName)
+					if err != nil {
+						log.Errorf("Host not found. Error: %v", err)
+						validationFailed = true
+					}
+					if host != nil && len(host.HostContent.FcInitiators) != 0 {
+						log.Infof("Got FC Initiators, Checking health of initiators:%s", host.HostContent.FcInitiators)
+						for _, initiator := range host.HostContent.FcInitiators {
+							initiatorID := initiator.ID
+							hostInitiator, err := unity.FindHostInitiatorByID(ctx, initiatorID)
+							if err != nil {
+								log.Infof("Unable to get initiators: %s", err)
+							}
+							if hostInitiator != nil {
+								healthContent := hostInitiator.HostInitiatorContent.Health
+								if healthContent.DescriptionIDs[0] == componentOkMessage {
+									log.Infof("FC Health is good for array:%s, Health:%s", array.ArrayID, healthContent.DescriptionIDs[0])
+									connectedSystemID = append(connectedSystemID, array.ArrayID+"/"+strings.ToLower(FC))
+
+								} else {
+									log.Infof("FC Health is bad for array:%s, Health:%s", array.ArrayID, healthContent.DescriptionIDs[0])
+								}
 							}
 						}
 					}
-				}
-				if host != nil && len(host.HostContent.IscsiInitiators) != 0 {
-					log.Infof("Got iSCSI Initiators, Checking health of initiators:%s", host.HostContent.IscsiInitiators)
-					for _, initiator := range host.HostContent.IscsiInitiators {
-						initiatorID := initiator.ID
-						hostInitiator, err := unity.FindHostInitiatorByID(ctx, initiatorID)
-						if err != nil {
-							log.Infof("Unable to get initiators: %s", err)
-						}
-						if hostInitiator != nil {
-							healtContent := hostInitiator.HostInitiatorContent.Health
-							if healtContent.DescriptionIDs[0] == componentOkMessage {
-								log.Infof("iSCSI health is good for array:%s, Health:%s", array.ArrayID, healtContent.DescriptionIDs[0])
-								connectedSystemID = append(connectedSystemID, array.ArrayID+"/"+strings.ToLower(ISCSI))
+					if host != nil && len(host.HostContent.IscsiInitiators) != 0 {
+						log.Infof("Got iSCSI Initiators, Checking health of initiators:%s", host.HostContent.IscsiInitiators)
+						for _, initiator := range host.HostContent.IscsiInitiators {
+							initiatorID := initiator.ID
+							hostInitiator, err := unity.FindHostInitiatorByID(ctx, initiatorID)
+							if err != nil {
+								log.Errorf("Unable to get initiators: %s", err)
+								validationFailed = true
+							}
+							if hostInitiator != nil {
+								healthContent := hostInitiator.HostInitiatorContent.Health
+								if healthContent.DescriptionIDs[0] == componentOkMessage {
+									log.Infof("iSCSI health is good for array:%s, Health:%s", array.ArrayID, healthContent.DescriptionIDs[0])
+									connectedSystemID = append(connectedSystemID, array.ArrayID+"/"+strings.ToLower(ISCSI))
+								} else {
+									log.Warnf("iSCSI Health is bad for array:%s, Health:%s", array.ArrayID, healthContent.DescriptionIDs[0])
+									validationFailed = true
+								}
 							} else {
-								log.Infof("iSCSI Health is bad for array:%s, Health:%s", array.ArrayID, healtContent.DescriptionIDs[0])
+								log.Errorf("nil initiator returned for ID %s", initiatorID)
+								validationFailed = true
 							}
 						}
+					} else {
+						log.Errorf("No initiators returned for host")
+						validationFailed = true
+					}
+					if !validationFailed {
+						break
 					}
 				}
 			} else {
