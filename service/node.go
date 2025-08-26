@@ -1251,18 +1251,19 @@ func (s *service) iScsiDiscoverAndLogin(ctx context.Context, interfaceIps []stri
 
 		targets, err := s.iscsiClient.DiscoverTargets(ip, false)
 		if err != nil {
-			log.Debugf("Error executing iscsiadm discovery: %v", err)
+			log.Errorf("iscsiadm discovery failed for IP %s: %v", ip, err)
 			continue
 		}
+		log.Debugf("Discovered targets for IP %s: %v", ip, targets)
 
 		for _, tgt := range targets {
 			ipSlice := strings.Split(tgt.Portal, ":")
 			if csiutils.ArrayContains(validIPs, ipSlice[0]) {
 				err = s.iscsiClient.PerformLogin(tgt)
 				if err != nil {
-					log.Debugf("Error logging in to target %s : %v", tgt.Target, err)
+					log.Errorf("Error logging in to target %s: %v", tgt.Target, err)
 				} else {
-					log.Debugf("Login successful to target %s", tgt.Target)
+					log.Infof("Login successful to target %s", tgt.Target)
 				}
 			}
 		}
@@ -1484,14 +1485,14 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 	// Get FC Initiator WWNs
 	wwns, errFc := csiutils.GetFCInitiators(ctx)
 	if errFc != nil {
-		log.Warn("'FC Initiators' cannot be retrieved.")
+		log.Warn("FC Initiators cannot be retrieved")
 	}
 
 	// Get iSCSI Initiator IQN
 	iqnsOrig, errIscsi := s.iscsiClient.GetInitiators("")
 	iqns := iqnsOrig
 	if errIscsi != nil {
-		log.Warn("'iSCSI Initiators' cannot be retrieved.")
+		log.Warn("iSCSI Initiators cannot be retrieved")
 	} else if len(iqns) > 0 {
 		// converting iqn values to lowercase since they are registered to array in lowercase
 		for i := 0; i < len(iqns); i++ {
@@ -1504,7 +1505,7 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 	}
 
 	// logic if else
-	// if allowedNetowrks is set
+	// if allowedNetworks is set
 	// else csiutils.GetHostIP() with hostname -I/i method
 	var nodeIps []string
 	var err error
@@ -1630,7 +1631,7 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 	if len(iqns) > 0 {
 		err = s.copyMultipathConfigFile(ctx, s.opts.Chroot)
 		if err != nil {
-			log.Infof("Error copying multipath config file: %v", err)
+			log.Errorf("Error copying multipath config file: %v", err)
 		}
 		ipInterfaces, err := unity.ListIscsiIPInterfaces(ctx)
 		if err != nil {
@@ -1705,7 +1706,7 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 		return err
 	}
 	hostContent = host.HostContent
-	log.Debugf("New Host Id: %s", hostContent.ID)
+	log.Infof("New Host Id on array %s: %s", array.ArrayID, hostContent.ID)
 
 	// Create Host Ip Port
 	_, err = unity.CreateHostIPPort(ctx, hostContent.ID, s.opts.LongNodeName)
@@ -1735,7 +1736,7 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 		// Create Host iSCSI Initiators
 		log.Debugf("iSCSI Initiators found: %s", iqns)
 		for _, iqn := range iqns {
-			log.Debugf("Adding iSCSI Initiator: %s to host: %s ", hostContent.ID, iqn)
+			log.Infof("Adding iSCSI Initiator %s to host %s", iqn, hostContent.ID)
 			_, err = unity.CreateHostInitiator(ctx, hostContent.ID, iqn, gounityapi.ISCSCIInitiatorType)
 			if err != nil {
 				return status.Error(codes.Internal, csiutils.GetMessageWithRunID(rid, "Adding iSCSI initiator error: %v", err))
@@ -1792,8 +1793,10 @@ func (s *service) syncNodeInfo(ctx context.Context) {
 	s.arrays.Range(func(_, value interface{}) bool {
 		array := value.(*StorageArrayConfig)
 		array.mu.Lock()
-		if !array.IsHostAdded {
-			array.mu.Unlock() // Unlock before launching goroutine
+		isHostAdded := array.IsHostAdded
+		array.mu.Unlock()
+
+		if !isHostAdded {
 			go func(array *StorageArrayConfig) {
 				ctx, log := incrementLogID(ctx, "node")
 				err := s.addNodeInformationIntoArray(ctx, array)
@@ -1801,15 +1804,13 @@ func (s *service) syncNodeInfo(ctx context.Context) {
 				if err == nil {
 					array.IsHostAdded = true
 					array.IsHostAdditionFailed = false
-					log.Debugf("Node [%s] Added successfully", array.ArrayID)
+					log.Infof("Node [%s] added successfully", array.ArrayID)
 				} else {
 					array.IsHostAdditionFailed = true
-					log.Debugf("Adding node [%s] failed, Error: [%v]", array.ArrayID, err)
+					log.Errorf("Adding node [%s] failed: %v", array.ArrayID, err)
 				}
 				array.mu.Unlock()
 			}(array)
-		} else {
-			array.mu.Unlock()
 		}
 		return true
 	})
