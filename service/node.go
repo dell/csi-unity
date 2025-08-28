@@ -1835,108 +1835,110 @@ func getTopology() map[string]string {
 // validateProtocols will check for iSCSI and FC connectivity and updates same in connectedSystemID list
 func (s *service) validateProtocols(ctx context.Context, arraysList []*StorageArrayConfig) {
 	ctx, log, _ := GetRunidLog(ctx)
+
+	// Get all local iSCSI and FC initiators
+	fcInitiators, err := csiutils.GetFCInitiators(ctx)
+	if err != nil {
+		log.Errorf("Failed to get the local FC initiators: %v", err)
+	}
+	iscsiInitiators, err := s.iscsiClient.GetInitiators("")
+	if err != nil {
+		log.Errorf("Failed to get the local iSCSI initiators: %v", err)
+	}
+	log.Infof("Found local FC initiators: %v", fcInitiators)
+	log.Infof("Found local iSCSI initiators: %v", iscsiInitiators)
+
 	for _, array := range arraysList {
-		if array.IsHostAdded {
-			iscsiInitiators, err := s.iscsiClient.GetInitiators("")
-			fcInitiators, err := csiutils.GetFCInitiators(ctx)
+		ctx, _ = setArrayIDContext(ctx, array.ArrayID)
 
-			unityClient, err := s.getUnityClient(ctx, array.ArrayID)
-			if err != nil {
-				log.Errorf("failed to get the unity client, error: %s", err.Error())
-			} else {
-				if nfsServerList, err := unityClient.GetAllNFSServers(ctx); err != nil {
-					log.Errorf("failed to get the NFS server list, error: %s", err.Error())
-				} else {
-					for _, nfsServer := range nfsServerList.Entries {
-						if nfsServer.Content.NFSv3Enabled || nfsServer.Content.NFSv4Enabled {
-							connectedSystemID = append(connectedSystemID, array.ArrayID+"/"+strings.ToLower(NFS))
-							break
-						}
-					}
+		if !array.IsHostAdded {
+			continue
+		}
+
+		unityClient, err := s.getUnityClient(ctx, array.ArrayID)
+		if err != nil {
+			log.Errorf("Skipping array %s protocol validation, since unity client is not found: %v", array.ArrayID, err)
+			continue
+		}
+
+		if nfsServerList, err := unityClient.GetAllNFSServers(ctx); err != nil {
+			log.Errorf("Failed to get the NFS server list from array: %v", err)
+		} else {
+			for _, nfsServer := range nfsServerList.Entries {
+				if nfsServer.Content.NFSv3Enabled || nfsServer.Content.NFSv4Enabled {
+					connectedSystemID = append(connectedSystemID, array.ArrayID+"/"+strings.ToLower(NFS))
+					break
 				}
-			}
-
-			if len(iscsiInitiators) != 0 || len(fcInitiators) != 0 {
-				log.Info("iSCSI/FC package found in this node proceeding to further validations")
-				// To get all iSCSI initiators and FC Initiators
-				ctx, _ = setArrayIDContext(ctx, array.ArrayID)
-				unity, err := s.getUnityClient(ctx, array.ArrayID)
-				if err != nil {
-					log.Infof("Unable to get unity client for topology validation: %v", err)
-				}
-
-				for attempt := 1; attempt <= 5; attempt++ {
-					if attempt > 1 {
-						// sleep 20 seconds or until context is closed
-						select {
-						case <-ctx.Done():
-							log.Errorf("context is closed")
-							return
-						case <-time.After(20 * time.Second):
-							log.Info("Re-trying initiators state validation")
-						}
-					}
-					validationFailed := false
-
-					host, err := s.getHostID(ctx, array.ArrayID, s.opts.NodeName, s.opts.LongNodeName)
-					if err != nil {
-						log.Errorf("Host not found. Error: %v", err)
-						validationFailed = true
-					}
-					if host != nil && len(host.HostContent.FcInitiators) != 0 {
-						log.Infof("Got FC Initiators, Checking health of initiators:%s", host.HostContent.FcInitiators)
-						for _, initiator := range host.HostContent.FcInitiators {
-							initiatorID := initiator.ID
-							hostInitiator, err := unity.FindHostInitiatorByID(ctx, initiatorID)
-							if err != nil {
-								log.Infof("Unable to get initiators: %s", err)
-							}
-							if hostInitiator != nil {
-								healthContent := hostInitiator.HostInitiatorContent.Health
-								if healthContent.DescriptionIDs[0] == componentOkMessage {
-									log.Infof("FC Health is good for array:%s, Health:%s", array.ArrayID, healthContent.DescriptionIDs[0])
-									connectedSystemID = append(connectedSystemID, array.ArrayID+"/"+strings.ToLower(FC))
-
-								} else {
-									log.Infof("FC Health is bad for array:%s, Health:%s", array.ArrayID, healthContent.DescriptionIDs[0])
-								}
-							}
-						}
-					}
-					if host != nil && len(host.HostContent.IscsiInitiators) != 0 {
-						log.Infof("Got iSCSI Initiators, Checking health of initiators:%s", host.HostContent.IscsiInitiators)
-						for _, initiator := range host.HostContent.IscsiInitiators {
-							initiatorID := initiator.ID
-							hostInitiator, err := unity.FindHostInitiatorByID(ctx, initiatorID)
-							if err != nil {
-								log.Errorf("Unable to get initiators: %s", err)
-								validationFailed = true
-							}
-							if hostInitiator != nil {
-								healthContent := hostInitiator.HostInitiatorContent.Health
-								if healthContent.DescriptionIDs[0] == componentOkMessage {
-									log.Infof("iSCSI health is good for array:%s, Health:%s", array.ArrayID, healthContent.DescriptionIDs[0])
-									connectedSystemID = append(connectedSystemID, array.ArrayID+"/"+strings.ToLower(ISCSI))
-								} else {
-									log.Warnf("iSCSI Health is bad for array:%s, Health:%s", array.ArrayID, healthContent.DescriptionIDs[0])
-									validationFailed = true
-								}
-							} else {
-								log.Errorf("nil initiator returned for ID %s", initiatorID)
-								validationFailed = true
-							}
-						}
-					} else {
-						log.Errorf("No initiators returned for host")
-						validationFailed = true
-					}
-					if !validationFailed {
-						break
-					}
-				}
-			} else {
-				log.Info("this node doesn't support either iSCSI or FC protocol, only NFS is supported", err)
 			}
 		}
+
+		if len(iscsiInitiators) == 0 && len(fcInitiators) == 0 {
+			continue // No local initiators found, assuming FC/ISCSI not configured
+		}
+
+		host, err := s.getHostID(ctx, array.ArrayID, s.opts.NodeName, s.opts.LongNodeName)
+		if err != nil || host == nil {
+			log.Errorf("Host not found by name on array: %v", err)
+			continue
+		}
+
+		fcHealthy := false
+		iscsiHealthy := false
+		// Wait for up to 5 minutes for the initiators to appear as logged in on the array
+		for attempt := 1; attempt <= 30; attempt++ {
+			if attempt > 1 { // First attempt does not need to wait
+				// Sleep 10 seconds or until context is closed
+				select {
+				case <-ctx.Done():
+					log.Errorf("context is closed")
+					return
+				case <-time.After(10 * time.Second):
+					log.Info("Re-trying initiators health validation (%d)", attempt)
+				}
+			}
+			if len(fcInitiators) > 0 && !fcHealthy {
+				fcHealthy = checkHealthyInitiator(ctx, host.HostContent.FcInitiators, unityClient)
+				if !fcHealthy {
+					continue
+				}
+			}
+			if len(iscsiInitiators) > 0 && !iscsiHealthy {
+				iscsiHealthy = checkHealthyInitiator(ctx, host.HostContent.IscsiInitiators, unityClient)
+				if !iscsiHealthy {
+					continue
+				}
+			}
+			break
+		}
+
+		// Collect the results for topology
+		if len(fcInitiators) > 0 && fcHealthy {
+			connectedSystemID = append(connectedSystemID, array.ArrayID+"/"+strings.ToLower(FC))
+		}
+		if len(iscsiInitiators) > 0 && iscsiHealthy {
+			connectedSystemID = append(connectedSystemID, array.ArrayID+"/"+strings.ToLower(ISCSI))
+		}
 	}
+}
+
+// checkHealthyInitiator Checks all initiators and returns true if at least one is healthy
+func checkHealthyInitiator(ctx context.Context, initiators []types.Initiators, unity gounity.UnityClient) bool {
+	ctx, log, _ := GetRunidLog(ctx)
+
+	for _, initiator := range initiators {
+		initiatorID := initiator.ID
+		hostInitiator, err := unity.FindHostInitiatorByID(ctx, initiatorID)
+		if err != nil || hostInitiator == nil {
+			log.Errorf("Failed to find initiator by ID on array: %v", err)
+			continue
+		}
+		healthContent := hostInitiator.HostInitiatorContent.Health
+		if healthContent.DescriptionIDs[0] == componentOkMessage {
+			log.Infof("Health is good for initiator %s: %s", initiatorID, healthContent.DescriptionIDs[0])
+			return true // found one healthy initiator
+		} else {
+			log.Errorf("Health is bad for initiator %s: %s", initiatorID, healthContent.DescriptionIDs[0])
+		}
+	}
+	return false
 }
