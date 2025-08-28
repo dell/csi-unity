@@ -2657,6 +2657,11 @@ func TestCheckHostIdempotency(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func dropExpectations(m *gounitymocks.UnityClient) {
+	m.ExpectedCalls = nil
+	m.Calls = nil
+}
+
 func TestValidateProtocols(t *testing.T) {
 	mockConnector := new(MockISCSIConnector)
 	s := &service{
@@ -2668,6 +2673,14 @@ func TestValidateProtocols(t *testing.T) {
 			NodeName:     "test-node",
 		},
 	}
+
+	originalValidationAttempts := initiatorsValidationAttempts
+	initiatorsValidationAttempts = 1
+	origGetFCInitiators := funcGetFCInitiators
+	defer func() {
+		initiatorsValidationAttempts = originalValidationAttempts
+		funcGetFCInitiators = origGetFCInitiators
+	}()
 
 	arrayID := "testarrayid"
 	mockUnity := &gounitymocks.UnityClient{}
@@ -2687,6 +2700,7 @@ func TestValidateProtocols(t *testing.T) {
 	if !reflect.DeepEqual(connectedSystemID, expectedConnectedSystemID) {
 		t.Errorf("Expected connectedSystemID to be %v, but got %v", expectedConnectedSystemID, connectedSystemID)
 	}
+	dropExpectations(mockUnity)
 
 	// Test case: no iSCSI or FC initiators found
 	connectedSystemID = make([]string, 0)
@@ -2707,8 +2721,12 @@ func TestValidateProtocols(t *testing.T) {
 	if !reflect.DeepEqual(connectedSystemID, expectedConnectedSystemID) {
 		t.Errorf("Expected connectedSystemID to be %v, but got %v", expectedConnectedSystemID, connectedSystemID)
 	}
+	dropExpectations(mockUnity)
 
 	// Test case: FC initiators found
+	funcGetFCInitiators = func(ctx context.Context) ([]string, error) {
+		return []string{"fc-initiator-1"}, nil
+	}
 	connectedSystemID = make([]string, 0)
 	goiscsi.GOISCSIMock.InduceInitiatorError = false
 	h := gounitytypes.Host{
@@ -2734,6 +2752,7 @@ func TestValidateProtocols(t *testing.T) {
 	if !reflect.DeepEqual(connectedSystemID, expectedConnectedSystemID) {
 		t.Errorf("Expected connectedSystemID to be %v, but got %v", expectedConnectedSystemID, connectedSystemID)
 	}
+	funcGetFCInitiators = origGetFCInitiators
 
 	// Test case: FC initiators error
 	connectedSystemID = make([]string, 0)
@@ -2747,9 +2766,13 @@ func TestValidateProtocols(t *testing.T) {
 	if !reflect.DeepEqual(connectedSystemID, expectedConnectedSystemID) {
 		t.Errorf("Expected connectedSystemID to be %v, but got %v", expectedConnectedSystemID, connectedSystemID)
 	}
+	dropExpectations(mockUnity)
 
 	// Test case: FC initiators bad health
 	connectedSystemID = make([]string, 0)
+	funcGetFCInitiators = func(ctx context.Context) ([]string, error) {
+		return []string{"fc-initiator-1"}, nil
+	}
 	hi.HostInitiatorContent.Health.DescriptionIDs = []string{""}
 	mockUnity.On("GetAllNFSServers", mock.Anything).Return(&mockNFSServerresponse, nil).Once()
 	mockUnity.On("FindHostByName", mock.Anything, "test-node").Return(&h, nil).Once()
@@ -2761,6 +2784,8 @@ func TestValidateProtocols(t *testing.T) {
 	if !reflect.DeepEqual(connectedSystemID, expectedConnectedSystemID) {
 		t.Errorf("Expected connectedSystemID to be %v, but got %v", expectedConnectedSystemID, connectedSystemID)
 	}
+	dropExpectations(mockUnity)
+	funcGetFCInitiators = origGetFCInitiators
 
 	// Test case: iSCSI initiators found
 	connectedSystemID = make([]string, 0)
@@ -2780,6 +2805,7 @@ func TestValidateProtocols(t *testing.T) {
 	if !reflect.DeepEqual(connectedSystemID, expectedConnectedSystemID) {
 		t.Errorf("Expected connectedSystemID to be %v, but got %v", expectedConnectedSystemID, connectedSystemID)
 	}
+	dropExpectations(mockUnity)
 
 	// Test case: iSCSI initiators error
 	connectedSystemID = make([]string, 0)
@@ -2793,6 +2819,7 @@ func TestValidateProtocols(t *testing.T) {
 	if !reflect.DeepEqual(connectedSystemID, expectedConnectedSystemID) {
 		t.Errorf("Expected connectedSystemID to be %v, but got %v", expectedConnectedSystemID, connectedSystemID)
 	}
+	dropExpectations(mockUnity)
 
 	// Test case: iSCSI initiators bad health
 	connectedSystemID = make([]string, 0)
@@ -2807,8 +2834,48 @@ func TestValidateProtocols(t *testing.T) {
 	if !reflect.DeepEqual(connectedSystemID, expectedConnectedSystemID) {
 		t.Errorf("Expected connectedSystemID to be %v, but got %v", expectedConnectedSystemID, connectedSystemID)
 	}
+	dropExpectations(mockUnity)
+
+	// Test case: iSCSI initiators bad health with retry
+	initiatorsValidationAttempts = 2
+	connectedSystemID = make([]string, 0)
+	hi.HostInitiatorContent.Health.DescriptionIDs = []string{""}
+	mockUnity.On("GetAllNFSServers", mock.Anything).Return(&mockNFSServerresponse, nil).Once()
+	mockUnity.On("FindHostByName", mock.Anything, "test-node").Return(&h, nil).Once()
+	mockUnity.On("FindHostInitiatorByID", mock.Anything, "iscsi-initiator-1").Return(hi, nil).Twice()
+	s.validateProtocols(context.Background(), arraysList)
+	expectedConnectedSystemID = []string{
+		arrayID + "/nfs",
+	}
+	if !reflect.DeepEqual(connectedSystemID, expectedConnectedSystemID) {
+		t.Errorf("Expected connectedSystemID to be %v, but got %v", expectedConnectedSystemID, connectedSystemID)
+	}
+	initiatorsValidationAttempts = 1
+	dropExpectations(mockUnity)
+
+	// Test case: iSCSI initiators bad health with interrupted retry
+	initiatorsValidationAttempts = 2
+	connectedSystemID = make([]string, 0)
+	hi.HostInitiatorContent.Health.DescriptionIDs = []string{""}
+	mockUnity.On("GetAllNFSServers", mock.Anything).Return(&mockNFSServerresponse, nil).Once()
+	mockUnity.On("FindHostByName", mock.Anything, "test-node").Return(&h, nil).Once()
+	mockUnity.On("FindHostInitiatorByID", mock.Anything, "iscsi-initiator-1").Return(hi, nil).Twice()
+	ctx, ctxCancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer ctxCancel()
+	s.validateProtocols(ctx, arraysList)
+	expectedConnectedSystemID = []string{
+		arrayID + "/nfs",
+	}
+	if !reflect.DeepEqual(connectedSystemID, expectedConnectedSystemID) {
+		t.Errorf("Expected connectedSystemID to be %v, but got %v", expectedConnectedSystemID, connectedSystemID)
+	}
+	initiatorsValidationAttempts = 1
+	dropExpectations(mockUnity)
 
 	// Test case: FC and iSCSI initiators found AND NFS is disabled
+	funcGetFCInitiators = func(ctx context.Context) ([]string, error) {
+		return []string{"fc-initiator-1"}, nil
+	}
 	connectedSystemID = make([]string, 0)
 	h.HostContent.IscsiInitiators = []gounitytypes.Initiators{
 		{ID: "iscsi-initiator-1"},
@@ -2828,6 +2895,7 @@ func TestValidateProtocols(t *testing.T) {
 	}
 	fcHi := mockAnInitiator("fc-initiator-1")
 	iscsiHi := mockAnInitiator("iscsi-initiator-1")
+
 	mockUnity.On("GetAllNFSServers", mock.Anything).Return(&mockNFSServerresponseWithoutNFS, nil).Once()
 	mockUnity.On("FindHostByName", mock.Anything, "test-node").Return(&h, nil).Once()
 	mockUnity.On("FindHostInitiatorByID", mock.Anything, "fc-initiator-1").Return(fcHi, nil).Once()
@@ -2840,6 +2908,8 @@ func TestValidateProtocols(t *testing.T) {
 	if !reflect.DeepEqual(connectedSystemID, expectedConnectedSystemID) {
 		t.Errorf("Expected connectedSystemID to be %v, but got %v", expectedConnectedSystemID, connectedSystemID)
 	}
+	dropExpectations(mockUnity)
+	funcGetFCInitiators = origGetFCInitiators
 
 	// Test case: Find Host Failed
 	connectedSystemID = make([]string, 0)
@@ -2850,6 +2920,7 @@ func TestValidateProtocols(t *testing.T) {
 	if !reflect.DeepEqual(connectedSystemID, expectedConnectedSystemID) {
 		t.Errorf("Expected connectedSystemID to be %v, but got %v", expectedConnectedSystemID, connectedSystemID)
 	}
+	dropExpectations(mockUnity)
 
 	// Test case: Failed to get UnityClient
 	connectedSystemID = make([]string, 0)

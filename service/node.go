@@ -42,15 +42,17 @@ import (
 
 // Variables that can be used across module
 var (
-	targetMountRecheckSleepTime = 3 * time.Second
-	disconnectVolumeRetryTime   = 1 * time.Second
-	nodeStartTimeout            = 3 * time.Second
-	lunzMutex                   sync.Mutex
-	nodeMutex                   sync.Mutex
-	sysBlock                    = "/sys/block"
-	syncNodeInfoChan            chan bool
-	connectedSystemID           = make([]string, 0)
-	VolumeNameLengthConstraint  = 63
+	targetMountRecheckSleepTime  = 3 * time.Second
+	disconnectVolumeRetryTime    = 1 * time.Second
+	nodeStartTimeout             = 3 * time.Second
+	lunzMutex                    sync.Mutex
+	nodeMutex                    sync.Mutex
+	sysBlock                     = "/sys/block"
+	syncNodeInfoChan             chan bool
+	connectedSystemID            = make([]string, 0)
+	VolumeNameLengthConstraint   = 63
+	initiatorsValidationAttempts = 30
+	funcGetFCInitiators          = csiutils.GetFCInitiators
 )
 
 const (
@@ -1483,7 +1485,7 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 	}
 
 	// Get FC Initiator WWNs
-	wwns, errFc := csiutils.GetFCInitiators(ctx)
+	wwns, errFc := funcGetFCInitiators(ctx)
 	if errFc != nil {
 		log.Warn("FC Initiators cannot be retrieved")
 	}
@@ -1837,7 +1839,7 @@ func (s *service) validateProtocols(ctx context.Context, arraysList []*StorageAr
 	ctx, log, _ := GetRunidLog(ctx)
 
 	// Get all local iSCSI and FC initiators
-	fcInitiators, err := csiutils.GetFCInitiators(ctx)
+	fcInitiators, err := funcGetFCInitiators(ctx)
 	if err != nil {
 		log.Errorf("Failed to get the local FC initiators: %v", err)
 	}
@@ -1885,7 +1887,7 @@ func (s *service) validateProtocols(ctx context.Context, arraysList []*StorageAr
 		fcHealthy := false
 		iscsiHealthy := false
 		// Wait for up to 5 minutes for the initiators to appear as logged in on the array
-		for attempt := 1; attempt <= 30; attempt++ {
+		for attempt := 1; attempt <= initiatorsValidationAttempts; attempt++ {
 			if attempt > 1 { // First attempt does not need to wait
 				// Sleep 10 seconds or until context is closed
 				select {
