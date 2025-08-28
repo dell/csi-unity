@@ -243,11 +243,13 @@ func TestAddNodeInformationIntoArray(t *testing.T) {
 	// Execute the function under test
 	err := testConf.service.addNodeInformationIntoArray(ctx, array)
 	assert.NoError(t, err)
+	dropExpectations(mockUnity)
 
 	// Autoprobe Error
 	mockUnity.On("BasicSystemInfo", mock.Anything, mock.Anything).Return(errors.New("test error")).Twice()
 	err = testConf.service.addNodeInformationIntoArray(ctx, array)
 	assert.Error(t, err)
+	dropExpectations(mockUnity)
 
 	originalIscsiClient := testConf.service.iscsiClient
 	testConf.service.iscsiClient = goiscsi.NewMockISCSI(nil)
@@ -256,22 +258,46 @@ func TestAddNodeInformationIntoArray(t *testing.T) {
 	mockUnity.On("CreateHostInitiator", mock.Anything, "id", mock.Anything, mock.Anything).Return(nil, nil).Once()
 	mockUnity.On("FindHostIPPortByID", mock.Anything, "ip-port-1").Return(hostIPPortPtr, nil).Once()
 	mockUnity.On("ListIscsiIPInterfaces", mock.Anything).Return([]gounitytypes.IPInterfaceEntries{expectedIPInterface}, nil).Once()
+	mockUnity.On("CreateHostIPPort", mock.Anything, "id", mock.Anything).Return(&expectedHostIPPort, nil)
 	err = testConf.service.addNodeInformationIntoArray(ctx, array)
 	assert.NoError(t, err)
+	dropExpectations(mockUnity)
 	testConf.service.iscsiClient = originalIscsiClient
 
 	// Case FindHostByName returns ErrorHostNotFound
 	mockUnity.On("BasicSystemInfo", mock.Anything, mock.Anything).Return(nil).Once()
 	mockUnity.On("FindHostByName", mock.Anything, mock.Anything).Return(nil, gounity.ErrorHostNotFound).Twice()
 	mockUnity.On("CreateHost", mock.Anything, "long-test-node", mock.Anything).Return(&h, nil)
+	mockUnity.On("CreateHostIPPort", mock.Anything, "id", mock.Anything).Return(&expectedHostIPPort, nil)
 	err = testConf.service.addNodeInformationIntoArray(ctx, array)
 	assert.NoError(t, err)
+	dropExpectations(mockUnity)
 
-	// FindHostByName
+	// FindHostByName fails with short and long name
 	mockUnity.On("BasicSystemInfo", mock.Anything, mock.Anything).Return(nil).Once()
-	mockUnity.On("FindHostByName", mock.Anything, mock.Anything).Return(nil, errors.New("test error")).Twice()
+	mockUnity.On("FindHostByName", mock.Anything, mock.Anything).Return(nil, errors.New("test error")).Once()
 	err = testConf.service.addNodeInformationIntoArray(ctx, array)
 	assert.Error(t, err)
+	dropExpectations(mockUnity)
+
+	// FindHostByName fails with short, but succeeds with long name
+	origGetFCInitiators := funcGetFCInitiators
+	defer func() {
+		funcGetFCInitiators = origGetFCInitiators
+	}()
+	funcGetFCInitiators = func(_ context.Context) ([]string, error) {
+		return []string{"fc-initiator-1"}, nil
+	}
+	mockUnity.On("BasicSystemInfo", mock.Anything, mock.Anything).Return(nil).Once()
+	mockUnity.On("FindHostIPPortByID", mock.Anything, "ip-port-1").Return(hostIPPortPtr, nil).Once()
+	mockUnity.On("CreateHostIPPort", mock.Anything, "id", mock.Anything).Return(&expectedHostIPPort, nil)
+	mockUnity.On("FindHostByName", mock.Anything, "test-node").Return(nil, gounity.ErrorHostNotFound).Once()
+	mockUnity.On("FindHostByName", mock.Anything, "long-test-node").Return(&host, nil).Once()
+	mockUnity.On("CreateHostInitiator", mock.Anything, "id", mock.Anything, mock.Anything).Return(nil, nil).Once()
+	err = testConf.service.addNodeInformationIntoArray(ctx, array)
+	assert.NoError(t, err)
+	dropExpectations(mockUnity)
+	funcGetFCInitiators = origGetFCInitiators
 }
 
 func TestNodeStageVolume(t *testing.T) {

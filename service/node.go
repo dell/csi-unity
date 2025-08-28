@@ -1396,7 +1396,7 @@ func (s *service) connectFCDevice(ctx context.Context,
 	})
 }
 
-// disconnectVolume disconnects a volume from a node and will verify it is disonnected
+// disconnectVolume disconnects a volume from a node and will verify it is disconnected
 // by no more /dev/disk/by-id entry, retrying if necessary.
 func (s *service) disconnectVolume(ctx context.Context, volumeWWN, protocol string) error {
 	rid, log := logging.GetRunidAndLogger(ctx)
