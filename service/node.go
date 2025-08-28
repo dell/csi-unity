@@ -1936,10 +1936,10 @@ func checkHealthyInitiator(ctx context.Context, initiators []types.Initiators, u
 		}
 		healthContent := hostInitiator.HostInitiatorContent.Health
 		if healthContent.DescriptionIDs[0] == componentOkMessage {
-			log.Infof("Health is good for initiator %s: %s", initiatorID, healthContent.DescriptionIDs[0])
+			log.Infof("Health is good for initiator %s: %s", hostInitiator.HostInitiatorContent.InitiatorID, healthContent.DescriptionIDs[0])
 			return true // found one healthy initiator
 		}
-		log.Errorf("Health is bad for initiator %s: %s", initiatorID, healthContent.DescriptionIDs[0])
+		log.Errorf("Health is bad for initiator %s: %s", hostInitiator.HostInitiatorContent.InitiatorID, healthContent.DescriptionIDs[0])
 	}
 	return false
 }
