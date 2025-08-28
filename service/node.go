@@ -1893,7 +1893,7 @@ func (s *service) validateProtocols(ctx context.Context, arraysList []*StorageAr
 					log.Errorf("context is closed")
 					return
 				case <-time.After(10 * time.Second):
-					log.Info("Re-trying initiators health validation (%d)", attempt)
+					log.Infof("Re-trying initiators health validation (%d)", attempt)
 				}
 			}
 			if len(fcInitiators) > 0 && !fcHealthy {
