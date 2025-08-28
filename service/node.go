@@ -1892,7 +1892,7 @@ func (s *service) validateProtocols(ctx context.Context, arraysList []*StorageAr
 				// Sleep 10 seconds or until context is closed
 				select {
 				case <-ctx.Done():
-					log.Errorf("context is closed")
+					log.Errorf("Context is closed")
 					return
 				case <-time.After(10 * time.Second):
 					log.Infof("Re-trying initiators health validation (%d)", attempt)
@@ -1931,16 +1931,15 @@ func checkHealthyInitiator(ctx context.Context, initiators []types.Initiators, u
 		initiatorID := initiator.ID
 		hostInitiator, err := unity.FindHostInitiatorByID(ctx, initiatorID)
 		if err != nil || hostInitiator == nil {
-			log.Errorf("Failed to find initiator by ID on array: %v", err)
+			log.Errorf("Failed to find initiator by ID %s on array: %v", initiatorID, err)
 			continue
 		}
 		healthContent := hostInitiator.HostInitiatorContent.Health
 		if healthContent.DescriptionIDs[0] == componentOkMessage {
 			log.Infof("Health is good for initiator %s: %s", initiatorID, healthContent.DescriptionIDs[0])
 			return true // found one healthy initiator
-		} else {
-			log.Errorf("Health is bad for initiator %s: %s", initiatorID, healthContent.DescriptionIDs[0])
 		}
+		log.Errorf("Health is bad for initiator %s: %s", initiatorID, healthContent.DescriptionIDs[0])
 	}
 	return false
 }

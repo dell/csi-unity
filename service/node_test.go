@@ -2724,7 +2724,7 @@ func TestValidateProtocols(t *testing.T) {
 	dropExpectations(mockUnity)
 
 	// Test case: FC initiators found
-	funcGetFCInitiators = func(ctx context.Context) ([]string, error) {
+	funcGetFCInitiators = func(_ context.Context) ([]string, error) {
 		return []string{"fc-initiator-1"}, nil
 	}
 	connectedSystemID = make([]string, 0)
@@ -2770,7 +2770,7 @@ func TestValidateProtocols(t *testing.T) {
 
 	// Test case: FC initiators bad health
 	connectedSystemID = make([]string, 0)
-	funcGetFCInitiators = func(ctx context.Context) ([]string, error) {
+	funcGetFCInitiators = func(_ context.Context) ([]string, error) {
 		return []string{"fc-initiator-1"}, nil
 	}
 	hi.HostInitiatorContent.Health.DescriptionIDs = []string{""}
@@ -2873,7 +2873,7 @@ func TestValidateProtocols(t *testing.T) {
 	dropExpectations(mockUnity)
 
 	// Test case: FC and iSCSI initiators found AND NFS is disabled
-	funcGetFCInitiators = func(ctx context.Context) ([]string, error) {
+	funcGetFCInitiators = func(_ context.Context) ([]string, error) {
 		return []string{"fc-initiator-1"}, nil
 	}
 	connectedSystemID = make([]string, 0)
