@@ -1875,7 +1875,8 @@ func (s *service) validateProtocols(ctx context.Context, arraysList []*StorageAr
 		}
 
 		if len(iscsiInitiators) == 0 && len(fcInitiators) == 0 {
-			continue // No local initiators found, assuming FC/ISCSI not configured
+			log.Infof("No local initiators found, assuming FC/iSCSI not configured")
+			continue
 		}
 
 		host, err := s.getHostID(ctx, array.ArrayID, s.opts.NodeName, s.opts.LongNodeName)
@@ -1899,13 +1900,13 @@ func (s *service) validateProtocols(ctx context.Context, arraysList []*StorageAr
 				}
 			}
 			if len(fcInitiators) > 0 && !fcHealthy {
-				fcHealthy = checkHealthyInitiator(ctx, host.HostContent.FcInitiators, unityClient)
+				fcHealthy = checkForOneHealthyInitiator(ctx, host.HostContent.FcInitiators, unityClient)
 				if !fcHealthy {
 					continue
 				}
 			}
 			if len(iscsiInitiators) > 0 && !iscsiHealthy {
-				iscsiHealthy = checkHealthyInitiator(ctx, host.HostContent.IscsiInitiators, unityClient)
+				iscsiHealthy = checkForOneHealthyInitiator(ctx, host.HostContent.IscsiInitiators, unityClient)
 				if !iscsiHealthy {
 					continue
 				}
@@ -1923,8 +1924,8 @@ func (s *service) validateProtocols(ctx context.Context, arraysList []*StorageAr
 	}
 }
 
-// checkHealthyInitiator Checks all initiators and returns true if at least one is healthy
-func checkHealthyInitiator(ctx context.Context, initiators []types.Initiators, unity gounity.UnityClient) bool {
+// checkForOneHealthyInitiator Checks all initiators and returns true if at least one is healthy
+func checkForOneHealthyInitiator(ctx context.Context, initiators []types.Initiators, unity gounity.UnityClient) bool {
 	ctx, log, _ := GetRunidLog(ctx)
 
 	for _, initiator := range initiators {
