@@ -25,9 +25,20 @@ go-build: clean
 	cd core && go generate
 	go build .
 
-# Only unit testing service/csiutils and service/logging for now. More work to do but need to start somewhere.
+UNIT_TESTED_PACKAGES := \
+	github.com/dell/csi-unity \
+	github.com/dell/csi-unity/k8sutils \
+	github.com/dell/csi-unity/provider \
+	github.com/dell/csi-unity/service \
+	github.com/dell/csi-unity/service/csiutils \
+	github.com/dell/csi-unity/service/logging
+
 unit-test:
-	( cd service && go clean -cache && go test -v -coverprofile=c.out ./csiutils/... ./logging/... )
+	go clean -cache
+	@for pkg in $(UNIT_TESTED_PACKAGES); do \
+  		echo "****** go test -v -short -race -count=1 -cover -coverprofile cover.out $$pkg ******"; \
+		go test -v -short -race -count=1 -cover -coverprofile cover.out $$pkg; \
+	done
 
 # Integration tests using Godog. Populate env.sh with the hardware parameters
 integration-test:
