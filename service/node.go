@@ -42,15 +42,17 @@ import (
 
 // Variables that can be used across module
 var (
-	targetMountRecheckSleepTime = 3 * time.Second
-	disconnectVolumeRetryTime   = 1 * time.Second
-	nodeStartTimeout            = 3 * time.Second
-	lunzMutex                   sync.Mutex
-	nodeMutex                   sync.Mutex
-	sysBlock                    = "/sys/block"
-	syncNodeInfoChan            chan bool
-	connectedSystemID           = make([]string, 0)
-	VolumeNameLengthConstraint  = 63
+	targetMountRecheckSleepTime  = 3 * time.Second
+	disconnectVolumeRetryTime    = 1 * time.Second
+	nodeStartTimeout             = 3 * time.Second
+	lunzMutex                    sync.Mutex
+	nodeMutex                    sync.Mutex
+	sysBlock                     = "/sys/block"
+	syncNodeInfoChan             chan bool
+	connectedSystemID            = make([]string, 0)
+	VolumeNameLengthConstraint   = 63
+	initiatorsValidationAttempts = 30
+	funcGetFCInitiators          = csiutils.GetFCInitiators
 )
 
 const (
@@ -1251,18 +1253,19 @@ func (s *service) iScsiDiscoverAndLogin(ctx context.Context, interfaceIps []stri
 
 		targets, err := s.iscsiClient.DiscoverTargets(ip, false)
 		if err != nil {
-			log.Debugf("Error executing iscsiadm discovery: %v", err)
+			log.Errorf("iscsiadm discovery failed for IP %s: %v", ip, err)
 			continue
 		}
+		log.Debugf("Discovered targets for IP %s: %v", ip, targets)
 
 		for _, tgt := range targets {
 			ipSlice := strings.Split(tgt.Portal, ":")
 			if csiutils.ArrayContains(validIPs, ipSlice[0]) {
 				err = s.iscsiClient.PerformLogin(tgt)
 				if err != nil {
-					log.Debugf("Error logging in to target %s : %v", tgt.Target, err)
+					log.Errorf("Error logging in to target %s: %v", tgt.Target, err)
 				} else {
-					log.Debugf("Login successful to target %s", tgt.Target)
+					log.Infof("Login successful to target %s", tgt.Target)
 				}
 			}
 		}
@@ -1393,7 +1396,7 @@ func (s *service) connectFCDevice(ctx context.Context,
 	})
 }
 
-// disconnectVolume disconnects a volume from a node and will verify it is disonnected
+// disconnectVolume disconnects a volume from a node and will verify it is disconnected
 // by no more /dev/disk/by-id entry, retrying if necessary.
 func (s *service) disconnectVolume(ctx context.Context, volumeWWN, protocol string) error {
 	rid, log := logging.GetRunidAndLogger(ctx)
@@ -1482,16 +1485,16 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 	}
 
 	// Get FC Initiator WWNs
-	wwns, errFc := csiutils.GetFCInitiators(ctx)
+	wwns, errFc := funcGetFCInitiators(ctx)
 	if errFc != nil {
-		log.Warn("'FC Initiators' cannot be retrieved.")
+		log.Warn("FC Initiators cannot be retrieved")
 	}
 
 	// Get iSCSI Initiator IQN
 	iqnsOrig, errIscsi := s.iscsiClient.GetInitiators("")
 	iqns := iqnsOrig
 	if errIscsi != nil {
-		log.Warn("'iSCSI Initiators' cannot be retrieved.")
+		log.Warn("iSCSI Initiators cannot be retrieved")
 	} else if len(iqns) > 0 {
 		// converting iqn values to lowercase since they are registered to array in lowercase
 		for i := 0; i < len(iqns); i++ {
@@ -1504,7 +1507,7 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 	}
 
 	// logic if else
-	// if allowedNetowrks is set
+	// if allowedNetworks is set
 	// else csiutils.GetHostIP() with hostname -I/i method
 	var nodeIps []string
 	var err error
@@ -1630,7 +1633,7 @@ func (s *service) addNodeInformationIntoArray(ctx context.Context, array *Storag
 	if len(iqns) > 0 {
 		err = s.copyMultipathConfigFile(ctx, s.opts.Chroot)
 		if err != nil {
-			log.Infof("Error copying multipath config file: %v", err)
+			log.Errorf("Error copying multipath config file: %v", err)
 		}
 		ipInterfaces, err := unity.ListIscsiIPInterfaces(ctx)
 		if err != nil {
@@ -1705,7 +1708,7 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 		return err
 	}
 	hostContent = host.HostContent
-	log.Debugf("New Host Id: %s", hostContent.ID)
+	log.Infof("New Host Id on array %s: %s", array.ArrayID, hostContent.ID)
 
 	// Create Host Ip Port
 	_, err = unity.CreateHostIPPort(ctx, hostContent.ID, s.opts.LongNodeName)
@@ -1735,7 +1738,7 @@ func (s *service) addNewNodeToArray(ctx context.Context, array *StorageArrayConf
 		// Create Host iSCSI Initiators
 		log.Debugf("iSCSI Initiators found: %s", iqns)
 		for _, iqn := range iqns {
-			log.Debugf("Adding iSCSI Initiator: %s to host: %s ", hostContent.ID, iqn)
+			log.Infof("Adding iSCSI Initiator %s to host %s", iqn, hostContent.ID)
 			_, err = unity.CreateHostInitiator(ctx, hostContent.ID, iqn, gounityapi.ISCSCIInitiatorType)
 			if err != nil {
 				return status.Error(codes.Internal, csiutils.GetMessageWithRunID(rid, "Adding iSCSI initiator error: %v", err))
@@ -1751,7 +1754,7 @@ func (s *service) syncNodeInfoRoutine(ctx context.Context) {
 	for {
 		select {
 		case <-syncNodeInfoChan:
-			log.Debug("Config change identified. Adding node info")
+			log.Info("Config change identified. Adding node info")
 			s.syncNodeInfo(ctx)
 			ctx, log = incrementLogID(ctx, "node")
 		case <-time.After(time.Duration(s.opts.SyncNodeInfoTimeInterval) * time.Minute):
@@ -1767,7 +1770,7 @@ func (s *service) syncNodeInfoRoutine(ctx context.Context) {
 			})
 
 			if !allHostsAdded {
-				log.Debug("Some of the hosts are not added, invoking add host information to array")
+				log.Info("Some of the hosts are not added, invoking add host information to array")
 				s.syncNodeInfo(ctx)
 				ctx, log = incrementLogID(ctx, "node")
 			}
@@ -1792,8 +1795,10 @@ func (s *service) syncNodeInfo(ctx context.Context) {
 	s.arrays.Range(func(_, value interface{}) bool {
 		array := value.(*StorageArrayConfig)
 		array.mu.Lock()
-		if !array.IsHostAdded {
-			array.mu.Unlock() // Unlock before launching goroutine
+		isHostAdded := array.IsHostAdded
+		array.mu.Unlock()
+
+		if !isHostAdded {
 			go func(array *StorageArrayConfig) {
 				ctx, log := incrementLogID(ctx, "node")
 				err := s.addNodeInformationIntoArray(ctx, array)
@@ -1801,15 +1806,13 @@ func (s *service) syncNodeInfo(ctx context.Context) {
 				if err == nil {
 					array.IsHostAdded = true
 					array.IsHostAdditionFailed = false
-					log.Debugf("Node [%s] Added successfully", array.ArrayID)
+					log.Infof("Node [%s] added successfully", array.ArrayID)
 				} else {
 					array.IsHostAdditionFailed = true
-					log.Debugf("Adding node [%s] failed, Error: [%v]", array.ArrayID, err)
+					log.Errorf("Adding node [%s] failed: %v", array.ArrayID, err)
 				}
 				array.mu.Unlock()
 			}(array)
-		} else {
-			array.mu.Unlock()
 		}
 		return true
 	})
@@ -1834,81 +1837,110 @@ func getTopology() map[string]string {
 // validateProtocols will check for iSCSI and FC connectivity and updates same in connectedSystemID list
 func (s *service) validateProtocols(ctx context.Context, arraysList []*StorageArrayConfig) {
 	ctx, log, _ := GetRunidLog(ctx)
+
+	// Get all local iSCSI and FC initiators
+	fcInitiators, err := funcGetFCInitiators(ctx)
+	if err != nil {
+		log.Errorf("Failed to get the local FC initiators: %v", err)
+	}
+	iscsiInitiators, err := s.iscsiClient.GetInitiators("")
+	if err != nil {
+		log.Errorf("Failed to get the local iSCSI initiators: %v", err)
+	}
+	log.Infof("Found local FC initiators: %v", fcInitiators)
+	log.Infof("Found local iSCSI initiators: %v", iscsiInitiators)
+
 	for _, array := range arraysList {
-		if array.IsHostAdded {
-			iscsiInitiators, err := s.iscsiClient.GetInitiators("")
-			fcInitiators, err := csiutils.GetFCInitiators(ctx)
+		ctx, _ = setArrayIDContext(ctx, array.ArrayID)
 
-			unityClient, err := s.getUnityClient(ctx, array.ArrayID)
-			if err != nil {
-				log.Errorf("failed to get the unity client, error: %s", err.Error())
-			} else {
-				if nfsServerList, err := unityClient.GetAllNFSServers(ctx); err != nil {
-					log.Errorf("failed to get the NFS server list, error: %s", err.Error())
-				} else {
-					for _, nfsServer := range nfsServerList.Entries {
-						if nfsServer.Content.NFSv3Enabled || nfsServer.Content.NFSv4Enabled {
-							connectedSystemID = append(connectedSystemID, array.ArrayID+"/"+strings.ToLower(NFS))
-							break
-						}
-					}
-				}
-			}
+		if !array.IsHostAdded {
+			continue
+		}
 
-			if len(iscsiInitiators) != 0 || len(fcInitiators) != 0 {
-				log.Info("iSCSI/FC package found in this node proceeding to further validations")
-				// To get all iSCSI initiators and FC Initiators
-				ctx, _ = setArrayIDContext(ctx, array.ArrayID)
-				unity, err := s.getUnityClient(ctx, array.ArrayID)
-				if err != nil {
-					log.Infof("Unable to get unity client for topology validation: %v", err)
-				}
+		unityClient, err := s.getUnityClient(ctx, array.ArrayID)
+		if err != nil {
+			log.Errorf("Skipping array %s protocol validation, since unity client is not found: %v", array.ArrayID, err)
+			continue
+		}
 
-				host, err := s.getHostID(ctx, array.ArrayID, s.opts.NodeName, s.opts.LongNodeName)
-				if err != nil {
-					log.Infof("Host not found. Error: %v", err)
+		if nfsServerList, err := unityClient.GetAllNFSServers(ctx); err != nil {
+			log.Errorf("Failed to get the NFS server list from array: %v", err)
+		} else {
+			for _, nfsServer := range nfsServerList.Entries {
+				if nfsServer.Content.NFSv3Enabled || nfsServer.Content.NFSv4Enabled {
+					connectedSystemID = append(connectedSystemID, array.ArrayID+"/"+strings.ToLower(NFS))
+					break
 				}
-				if host != nil && len(host.HostContent.FcInitiators) != 0 {
-					log.Infof("Got FC Initiators, Checking health of initiators:%s", host.HostContent.FcInitiators)
-					for _, initiator := range host.HostContent.FcInitiators {
-						initiatorID := initiator.ID
-						hostInitiator, err := unity.FindHostInitiatorByID(ctx, initiatorID)
-						if err != nil {
-							log.Infof("Unable to get initiators: %s", err)
-						}
-						if hostInitiator != nil {
-							healtContent := hostInitiator.HostInitiatorContent.Health
-							if healtContent.DescriptionIDs[0] == componentOkMessage {
-								log.Infof("FC Health is good for array:%s, Health:%s", array.ArrayID, healtContent.DescriptionIDs[0])
-								connectedSystemID = append(connectedSystemID, array.ArrayID+"/"+strings.ToLower(FC))
-							} else {
-								log.Infof("FC Health is bad for array:%s, Health:%s", array.ArrayID, healtContent.DescriptionIDs[0])
-							}
-						}
-					}
-				}
-				if host != nil && len(host.HostContent.IscsiInitiators) != 0 {
-					log.Infof("Got iSCSI Initiators, Checking health of initiators:%s", host.HostContent.IscsiInitiators)
-					for _, initiator := range host.HostContent.IscsiInitiators {
-						initiatorID := initiator.ID
-						hostInitiator, err := unity.FindHostInitiatorByID(ctx, initiatorID)
-						if err != nil {
-							log.Infof("Unable to get initiators: %s", err)
-						}
-						if hostInitiator != nil {
-							healtContent := hostInitiator.HostInitiatorContent.Health
-							if healtContent.DescriptionIDs[0] == componentOkMessage {
-								log.Infof("iSCSI health is good for array:%s, Health:%s", array.ArrayID, healtContent.DescriptionIDs[0])
-								connectedSystemID = append(connectedSystemID, array.ArrayID+"/"+strings.ToLower(ISCSI))
-							} else {
-								log.Infof("iSCSI Health is bad for array:%s, Health:%s", array.ArrayID, healtContent.DescriptionIDs[0])
-							}
-						}
-					}
-				}
-			} else {
-				log.Info("this node doesn't support either iSCSI or FC protocol, only NFS is supported", err)
 			}
 		}
+
+		if len(iscsiInitiators) == 0 && len(fcInitiators) == 0 {
+			log.Infof("No local initiators found, assuming FC/iSCSI not configured")
+			continue
+		}
+
+		host, err := s.getHostID(ctx, array.ArrayID, s.opts.NodeName, s.opts.LongNodeName)
+		if err != nil || host == nil {
+			log.Errorf("Host not found by name on array: %v", err)
+			continue
+		}
+
+		fcHealthy := false
+		iscsiHealthy := false
+		// Wait for up to 5 minutes for the initiators to appear as logged in on the array
+		for attempt := 1; attempt <= initiatorsValidationAttempts; attempt++ {
+			if attempt > 1 { // First attempt does not need to wait
+				// Sleep 10 seconds or until context is closed
+				select {
+				case <-ctx.Done():
+					log.Errorf("Context is closed")
+					return
+				case <-time.After(10 * time.Second):
+					log.Infof("Re-trying initiators health validation (%d)", attempt)
+				}
+			}
+			if len(fcInitiators) > 0 && !fcHealthy {
+				fcHealthy = checkForOneHealthyInitiator(ctx, host.HostContent.FcInitiators, unityClient)
+				if !fcHealthy {
+					continue
+				}
+			}
+			if len(iscsiInitiators) > 0 && !iscsiHealthy {
+				iscsiHealthy = checkForOneHealthyInitiator(ctx, host.HostContent.IscsiInitiators, unityClient)
+				if !iscsiHealthy {
+					continue
+				}
+			}
+			break
+		}
+
+		// Collect the results for topology
+		if len(fcInitiators) > 0 && fcHealthy {
+			connectedSystemID = append(connectedSystemID, array.ArrayID+"/"+strings.ToLower(FC))
+		}
+		if len(iscsiInitiators) > 0 && iscsiHealthy {
+			connectedSystemID = append(connectedSystemID, array.ArrayID+"/"+strings.ToLower(ISCSI))
+		}
 	}
+}
+
+// checkForOneHealthyInitiator Checks all initiators and returns true if at least one is healthy
+func checkForOneHealthyInitiator(ctx context.Context, initiators []types.Initiators, unity gounity.UnityClient) bool {
+	ctx, log, _ := GetRunidLog(ctx)
+
+	for _, initiator := range initiators {
+		initiatorID := initiator.ID
+		hostInitiator, err := unity.FindHostInitiatorByID(ctx, initiatorID)
+		if err != nil || hostInitiator == nil {
+			log.Errorf("Failed to find initiator by ID %s on array: %v", initiatorID, err)
+			continue
+		}
+		healthContent := hostInitiator.HostInitiatorContent.Health
+		if healthContent.DescriptionIDs[0] == componentOkMessage {
+			log.Infof("Health is good for initiator %s: %s", hostInitiator.HostInitiatorContent.InitiatorID, healthContent.DescriptionIDs[0])
+			return true // found one healthy initiator
+		}
+		log.Errorf("Health is bad for initiator %s: %s", hostInitiator.HostInitiatorContent.InitiatorID, healthContent.DescriptionIDs[0])
+	}
+	return false
 }
