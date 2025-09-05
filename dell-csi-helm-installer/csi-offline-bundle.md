@@ -91,13 +91,13 @@ For example, here is the output of a request to build an offline bundle for the 
 *
 * Pulling and saving container images
 
-   quay.io/dell/container-storage-modules/csi-isilon:v2.14.0
+   quay.io/dell/container-storage-modules/csi-isilon:v2.15.0
    quay.io/dell/container-storage-modules/csi-metadata-retriever:v1.10.0
    quay.io/dell/container-storage-modules/csipowermax-reverseproxy:v2.13.0
-   quay.io/dell/container-storage-modules/csi-powermax:v2.14.0
-   quay.io/dell/container-storage-modules/csi-powerstore:v2.14.0
-   quay.io/dell/container-storage-modules/csi-unity:v2.14.0
-   quay.io/dell/container-storage-modules/csi-vxflexos:v2.14.0
+   quay.io/dell/container-storage-modules/csi-powermax:v2.15.0
+   quay.io/dell/container-storage-modules/csi-powerstore:v2.15.0
+   quay.io/dell/container-storage-modules/csi-unity:v2.15.0
+   quay.io/dell/container-storage-modules/csi-vxflexos:v2.15.0
    quay.io/dell/container-storage-modules/csm-authorization-sidecar:v1.14.0
    quay.io/dell/container-storage-modules/csm-metrics-powerflex:v1.12.0
    quay.io/dell/container-storage-modules/csm-metrics-powerscale:v1.9.0
@@ -189,8 +189,8 @@ Preparing a offline bundle for installation
 *
 * Loading docker images
 
-Loaded image: quay.io/dell/container-storage-modules/csi-powerstore:v2.14.0
-Loaded image: quay.io/dell/container-storage-modules/csi-isilon:v2.14.0
+Loaded image: quay.io/dell/container-storage-modules/csi-powerstore:v2.15.0
+Loaded image: quay.io/dell/container-storage-modules/csi-isilon:v2.15.0
 ...
 ...
 Loaded image: registry.k8s.io/sig-storage/csi-resizer:v1.9.2
@@ -199,7 +199,7 @@ Loaded image: registry.k8s.io/sig-storage/csi-snapshotter:v6.3.2
 *
 * Tagging and pushing images
 
-   quay.io/dell/container-storage-modules/csi-isilon:v2.14.0 -> localregistry:5000/dell-csm-operator/csi-isilon:v2.14.0
+   quay.io/dell/container-storage-modules/csi-isilon:v2.15.0 -> localregistry:5000/dell-csm-operator/csi-isilon:v2.15.0
    quay.io/dell/container-storage-modules/csi-metadata-retriever:v1.9.0 -> localregistry:5000/dell-csm-operator/csi-metadata-retriever:v1.9.0
    ...
    ...
@@ -209,7 +209,7 @@ Loaded image: registry.k8s.io/sig-storage/csi-snapshotter:v6.3.2
 *
 * Preparing files within /root/dell-csm-operator-bundle
 
-   changing: quay.io/dell/container-storage-modules/csi-isilon:v2.14.0 -> localregistry:5000/dell-csm-operator/csi-isilon:v2.14.0
+   changing: quay.io/dell/container-storage-modules/csi-isilon:v2.15.0 -> localregistry:5000/dell-csm-operator/csi-isilon:v2.15.0
    changing: quay.io/dell/container-storage-modules/csi-metadata-retriever:v1.9.0 -> localregistry:5000/dell-csm-operator/csi-metadata-retriever:v1.9.0
    ...
    ...
