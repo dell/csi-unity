@@ -1,6 +1,6 @@
 module github.com/dell/csi-unity
 
-go 1.24
+go 1.25
 
 require (
 	bou.ke/monkey v1.0.2
