@@ -6,12 +6,12 @@ require (
 	bou.ke/monkey v1.0.2
 	github.com/container-storage-interface/spec v1.6.0
 	github.com/cucumber/godog v0.15.0
-	github.com/dell/dell-csi-extensions/podmon v1.8.1-0.20250905054742-ad01c425487b
-	github.com/dell/gobrick v1.14.1-0.20250905070950-cfc6233bb65d
-	github.com/dell/gocsi v1.14.1-0.20250905061753-91bcfb5340eb
-	github.com/dell/gofsutil v1.19.1-0.20250905055737-9760342d7345
-	github.com/dell/goiscsi v1.12.1-0.20250905060008-55acbdc24de2
-	github.com/dell/gounity v1.21.1-0.20250905060524-578a737fb12c
+	github.com/dell/dell-csi-extensions/podmon v1.8.1-0.20250910103631-2e1d8dc72d6b
+	github.com/dell/gobrick v1.14.1-0.20250911125339-d5a9240f7e93
+	github.com/dell/gocsi v1.14.1-0.20250910202521-d95e26ef94f7
+	github.com/dell/gofsutil v1.19.1-0.20250910114757-c585839b4ceb
+	github.com/dell/goiscsi v1.12.1-0.20250910114825-45c208602fc4
+	github.com/dell/gounity v1.21.1-0.20250910114508-57c5942d1e77
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/kubernetes-csi/csi-lib-utils v0.7.0
 	github.com/sirupsen/logrus v1.9.3
@@ -33,7 +33,7 @@ require (
 	github.com/cucumber/gherkin/go/v26 v26.2.0 // indirect
 	github.com/cucumber/messages/go/v21 v21.0.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/dell/gonvme v1.11.1-0.20250905062246-29901c861fe6 // indirect
+	github.com/dell/gonvme v1.11.1-0.20250910114846-33e8028c5906 // indirect
 	github.com/evanphx/json-patch v4.9.0+incompatible // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
@@ -59,7 +59,7 @@ require (
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.12.0 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
-	github.com/spf13/pflag v1.0.6 // indirect
+	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	go.etcd.io/etcd/api/v3 v3.6.1 // indirect
@@ -69,8 +69,8 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/crypto v0.41.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
-	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/sync v0.17.0 // indirect
+	golang.org/x/sys v0.36.0 // indirect
 	golang.org/x/term v0.34.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
