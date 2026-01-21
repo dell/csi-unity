@@ -17,6 +17,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path"
@@ -27,7 +28,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/dell/csi-unity/service/csiutils"
 	"github.com/dell/csi-unity/service/logging"
 	"github.com/dell/gobrick"
@@ -36,6 +36,7 @@ import (
 	"github.com/dell/gounity"
 	gounityapi "github.com/dell/gounity/api"
 	types "github.com/dell/gounity/apitypes"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -53,6 +54,7 @@ var (
 	VolumeNameLengthConstraint   = 63
 	initiatorsValidationAttempts = 30
 	funcGetFCInitiators          = csiutils.GetFCInitiators
+	maxDisconnectRetries         = 3
 )
 
 const (
@@ -60,6 +62,12 @@ const (
 	maxUnityVolumesPerNodeLabel = "max-unity-volumes-per-node"
 	ubuntuNodeRoot              = "/noderoot"
 	devtmpfs                    = "devtmpfs"
+)
+
+type contextKey string
+
+const (
+	logFieldsKey contextKey = "logFields"
 )
 
 func (s *service) NodeStageVolume(
@@ -1403,10 +1411,67 @@ func (s *service) disconnectVolume(ctx context.Context, volumeWWN, protocol stri
 
 	if protocol == FC {
 		s.initFCConnector(s.opts.Chroot)
+
+		// Get symlink path for logging / cleanup
+		symlinkPath, _, _ := gofsutil.WWNToDevicePathX(ctx, volumeWWN)
+
+		var lastErr error
+		for i := 1; i <= maxDisconnectRetries; i++ {
+			f := map[string]interface{}{
+				"RunID":   rid,
+				"WWN":     volumeWWN,
+				"Retry":   i,
+				"symlink": symlinkPath,
+			}
+
+			// Use a 120s context per attempt like PowerMax
+			nodeUnstageCtx, cancel := context.WithTimeout(ctx, time.Second*120)
+			// propagate runid/log fields into ctx if you have helper (keep as-is)
+			nodeUnstageCtx = context.WithValue(nodeUnstageCtx, logFieldsKey, f)
+
+			// attempt disconnect by WWN (preferred for FC)
+			err := s.fcConnector.DisconnectVolumeByWWN(nodeUnstageCtx, volumeWWN)
+			cancel()
+
+			if err == nil {
+				log.WithFields(f).Debugf("DisconnectVolumeByWWN complete for %s", volumeWWN)
+				// best-effort remove the symlink if present
+				if symlinkPath != "" {
+					if err2 := os.Remove(symlinkPath); err2 != nil && !os.IsNotExist(err2) {
+						log.Infof("Error removing symlink %s: %v", symlinkPath, err2)
+					}
+				}
+				// final check: ensure /dev/disk/by-id no longer maps
+				devPath, _ := gofsutil.WWNToDevicePath(context.Background(), volumeWWN)
+				if devPath == "" {
+					log.Debugf("Disconnect successful for WWN %s", volumeWWN)
+					return nil
+				}
+				// if devPath still present, continue retries
+				lastErr = fmt.Errorf("device still present after DisconnectVolumeByWWN devPath=%s", devPath)
+				time.Sleep(disconnectVolumeRetryTime)
+				continue
+			}
+
+			// record and retry
+			lastErr = err
+			log.WithFields(f).Errorf("error disconnecting volume (FC) attempt %d: %v", i, err)
+			time.Sleep(disconnectVolumeRetryTime)
+		}
+
+		// after retries, re-check and return proper error
+		devPath, _ := gofsutil.WWNToDevicePath(context.Background(), volumeWWN)
+		if devPath == "" {
+			log.Debugf("Disconnect successful for WWN %s after retries", volumeWWN)
+			return nil
+		}
+
+		return status.Errorf(codes.Internal, "%s", csiutils.GetMessageWithRunID(rid, "disconnectVolume exceeded retry limit WWN %s lastErr %v devPath %s", volumeWWN, lastErr, devPath))
 	} else if protocol == ISCSI {
 		s.initISCSIConnector(s.opts.Chroot)
 	}
 
+	// Non-FC transports: retry by device name (devicePath from WWN)
 	for i := 0; i < 3; i++ {
 		var deviceName string
 		var err error
@@ -1422,16 +1487,9 @@ func (s *service) disconnectVolume(ctx context.Context, volumeWWN, protocol stri
 
 		nodeUnstageCtx, cancel := context.WithTimeout(ctx, time.Second*120)
 
-		if protocol == FC {
-			err = s.fcConnector.DisconnectVolumeByDeviceName(nodeUnstageCtx, deviceName)
-			if err != nil {
-				log.Infof("Error disconnecting volume by device name: %v", err)
-			}
-		} else if protocol == ISCSI {
-			err = s.iscsiConnector.DisconnectVolumeByDeviceName(nodeUnstageCtx, deviceName)
-			if err != nil {
-				log.Infof("Error disconnecting volume by device name: %v", err)
-			}
+		err = s.iscsiConnector.DisconnectVolumeByDeviceName(nodeUnstageCtx, deviceName)
+		if err != nil {
+			log.Infof("Error disconnecting volume by device name: %v", err)
 		}
 
 		cancel()

@@ -1,5 +1,5 @@
 /*
-Copyright © 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+Copyright © 2025-2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import (
 	"testing"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/dell/csi-unity/core"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -110,12 +109,14 @@ func TestService_Probe(t *testing.T) {
 
 func TestService_GetPluginInfo(t *testing.T) {
 	s := &service{}
+	imageVersion := "1.0.0"
+	ManifestSemver = imageVersion
 
 	resp, err := s.GetPluginInfo(context.TODO(), &csi.GetPluginInfoRequest{})
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
 	assert.Equal(t, Name, resp.Name)
-	assert.Equal(t, core.SemVer, resp.VendorVersion)
+	assert.Equal(t, imageVersion, resp.VendorVersion)
 	assert.Equal(t, Manifest, resp.Manifest)
 }
 

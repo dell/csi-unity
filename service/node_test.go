@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"bou.ke/monkey"
-	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/dell/csi-unity/service/csiutils"
 	"github.com/dell/gobrick"
 	"github.com/dell/gofsutil"
@@ -34,6 +33,7 @@ import (
 	"github.com/dell/gounity"
 	gounitytypes "github.com/dell/gounity/apitypes"
 	gounitymocks "github.com/dell/gounity/mocks"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc/codes"
@@ -72,6 +72,11 @@ func (m *MockFCConnector) GetInitiatorPorts(ctx context.Context) ([]string, erro
 
 func (m *MockFCConnector) DisconnectVolumeByDeviceName(ctx context.Context, deviceName string) error {
 	args := m.Called(ctx, deviceName)
+	return args.Error(0)
+}
+
+func (m *MockFCConnector) DisconnectVolumeByWWN(ctx context.Context, wwn string) error {
+	args := m.Called(ctx, wwn)
 	return args.Error(0)
 }
 
@@ -940,9 +945,10 @@ func TestNodeUnpublishVolume(t *testing.T) {
 		testConf.service.opts.EnvEphemeralStagingTargetPath = t.TempDir()
 		volID := "csivol-8cd275903e-iSCSI-testarrayid-sv_250440"
 		tmpFile := filepath.Join(testConf.service.opts.EnvEphemeralStagingTargetPath+volID, "id")
-		err := os.MkdirAll(filepath.Dir(tmpFile), 0o600)
+		err := os.MkdirAll(filepath.Dir(tmpFile), 0o750)
 		assert.NoError(t, err)
-		err = os.WriteFile(tmpFile, []byte("real-vol-id"), 0o600)
+		// #nosec G306 -- permission 0750 is required for write operation.
+		err = os.WriteFile(tmpFile, []byte("real-vol-id"), 0o750)
 		assert.NoError(t, err)
 		defer os.RemoveAll(filepath.Dir(tmpFile))
 
@@ -1410,7 +1416,9 @@ func TestNodeUnstageVolume(t *testing.T) {
 		StagingTargetPath: "/path/to/stage",
 	}
 	testConf.service.arrays.Store(arrayID, &StorageArrayConfig{ArrayID: arrayID, UnityClient: mockUnity, SkipCertificateValidation: &boolTrue, IsDefault: &boolTrue})
-
+	mockFcConnector := new(MockFCConnector)
+	testConf.service.fcConnector = mockFcConnector
+	mockFcConnector.On("DisconnectVolumeByWWN", mock.Anything, mock.Anything).Return(nil)
 	_, err := testConf.service.NodeUnstageVolume(ctx, req)
 	assert.Error(t, err)
 
@@ -1421,6 +1429,7 @@ func TestNodeUnstageVolume(t *testing.T) {
 	}
 	testConf.service.opts.AutoProbe = true
 	mockUnity.On("BasicSystemInfo", mock.Anything, mock.Anything).Return(nil)
+	mockUnity.On("DisconnectVolumeByWWN", mock.Anything, mock.Anything).Return(nil)
 	_, err = testConf.service.NodeUnstageVolume(ctx, req)
 	assert.Error(t, err)
 
@@ -1468,6 +1477,7 @@ func TestNodeUnstageVolume(t *testing.T) {
 	mockUnity.On("BasicSystemInfo", mock.Anything, mock.Anything).Return(nil)
 	mockUnity.On("FindNFSShareByID", mock.Anything, "nfs-id").Return(&nfsShare, nil)
 	mockUnity.On("FindNASServerByID", mock.Anything, mock.Anything).Return(&nasServer, nil)
+	mockUnity.On("DisconnectVolumeByWWN", mock.Anything, mock.Anything).Return(nil)
 	_, err = testConf.service.NodeUnstageVolume(ctx, req)
 	assert.Error(t, err)
 
@@ -1492,6 +1502,7 @@ func TestNodeUnstageVolume(t *testing.T) {
 	mockUnity.On("BasicSystemInfo", mock.Anything, mock.Anything).Return(nil)
 	mockUnity.On("FindNFSShareByID", mock.Anything, "").Return(&nfsShare, nil)
 	mockUnity.On("FindNASServerByID", mock.Anything, mock.Anything).Return(&nasServer, nil)
+	mockUnity.On("DisconnectVolumeByWWN", mock.Anything, mock.Anything).Return(nil)
 	_, err = testConf.service.NodeUnstageVolume(ctx, req)
 	assert.Error(t, err)
 	// test-case: export path is not empty
@@ -1522,6 +1533,7 @@ func TestNodeUnstageVolume(t *testing.T) {
 	mockUnity.On("BasicSystemInfo", mock.Anything, mock.Anything).Return(nil)
 	mockUnity.On("FindNFSShareByID", mock.Anything, "nfs-id").Return(&nfsShare, nil)
 	mockUnity.On("FindNASServerByID", mock.Anything, "").Return(&nasServer, nil)
+	mockUnity.On("DisconnectVolumeByWWN", mock.Anything, mock.Anything).Return(nil)
 	_, err = testConf.service.NodeUnstageVolume(ctx, req)
 	assert.NoError(t, err)
 
@@ -1545,6 +1557,7 @@ func TestNodeUnstageVolume(t *testing.T) {
 	mockUnity.On("FindNFSShareByID", mock.Anything, "nfs-id").Return(&nfsShare, nil)
 	mockUnity.On("FindNASServerByID", mock.Anything, "").Return(&nasServer, nil)
 	mockUnity.On("FindHostByName", mock.Anything, "test-node").Return(&h, errors.New("error")).Once()
+	mockUnity.On("DisconnectVolumeByWWN", mock.Anything, mock.Anything).Return(nil)
 	_, err = testConf.service.NodeUnstageVolume(ctx, req)
 	assert.Error(t, err)
 
@@ -1568,6 +1581,7 @@ func TestNodeUnstageVolume(t *testing.T) {
 	mockUnity.On("FindHostByName", mock.Anything, "test-node").Return(&h, nil).Once()
 	mockUnity.On("FindHostByName", mock.Anything, "long-test-node").Return(&h, nil).Once()
 	mockUnity.On("FindVolumeByID", mock.Anything, "1234").Return(&volume, gounity.ErrorVolumeNotFound)
+	mockUnity.On("DisconnectVolumeByWWN", mock.Anything, mock.Anything).Return(nil)
 	_, err = testConf.service.NodeUnstageVolume(ctx, req)
 	assert.NoError(t, err)
 
@@ -1580,6 +1594,7 @@ func TestNodeUnstageVolume(t *testing.T) {
 	mockUnity.On("FindHostByName", mock.Anything, "test-node").Return(&h, nil).Once()
 	mockUnity.On("FindHostByName", mock.Anything, "long-test-node").Return(&h, nil).Once()
 	mockUnity.On("FindVolumeByID", mock.Anything, "1234").Return(&volume, gounity.ErrorFilesystemNotFound)
+	mockUnity.On("DisconnectVolumeByWWN", mock.Anything, mock.Anything).Return(nil)
 	_, err = testConf.service.NodeUnstageVolume(ctx, req)
 	assert.Error(t, err)
 
@@ -1592,6 +1607,7 @@ func TestNodeUnstageVolume(t *testing.T) {
 	mockUnity.On("FindHostByName", mock.Anything, "test-node").Return(&h, nil).Once()
 	mockUnity.On("FindHostByName", mock.Anything, "long-test-node").Return(&h, nil).Once()
 	mockUnity.On("FindVolumeByID", mock.Anything, "1234").Return(&volume, nil)
+	mockUnity.On("DisconnectVolumeByWWN", mock.Anything, mock.Anything).Return(nil)
 	_, err = testConf.service.NodeUnstageVolume(ctx, req)
 	assert.NoError(t, err)
 
@@ -1602,6 +1618,7 @@ func TestNodeUnstageVolume(t *testing.T) {
 	}
 	mockUnity.ExpectedCalls = nil
 	mockUnity.On("BasicSystemInfo", mock.Anything, mock.Anything).Return(nil)
+	mockUnity.On("DisconnectVolumeByWWN", mock.Anything, mock.Anything).Return(nil)
 	_, err = testConf.service.NodeUnstageVolume(ctx, req)
 	assert.Error(t, err)
 }
