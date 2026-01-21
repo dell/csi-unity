@@ -25,9 +25,9 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/dell/csi-unity/service/logging"
 	"github.com/dell/gofsutil"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -43,8 +43,9 @@ func newTestContext() context.Context {
 
 func TestStagePublishNFS(t *testing.T) {
 	ctx := context.Background()
+	tempPath := t.TempDir() + "/path" //"/test/path"
 	req := &csi.NodeStageVolumeRequest{
-		StagingTargetPath: "/test/path",
+		StagingTargetPath: tempPath,
 		VolumeCapability: &csi.VolumeCapability{
 			AccessType: &csi.VolumeCapability_Mount{
 				Mount: &csi.VolumeCapability_MountVolume{
@@ -53,6 +54,7 @@ func TestStagePublishNFS(t *testing.T) {
 			},
 		},
 	}
+
 	exportPaths := []string{"192.168.1.100:/export/path1", "192.168.1.101:/export/path2"}
 	arrayID := "arrayID"
 	nfsv3 := true
@@ -73,7 +75,7 @@ func TestStagePublishNFS(t *testing.T) {
 	gofsutil.GOFSMockMounts = []gofsutil.Info{
 		{
 			Device: "192.168.1.100:/export/path1",
-			Path:   "/test/path",
+			Path:   tempPath,
 		},
 	}
 	err = stagePublishNFS(ctx, req, exportPaths, arrayID, nfsv3, nfsv4)
@@ -106,6 +108,9 @@ func TestStagePublishNFS(t *testing.T) {
 }
 
 func TestPublishNFS(t *testing.T) {
+	tempTargetPath := t.TempDir() + "/target/path"
+	tempStagingTargetPath := t.TempDir() + "/test/path"
+
 	testCases := []struct {
 		desc                   string
 		req                    *csi.NodePublishVolumeRequest
@@ -121,8 +126,8 @@ func TestPublishNFS(t *testing.T) {
 		{
 			desc: "Successful publish NFSv3 with valid staging target mount",
 			req: &csi.NodePublishVolumeRequest{
-				TargetPath:        "/target/path",
-				StagingTargetPath: "/test/path",
+				TargetPath:        tempTargetPath,
+				StagingTargetPath: tempStagingTargetPath,
 				VolumeCapability: &csi.VolumeCapability{
 					AccessMode: &csi.VolumeCapability_AccessMode{
 						Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
@@ -141,15 +146,15 @@ func TestPublishNFS(t *testing.T) {
 			nfsv3:       true,
 			nfsv4:       false,
 			gofsutilMockMounts: []gofsutil.Info{
-				{Device: "/export/path", Path: "/test/path", Opts: []string{"rw"}},
+				{Device: "/export/path", Path: tempStagingTargetPath, Opts: []string{"rw"}},
 			},
 			expectError: false,
 		},
 		{
 			desc: "Error when target path is already mounted with conflicting access modes",
 			req: &csi.NodePublishVolumeRequest{
-				TargetPath:        "/target/path",
-				StagingTargetPath: "/test/path",
+				TargetPath:        tempTargetPath,
+				StagingTargetPath: tempStagingTargetPath,
 				VolumeCapability: &csi.VolumeCapability{
 					AccessMode: &csi.VolumeCapability_AccessMode{
 						Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
@@ -168,16 +173,16 @@ func TestPublishNFS(t *testing.T) {
 			nfsv3:       true,
 			nfsv4:       false,
 			gofsutilMockMounts: []gofsutil.Info{
-				{Device: "/export/path", Path: "/test/path", Opts: []string{"rw"}},
-				{Device: "/export/path", Path: "/target/path", Opts: []string{"ro"}},
+				{Device: "/export/path", Path: tempStagingTargetPath, Opts: []string{"rw"}},
+				{Device: "/export/path", Path: tempTargetPath, Opts: []string{"ro"}},
 			},
 			expectError: true,
 		},
 		{
 			desc: "Error when export path is already mounted to different target path",
 			req: &csi.NodePublishVolumeRequest{
-				TargetPath:        "/target/path",
-				StagingTargetPath: "/test/path",
+				TargetPath:        tempTargetPath,
+				StagingTargetPath: tempStagingTargetPath,
 				VolumeCapability: &csi.VolumeCapability{
 					AccessMode: &csi.VolumeCapability_AccessMode{
 						Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_SINGLE_WRITER,
@@ -203,8 +208,8 @@ func TestPublishNFS(t *testing.T) {
 		{
 			desc: "Successful publish NFSv4 with valid staging target mount",
 			req: &csi.NodePublishVolumeRequest{
-				TargetPath:        "/target/path",
-				StagingTargetPath: "/test/path",
+				TargetPath:        tempTargetPath,
+				StagingTargetPath: tempStagingTargetPath,
 				VolumeCapability: &csi.VolumeCapability{
 					AccessMode: &csi.VolumeCapability_AccessMode{
 						Mode: csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
@@ -223,7 +228,7 @@ func TestPublishNFS(t *testing.T) {
 			nfsv3:       false,
 			nfsv4:       true,
 			gofsutilMockMounts: []gofsutil.Info{
-				{Device: "/export/path", Path: "/test/path", Opts: []string{"rw"}},
+				{Device: "/export/path", Path: tempStagingTargetPath, Opts: []string{"rw"}},
 			},
 			expectError: false,
 		},
@@ -266,20 +271,33 @@ func TestStageVolume(t *testing.T) {
 		VolumeId: "test-volume-id",
 	}
 
-	stagingPath := "/test/staging/path"
+	stagingPath := t.TempDir() + "/test/staging/path"
+	stageVolumePath := t.TempDir() + "/test/path"
 
 	// Case: stageVolume should return an error if device path is invalid
-	err := stageVolume(ctx, req, stagingPath, "test/path")
+	err := stageVolume(ctx, req, stagingPath, stageVolumePath)
 	assert.Error(t, err)
 
 	// Create a temporary directory for a mock device node
 	tmpDir := t.TempDir()
 	tempDevice := filepath.Join(tmpDir, "device")
-	// Create a mock device node (block device)
-	if err := syscall.Mknod(tempDevice, syscall.S_IFBLK|0o666, 0); err != nil {
-		t.Fatalf("Failed to create mock device node: %v", err)
+
+	file, err := os.Create(tempDevice)
+	if err != nil {
+		t.Fatalf("Failed to create mock device file: %v", err)
 	}
 
+	defer func() {
+		file.Close()
+		isBlockDeviceToBeValidatedForTest = false
+	}()
+
+	// Optionally set permissions to mimic a device node
+	if err := os.Chmod(tempDevice, 0o750); err != nil {
+		t.Fatalf("Failed to set permissions on mock device file: %v", err)
+	}
+
+	isBlockDeviceToBeValidatedForTest = true
 	// Enable mock filesystem for gofsutil
 	gofsutil.UseMockFS()
 
@@ -334,8 +352,9 @@ func TestPublishVolume(t *testing.T) {
 		},
 		VolumeId: "test-volume-id",
 	}
-	targetPath := "/test/target/path"
-	stagingPath := "/test/staging/path"
+
+	targetPath := t.TempDir() + "/test/target/path"
+	stagingPath := t.TempDir() + "/test/staging/path"
 
 	// Case: Invalid device retrieval
 	err := publishVolume(ctx, req, targetPath, stagingPath, "", false)
@@ -344,10 +363,27 @@ func TestPublishVolume(t *testing.T) {
 	tmpDir := t.TempDir()
 	tmpTargetPath := filepath.Join(tmpDir, "target")
 	tempDevice := filepath.Join(tmpDir, "device")
-	if err := syscall.Mknod(tempDevice, syscall.S_IFBLK|0o666, 0); err != nil {
-		t.Fatalf("Failed to create mock device node: %v", err)
+
+	//if err := syscall.Mknod(tempDevice, syscall.S_IFBLK|0o666, 0); err != nil {
+	//	t.Fatalf("Failed to create mock device node: %v", err)
+	//}
+
+	file, err := os.Create(tempDevice)
+	if err != nil {
+		t.Fatalf("Failed to create mock device file: %v", err)
 	}
 
+	defer func() {
+		file.Close()
+		isBlockDeviceToBeValidatedForTest = false
+	}()
+
+	// Optionally set permissions to mimic a device node
+	if err := os.Chmod(tempDevice, 0o750); err != nil {
+		t.Fatalf("Failed to set permissions on mock device file: %v", err)
+	}
+
+	isBlockDeviceToBeValidatedForTest = true
 	gofsutil.UseMockFS()
 	// Case: Block volume publishing should fail
 	req.VolumeCapability.AccessType = &csi.VolumeCapability_Block{Block: &csi.VolumeCapability_BlockVolume{}}
@@ -418,10 +454,23 @@ func TestUnstageVolume(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	tempDevice := filepath.Join(tmpDir, "device")
-	if err := syscall.Mknod(tempDevice, syscall.S_IFBLK|0o666, 0); err != nil {
-		t.Fatalf("Failed to create mock device node: %v", err)
+
+	file, createErr := os.Create(tempDevice)
+	if createErr != nil {
+		t.Fatalf("Failed to create mock device file: %v", createErr)
 	}
 
+	defer func() {
+		file.Close()
+		isBlockDeviceToBeValidatedForTest = false
+	}()
+
+	// Optionally set permissions to mimic a device node
+	if err := os.Chmod(tempDevice, 0o750); err != nil {
+		t.Fatalf("Failed to set permissions on mock device file: %v", err)
+	}
+
+	isBlockDeviceToBeValidatedForTest = true
 	gofsutil.UseMockFS()
 
 	// Case: getTargetMount Error
@@ -523,9 +572,24 @@ func TestGetMpathDevFromWwn(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	tempDevice := filepath.Join(tmpDir, "device")
-	if err := syscall.Mknod(tempDevice, syscall.S_IFBLK|0o666, 0); err != nil {
-		t.Fatalf("Failed to create mock device node: %v", err)
+
+	file, err := os.Create(tempDevice)
+	if err != nil {
+		t.Fatalf("Failed to create mock device file: %v", err)
 	}
+
+	defer func() {
+		file.Close()
+		isBlockDeviceToBeValidatedForTest = false
+	}()
+
+	// Optionally set permissions to mimic a device node
+	if err := os.Chmod(tempDevice, 0o750); err != nil {
+		t.Fatalf("Failed to set permissions on mock device file: %v", err)
+	}
+
+	isBlockDeviceToBeValidatedForTest = true
+
 	gofsutil.GOFSWWNPath = tempDevice
 	mpath, err = getMpathDevFromWwn(ctx, volumeWwn)
 	assert.Error(t, err)

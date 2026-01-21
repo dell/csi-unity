@@ -1,5 +1,5 @@
 /*
- Copyright © 2020-2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+ Copyright © 2020-2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -35,7 +35,10 @@ type leaderElection interface {
 	WithNamespace(namespace string)
 }
 
-var exitFunc = os.Exit
+var (
+	exitFunc       = os.Exit
+	ManifestSemver string
+)
 
 func validateArgs(driverConfigParamsfile *string, driverName *string, driverSecret *string) {
 	if *driverConfigParamsfile == "" {
@@ -78,6 +81,10 @@ func mainR(runFunc func(ctx context.Context, name, desc string, usage string, sp
 	leaderElectionRenewDeadline := flag.Duration("leader-election-renew-deadline", 10*time.Second, "Duration, in seconds, that the acting leader will retry refreshing leadership before giving up.")
 	leaderElectionRetryPeriod := flag.Duration("leader-election-retry-period", 5*time.Second, "Duration, in seconds, the LeaderElector clients should wait between tries of actions")
 	flag.Parse()
+
+	if ManifestSemver != "" {
+		service.ManifestSemver = ManifestSemver
+	}
 
 	service.Name = *driverName
 	service.DriverSecret = *driverSecret

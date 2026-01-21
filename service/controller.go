@@ -24,10 +24,10 @@ import (
 	"github.com/dell/gounity/gounityutil"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/dell/csi-unity/service/csiutils"
 	"github.com/dell/gounity"
 	types "github.com/dell/gounity/apitypes"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"

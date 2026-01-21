@@ -1,2 +1,4 @@
+csm-common.mk
 images.manifest
 images.tar
+vendor/
