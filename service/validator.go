@@ -18,10 +18,10 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/dell/csi-unity/service/csiutils"
 	"github.com/dell/csi-unity/service/logging"
 	types "github.com/dell/gounity/apitypes"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -290,7 +290,7 @@ func ValidateCreateVolumeRequest(ctx context.Context, req *csi.CreateVolumeReque
 		return "", "", 0, 0, 0, false, false, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "%s", "Volume Capabilities are not supported. Reason=["+reason+"]"))
 	}
 
-	return
+	return protocol, storagePool, size, tieringPolicy, hostIoSize, thin, dataReduction, err
 }
 
 // ValidateControllerPublishRequest - method to validate Controller publish volume request
@@ -327,7 +327,7 @@ func ValidateControllerPublishRequest(ctx context.Context, req *csi.ControllerPu
 		}
 	}
 
-	return
+	return protocol, nodeID, err
 }
 
 // ValidateAndGetProtocol - validate and get protocol

@@ -27,9 +27,9 @@ import (
 	"time"
 
 	"bou.ke/monkey"
-	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/dell/csi-unity/service/logging"
 	types "github.com/dell/gounity/apitypes"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )

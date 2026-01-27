@@ -1,5 +1,5 @@
 /*
- Copyright © 2019 Dell Inc. or its subsidiaries. All Rights Reserved.
+ Copyright © 2019-2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ import (
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/dell/csi-unity/core"
 	"golang.org/x/net/context"
 )
 
@@ -50,9 +49,11 @@ func (s *service) GetPluginInfo(
 	_ *csi.GetPluginInfoRequest) (
 	*csi.GetPluginInfoResponse, error,
 ) {
+	Manifest["semver"] = ManifestSemver
+
 	return &csi.GetPluginInfoResponse{
 		Name:          Name,
-		VendorVersion: core.SemVer,
+		VendorVersion: ManifestSemver,
 		Manifest:      Manifest,
 	}, nil
 }
