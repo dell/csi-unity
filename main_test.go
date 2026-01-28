@@ -1,5 +1,5 @@
 /*
-Copyright © 2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+Copyright © 2025-2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -122,6 +122,9 @@ func TestMainFunctionWithLeaderElection(t *testing.T) {
 		os.Unsetenv("KUBERNETES_SERVICE_HOST")
 		os.Unsetenv("KUBERNETES_SERVICE_PORT")
 	}()
+
+	// Set Manifest version similar to how the image would be built.
+	ManifestSemver = "1.0.0"
 
 	// reset os.Args before next test
 	os.Args = origArgs

@@ -1,29 +1,17 @@
-NAME:=csi-unity
+# Copyright © 2026 Dell Inc. or its subsidiaries. All Rights Reserved.
+#
+# Dell Technologies, Dell and other trademarks are trademarks of Dell Inc.
+# or its subsidiaries. Other trademarks may be trademarks of their respective 
+# owners.
+
+include images.mk
 
 .PHONY: all
-all: go-build
+all: build
 
-ifneq (on,$(GO111MODULE))
-export GO111MODULE := on
-endif
-
-IMAGE_NAME=csi-unity
-IMAGE_REGISTRY=dellemc
-DEFAULT_IMAGE_TAG=$(shell date +%Y%m%d%H%M%S)
-ifeq ($(IMAGETAG),)
-export IMAGETAG="$(DEFAULT_IMAGE_TAG)"
-endif
-
-.PHONY: go-vendor
-go-vendor:
-	go mod vendor
-
-.PHONY: go-build
-go-build: clean
-	git config core.hooksPath hooks
-	rm -f core/core_generated.go
-	cd core && go generate
-	go build .
+# This will be overridden during image build.
+IMAGE_VERSION ?= 0.0.0
+LDFLAGS = "-X main.ManifestSemver=$(IMAGE_VERSION)"
 
 UNIT_TESTED_PACKAGES := \
 	github.com/dell/csi-unity \
@@ -32,6 +20,11 @@ UNIT_TESTED_PACKAGES := \
 	github.com/dell/csi-unity/service \
 	github.com/dell/csi-unity/service/csiutils \
 	github.com/dell/csi-unity/service/logging
+
+build:
+	git config core.hooksPath hooks
+	cd core && go generate
+	CGO_ENABLED=0 GOOS=linux GO111MODULE=on go build -ldflags $(LDFLAGS) -mod=vendor .
 
 unit-test:
 	go clean -cache
@@ -48,67 +41,14 @@ integration-test:
 bdd-test:
 	( cd test/bdd-test; sh run.sh )
 
-.PHONY: download-csm-common
-download-csm-common:
-	curl -O -L https://raw.githubusercontent.com/dell/csm/main/config/csm-common.mk
-
-#
-# Docker-related tasks
-#
-# Generates the docker container (but does not push)
-podman-build: download-csm-common go-build
-	$(eval include csm-common.mk)
-	podman build --pull -t $(IMAGE_REGISTRY)/$(IMAGE_NAME):$(IMAGETAG) --build-arg GOIMAGE=$(DEFAULT_GOIMAGE) --build-arg BASEIMAGE=$(CSM_BASEIMAGE) --build-arg GOPROXY=$(GOPROXY) . --format=docker
-
-podman-build-no-cache: download-csm-common go-build
-	$(eval include csm-common.mk)
-	podman build --pull --no-cache -t $(IMAGE_REGISTRY)/$(IMAGE_NAME):$(IMAGETAG) --build-arg GOIMAGE=$(DEFAULT_GOIMAGE) --build-arg BASEIMAGE=$(CSM_BASEIMAGE) --build-arg GOPROXY=$(GOPROXY) . --format=docker
-
-podman-push:
-	podman push $(IMAGE_REGISTRY)/$(IMAGE_NAME):$(IMAGETAG)
-
-#
-# Docker-related tasks
-#
-# Generates the docker container (but does not push)
-docker-build: download-csm-common
-	make -f docker.mk docker-build
-
-docker-push:
-	make -f docker.mk docker-push
-
-version:
-	go generate
-	go run core/semver/semver.go -f mk >semver.mk
-	make -f docker.mk version
-
 .PHONY: clean
 clean:
-	rm -f core/core_generated.go
+	rm -rf core/core_generated.go vendor csm-temp-repo csm-common.mk
 	go clean
 
-#
-# Tests-related tasks
 .PHONY: integ-test
-integ-test: go-build
+integ-test: build
 	go test -v ./test/...
 
 check:
 	sh scripts/check.sh
-
-.PHONY: actions action-help
-actions: ## Run all GitHub Action checks that run on a pull request creation
-	@echo "Running all GitHub Action checks for pull request events..."
-	@act -l | grep -v ^Stage | grep pull_request | grep -v image_security_scan | awk '{print $$2}' | while read WF; do \
-		echo "Running workflow: $${WF}"; \
-		act pull_request --no-cache-server --platform ubuntu-latest=ghcr.io/catthehacker/ubuntu:act-latest --job "$${WF}"; \
-	done
-
-action-help: ## Echo instructions to run one specific workflow locally
-	@echo "GitHub Workflows can be run locally with the following command:"
-	@echo "act pull_request --no-cache-server --platform ubuntu-latest=ghcr.io/catthehacker/ubuntu:act-latest --job <jobid>"
-	@echo ""
-	@echo "Where '<jobid>' is a Job ID returned by the command:"
-	@echo "act -l"
-	@echo ""
-	@echo "NOTE: if act is not installed, it can be downloaded from https://github.com/nektos/act"

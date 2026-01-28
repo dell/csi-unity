@@ -1,5 +1,5 @@
 /*
- Copyright © 2019-2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+ Copyright © 2019-2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -32,7 +32,6 @@ import (
 	"google.golang.org/grpc"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/container-storage-interface/spec/lib/go/csi"
 	constants "github.com/dell/csi-unity/common"
 	"github.com/dell/csi-unity/core"
 	"github.com/dell/csi-unity/k8sutils"
@@ -44,6 +43,7 @@ import (
 	"github.com/dell/goiscsi"
 	"github.com/dell/gounity"
 	"github.com/dell/gounity/gounityutil"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/fsnotify/fsnotify"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -78,11 +78,12 @@ var DriverSecret string
 // To maintain runid for Non debug mode. Note: CSI will not generate runid if CSI_DEBUG=false
 var runid int64
 
+// Update when the manifest version changes.
+var ManifestSemver string
+
 // Manifest is the SP's manifest.
 var Manifest = map[string]string{
-	"url":    "http://github.com/dell/csi-unity",
-	"semver": core.SemVer,
-	"commit": core.CommitSha32,
+	"semver": ManifestSemver,
 	"formed": core.CommitTime.Format(time.RFC1123),
 }
 
@@ -154,6 +155,7 @@ type iSCSIConnector interface {
 type fcConnector interface {
 	ConnectVolume(ctx context.Context, info gobrick.FCVolumeInfo) (gobrick.Device, error)
 	DisconnectVolumeByDeviceName(ctx context.Context, name string) error
+	DisconnectVolumeByWWN(ctx context.Context, wwn string) error
 	GetInitiatorPorts(ctx context.Context) ([]string, error)
 }
 
@@ -331,7 +333,7 @@ func (s *service) getStorageArrayLength() (length int) {
 		length++
 		return true
 	})
-	return
+	return length
 }
 
 // Get storage array list from sync Map
@@ -901,7 +903,7 @@ func (s *service) validateAndGetResourceDetails(ctx context.Context, resourceCon
 	if err != nil {
 		return "", "", "", nil, err
 	}
-	return
+	return resourceID, protocol, arrayID, unity, err
 }
 
 func (s *service) GetNodeLabels(ctx context.Context) (map[string]string, error) {

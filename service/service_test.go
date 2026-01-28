@@ -26,7 +26,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/container-storage-interface/spec/lib/go/csi"
 	constants "github.com/dell/csi-unity/common"
 	"github.com/dell/csi-unity/service/logging"
 	"github.com/dell/gobrick"
@@ -34,6 +33,7 @@ import (
 	csictx "github.com/dell/gocsi/context"
 	"github.com/dell/gounity"
 	gounitymocks "github.com/dell/gounity/mocks"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"

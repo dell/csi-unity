@@ -1,0 +1,7 @@
+site_name: "csi-unity"
+site_description: "csi-unity Documentation."
+docs_dir: docs
+plugins:
+  - techdocs-core
+theme:
+  name: material

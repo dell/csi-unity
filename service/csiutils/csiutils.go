@@ -30,9 +30,9 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/dell/csi-unity/service/logging"
 	types "github.com/dell/gounity/apitypes"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 )
 
 // GetVolumeResponseFromVolume Utility method to convert Unity XT Rest type Volume to CSI standard Volume Response

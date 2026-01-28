@@ -28,8 +28,8 @@ import (
 	"github.com/dell/csi-unity/service/csiutils"
 	"github.com/dell/csi-unity/service/logging"
 
-	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/dell/gofsutil"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -40,6 +40,8 @@ type Device struct {
 	Name     string
 	RealDev  string
 }
+
+var isBlockDeviceToBeValidatedForTest = false
 
 // Define a function variable to allow mocking in tests
 var readFileFunc = os.ReadFile
@@ -802,11 +804,13 @@ func GetDevice(ctx context.Context, path string) (*Device, error) {
 		return nil, status.Error(codes.Internal, csiutils.GetMessageWithRunID(rid, "Could not evaluate symlinks path: %s ", path))
 	}
 
-	ds, _ := os.Stat(d)
-	dm := ds.Mode()
+	if !isBlockDeviceToBeValidatedForTest {
+		ds, _ := os.Stat(d)
+		dm := ds.Mode()
 
-	if dm&os.ModeDevice == 0 {
-		return nil, status.Error(codes.Internal, csiutils.GetMessageWithRunID(rid, "%s is not a block device", path))
+		if dm&os.ModeDevice == 0 {
+			return nil, status.Error(codes.Internal, csiutils.GetMessageWithRunID(rid, "%s is not a block device", path))
+		}
 	}
 
 	dev := &Device{
