@@ -16,10 +16,10 @@ PROG="${0}"
 NODE_VERIFY=1
 VERIFY=1
 MODE="install"
-DEFAULT_DRIVER_VERSION="v2.15.0"
+DEFAULT_DRIVER_VERSION="v2.16.0"
 WATCHLIST=""
 
-DRIVERVERSION="csi-unity-2.15.0"
+DRIVERVERSION="csi-unity-2.16.0"
 
 # usage will print command execution help and then exit
 function usage() {
@@ -416,8 +416,8 @@ helm --help >&/dev/null || {
 OPENSHIFT=$(isOpenShift)
 
 # Get the kubernetes major and minor version numbers.
-kMajorVersion=$(run_command kubectl version -o="yaml" | grep -A8 'serverVersion:' | grep 'major'| egrep -o '[0-9]+')
-kMinorVersion=$(run_command kubectl version -o="yaml" | grep -A8 'serverVersion:' | grep 'minor'| egrep -o '[0-9]+')
+kMajorVersion=$(run_command kubectl version | grep 'Server Version' | sed -E 's/.*v([0-9]+)\.[0-9]+\.[0-9]+.*/\1/')
+kMinorVersion=$(run_command kubectl version | grep 'Server Version' | sed -E 's/.*v[0-9]+\.([0-9]+)\.[0-9]+.*/\1/')
 kNonGAVersion=$(run_command kubectl version | grep 'Server Version' | sed -n 's/.*\(-[alpha|beta][^ ]*\).*/\1/p')
 
 # validate the parameters passed in
