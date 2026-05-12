@@ -13,7 +13,7 @@
 
 ARG GOIMAGE
 ARG BASEIMAGE
-ARG VERSION="2.16.0"
+ARG VERSION="2.17.0"
 
 FROM $GOIMAGE AS builder
 ARG VERSION
@@ -36,7 +36,7 @@ LABEL vendor="Dell Technologies" \
       name="csi-unity" \
       summary="CSI Driver for Dell Unity XT" \
       description="CSI Driver for provisioning persistent storage from Dell Unity XT" \
-      release="1.15.0" \
+      release="1.17.0" \
       version=$VERSION \
       license="Apache-2.0"
 COPY licenses /licenses

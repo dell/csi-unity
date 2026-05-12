@@ -211,3 +211,64 @@ func GetRunidAndLogger(ctx context.Context) (string, *logrus.Entry) {
 var GetRunidAndLoggerWrapper = func(ctx context.Context) (string, *logrus.Entry) {
 	return GetRunidAndLogger(ctx)
 }
+
+// LogRequestFields safely logs request fields without copying mutex-containing structs
+func LogRequestFields(req interface{}) logrus.Fields {
+	fields := logrus.Fields{}
+
+	if req == nil {
+		return fields
+	}
+
+	v := reflect.ValueOf(req)
+	if v.Kind() == reflect.Ptr { //nolint:govet
+		v = v.Elem()
+	}
+
+	if v.Kind() != reflect.Struct {
+		return fields
+	}
+
+	t := v.Type()
+	for i := 0; i < v.NumField(); i++ {
+		field := t.Field(i)
+		fieldValue := v.Field(i)
+
+		// Skip unexported fields
+		if !fieldValue.CanInterface() {
+			continue
+		}
+
+		// Skip fields that might contain mutexes or complex types
+		fieldType := field.Type.String()
+		if strings.Contains(fieldType, "protoimpl") ||
+			strings.Contains(fieldType, "sync.Mutex") ||
+			strings.Contains(fieldType, "sync.RWMutex") {
+			continue
+		}
+
+		// Get the field value safely
+		val := fieldValue.Interface()
+
+		// Only log simple types to avoid complex nested structures
+		switch typedVal := val.(type) {
+		case string, int, int32, int64, uint, uint32, uint64, bool, float32, float64:
+			fields[field.Name] = val
+		case []string:
+			if len(typedVal) > 0 {
+				fields[field.Name] = fmt.Sprintf("%v", val)
+			}
+		case []byte:
+			if len(typedVal) > 0 {
+				fields[field.Name] = fmt.Sprintf("data(%d bytes)", len(typedVal))
+			}
+		default:
+			// For complex types, just log the type name
+			if val != nil {
+				fields[field.Name] = fmt.Sprintf("<%s>", fieldType)
+			}
+		}
+	}
+
+	return fields
+}

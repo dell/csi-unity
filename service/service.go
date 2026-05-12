@@ -138,12 +138,19 @@ type Opts struct {
 }
 
 type service struct {
-	opts           Opts
-	arrays         *sync.Map
-	mode           string
-	iscsiClient    goiscsi.ISCSIinterface
-	fcConnector    fcConnector // gobrick connectors
-	iscsiConnector iSCSIConnector
+	// satisfies the Service interface and provides unimplemented defaults to functions not implemented
+	csi.UnimplementedControllerServer
+	csi.UnimplementedGroupControllerServer
+	csi.UnimplementedIdentityServer
+	csi.UnimplementedNodeServer
+
+	opts                 Opts
+	arrays               *sync.Map
+	mode                 string
+	iscsiClient          goiscsi.ISCSIinterface
+	fcConnector          fcConnector // gobrick connectors
+	iscsiConnector       iSCSIConnector
+	validateProtocolOnce sync.Once
 }
 
 type iSCSIConnector interface {

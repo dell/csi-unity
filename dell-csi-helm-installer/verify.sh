@@ -581,8 +581,8 @@ kubectl --help >&/dev/null || {
 MINION_NODES=$(run_command kubectl get nodes -o wide | grep -v -e master -e INTERNAL | awk ' { print $6; }')
 MASTER_NODES=$(run_command kubectl get nodes -o wide | awk ' /master/{ print $6; }')
 # Get the kubernetes major and minor version numbers.
-kMajorVersion=$(run_command kubectl version | grep 'Server Version' | sed -E 's/.*v([0-9]+)\.[0-9]+\.[0-9]+.*/\1/')
-kMinorVersion=$(run_command kubectl version | grep 'Server Version' | sed -E 's/.*v[0-9]+\.([0-9]+)\.[0-9]+.*/\1/')
+kMajorVersion=$(run_command kubectl version -o="yaml" | grep -A8 'serverVersion:' | grep 'major'| egrep -o '[0-9]+')
+kMinorVersion=$(run_command kubectl version -o="yaml" | grep -A8 'serverVersion:' | grep 'minor'| egrep -o '[0-9]+')
 kNonGAVersion=$(run_command kubectl version | grep 'Server Version' | sed -n 's/.*\(-[alpha|beta][^ ]*\).*/\1/p')
 
 while getopts ":h-:" optchar; do

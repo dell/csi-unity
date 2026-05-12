@@ -1176,12 +1176,12 @@ func (f *feature) whenICallNodeGetInfo() error {
 }
 
 func (f *feature) iValidateTopologyIsCorrectlySet() error {
-	file, err := os.ReadFile(os.Getenv("DRIVER_SECRET"))
+	file, err := os.ReadFile(os.Getenv("DRIVER_SECRET")) // #nosec G703
 	if err != nil {
 		panic("Driver Config missing")
 	}
 	arrayIDList := StorageArrayList{}
-	_ = yaml.Unmarshal([]byte(file), &arrayIDList)
+	_ = yaml.Unmarshal([]byte(file), &arrayIDList) // #nosec G709
 
 	for _, array := range arrayIDList.StorageArrayList {
 		topology := "csi-unity.dellemc.com/" + strings.ToLower(array.ArrayID) + "-nfs"

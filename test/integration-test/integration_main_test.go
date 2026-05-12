@@ -23,11 +23,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/cucumber/godog"
 	"github.com/dell/csi-unity/provider"
 	"github.com/dell/csi-unity/service"
 	csiutils "github.com/dell/gocsi/utils/csi"
+	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/cucumber/godog"
 	"google.golang.org/grpc"
 )
 
@@ -46,7 +46,7 @@ func TestMain(m *testing.M) {
 	var stop func()
 	os.Setenv("X_CSI_MODE", "")
 
-	file, err := os.ReadFile(os.Getenv("DRIVER_CONFIG"))
+	file, err := os.ReadFile(os.Getenv("DRIVER_CONFIG")) // #nosec G703
 	if err != nil {
 		panic("Driver Config missing")
 	}
