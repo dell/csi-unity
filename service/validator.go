@@ -15,6 +15,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
@@ -22,7 +23,6 @@ import (
 	"github.com/dell/csi-unity/service/logging"
 	types "github.com/dell/gounity/apitypes"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

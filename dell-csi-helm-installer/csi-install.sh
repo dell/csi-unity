@@ -16,10 +16,8 @@ PROG="${0}"
 NODE_VERIFY=1
 VERIFY=1
 MODE="install"
-DEFAULT_DRIVER_VERSION="v2.16.0"
+DEFAULT_VERSION="v2.17.0"
 WATCHLIST=""
-
-DRIVERVERSION="csi-unity-2.16.0"
 
 # usage will print command execution help and then exit
 function usage() {
@@ -125,6 +123,9 @@ while getopts ":h-:" optchar; do
   esac
 done
 
+# Derive helm chart version from DEFAULT_VERSION (single source of truth)
+DRIVERVERSION="${DRIVER}-${DEFAULT_VERSION#v}"
+
 if [ -n "$HELMCHARTVERSION" ]; then
   DRIVERVERSION=$HELMCHARTVERSION
 fi
@@ -144,7 +145,6 @@ fi
 DRIVERDIR="${SCRIPTDIR}/../helm-charts/charts"
 DRIVER="csi-unity"
 VERIFYSCRIPT="${SCRIPTDIR}/verify.sh"
-
 
 # export the name of the debug log, so child processes will see it
 export DEBUGLOG="${SCRIPTDIR}/install-debug.log"
@@ -398,7 +398,7 @@ RELEASE=$(get_release_name "${DRIVER}")
 # by default, NODEUSER is root
 NODEUSER="${NODEUSER:-root}"
 if [[ -z ${DRIVER_VERSION} ]]; then
-   DRIVER_VERSION=${DEFAULT_DRIVER_VERSION}
+   DRIVER_VERSION=${DEFAULT_VERSION}
 fi
 
 
@@ -416,8 +416,8 @@ helm --help >&/dev/null || {
 OPENSHIFT=$(isOpenShift)
 
 # Get the kubernetes major and minor version numbers.
-kMajorVersion=$(run_command kubectl version | grep 'Server Version' | sed -E 's/.*v([0-9]+)\.[0-9]+\.[0-9]+.*/\1/')
-kMinorVersion=$(run_command kubectl version | grep 'Server Version' | sed -E 's/.*v[0-9]+\.([0-9]+)\.[0-9]+.*/\1/')
+kMajorVersion=$(run_command kubectl version -o="yaml" | grep -A8 'serverVersion:' | grep 'major'| egrep -o '[0-9]+')
+kMinorVersion=$(run_command kubectl version -o="yaml" | grep -A8 'serverVersion:' | grep 'minor'| egrep -o '[0-9]+')
 kNonGAVersion=$(run_command kubectl version | grep 'Server Version' | sed -n 's/.*\(-[alpha|beta][^ ]*\).*/\1/p')
 
 # validate the parameters passed in

@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -893,6 +894,46 @@ func TestNodeGetInfo(t *testing.T) {
 	res, err = testConf.service.NodeGetInfo(ctxTimeout, req)
 	assert.Error(t, err)
 	assert.Nil(t, res)
+}
+
+func TestNodeGetInfoValidateProtocolsCalledOnce(t *testing.T) {
+	// Create a fresh service so validateProtocolOnce has not yet fired.
+	// arrays is empty so the unProcessedArrays loop exits immediately.
+	s := &service{
+		iscsiClient: goiscsi.NewMockISCSI(nil),
+		arrays:      new(sync.Map),
+		opts: Opts{
+			NodeName:     "test-node",
+			LongNodeName: "long-test-node",
+		},
+	}
+
+	// funcGetFCInitiators is called exactly once at the start of
+	// validateProtocols, so counting its invocations tells us how
+	// many times validateProtocols was entered.
+	origGetFCInitiators := funcGetFCInitiators
+	var callCount atomic.Int32
+	funcGetFCInitiators = func(_ context.Context) ([]string, error) {
+		callCount.Add(1)
+		return nil, nil
+	}
+	defer func() { funcGetFCInitiators = origGetFCInitiators }()
+
+	const numGoroutines = 10
+	var wg sync.WaitGroup
+	wg.Add(numGoroutines)
+
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			defer wg.Done()
+			_, err := s.NodeGetInfo(context.Background(), &csi.NodeGetInfoRequest{})
+			assert.NoError(t, err)
+		}()
+	}
+
+	wg.Wait()
+	assert.Equal(t, int32(1), callCount.Load(),
+		"validateProtocols should be called exactly once across parallel NodeGetInfo calls")
 }
 
 func TestNodeUnpublishVolume(t *testing.T) {

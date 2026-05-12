@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -148,7 +147,7 @@ func TestCreateKubeClientSet(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a temporary kubeconfig file for the valid kubeconfig test case
 			if tt.name == "Valid kubeconfig" || tt.name == "New for config error with valid kubeconfig" {
-				tmpFile, err := ioutil.TempFile("", "kubeconfig")
+				tmpFile, err := os.CreateTemp("", "kubeconfig")
 				require.NoError(t, err)
 				defer os.Remove(tmpFile.Name())
 
@@ -171,7 +170,7 @@ users:
   user:
     token: test-token
 `
-				err = ioutil.WriteFile(tmpFile.Name(), []byte(kubeconfigContent), 0o600)
+				err = os.WriteFile(tmpFile.Name(), []byte(kubeconfigContent), 0o600)
 				require.NoError(t, err)
 				tt.kubeconfig = tmpFile.Name()
 			}

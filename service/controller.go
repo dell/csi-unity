@@ -15,6 +15,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -25,11 +26,11 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/dell/csi-unity/service/csiutils"
+	"github.com/dell/csi-unity/service/logging"
 	"github.com/dell/gounity"
 	types "github.com/dell/gounity/apitypes"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -97,7 +98,7 @@ const (
 
 func (s *service) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	ctx, log, rid := GetRunidLog(ctx)
-	log.Debugf("Executing CreateVolume with args: %+v", *req)
+	log.Debugf("Executing CreateVolume with args: %+v", logging.LogRequestFields(req))
 	params := req.GetParameters()
 	arrayID := strings.ToLower(strings.TrimSpace(params[keyArrayID]))
 	if arrayID == "" {
@@ -283,7 +284,7 @@ func (s *service) DeleteVolume(
 	*csi.DeleteVolumeResponse, error,
 ) {
 	ctx, log, rid := GetRunidLog(ctx)
-	log.Debugf("Executing DeleteVolume with args: %+v", *req)
+	log.Debugf("Executing DeleteVolume with args: %+v", logging.LogRequestFields(req))
 	var snapErr error
 	volID, protocol, arrayID, unity, err := s.validateAndGetResourceDetails(ctx, req.GetVolumeId(), volumeType)
 	if err != nil {
@@ -332,7 +333,7 @@ func (s *service) ControllerPublishVolume(
 	*csi.ControllerPublishVolumeResponse, error,
 ) {
 	ctx, log, _ := GetRunidLog(ctx)
-	log.Debugf("Executing ControllerPublishVolume with args: %+v", *req)
+	log.Debugf("Executing ControllerPublishVolume with args: %+v", logging.LogRequestFields(req))
 
 	volID, protocol, arrayID, unity, err := s.validateAndGetResourceDetails(ctx, req.GetVolumeId(), volumeType)
 	if err != nil {
@@ -380,7 +381,7 @@ func (s *service) ControllerUnpublishVolume(
 	*csi.ControllerUnpublishVolumeResponse, error,
 ) {
 	ctx, log, rid := GetRunidLog(ctx)
-	log.Debugf("Executing ControllerUnpublishVolume with args: %+v", *req)
+	log.Debugf("Executing ControllerUnpublishVolume with args: %+v", logging.LogRequestFields(req))
 
 	volID, protocol, arrayID, unity, err := s.validateAndGetResourceDetails(ctx, req.GetVolumeId(), volumeType)
 	if err != nil {
@@ -455,7 +456,7 @@ func (s *service) ControllerUnpublishVolume(
 
 func (s *service) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
 	ctx, log, rid := GetRunidLog(ctx)
-	log.Debugf("Executing ValidateVolumeCapabilities with args: %+v", *req)
+	log.Debugf("Executing ValidateVolumeCapabilities with args: %+v", logging.LogRequestFields(req))
 
 	volID, _, arrayID, unity, err := s.validateAndGetResourceDetails(ctx, req.GetVolumeId(), volumeType)
 	if err != nil {
@@ -502,7 +503,7 @@ func (s *service) GetCapacity(
 	*csi.GetCapacityResponse, error,
 ) {
 	ctx, log, rid := GetRunidLog(ctx)
-	log.Debugf("Executing GetCapacity with args: %+v", *req)
+	log.Debugf("Executing GetCapacity with args: %+v", logging.LogRequestFields(req))
 
 	params := req.GetParameters()
 
@@ -556,7 +557,7 @@ func (s *service) getMaximumVolumeSize(ctx context.Context, arrayID string) (int
 
 func (s *service) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
 	ctx, log, rid := GetRunidLog(ctx)
-	log.Debugf("Executing CreateSnapshot with args: %+v", *req)
+	log.Debugf("Executing CreateSnapshot with args: %+v", logging.LogRequestFields(req))
 
 	if len(req.SourceVolumeId) == 0 {
 		return nil, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "Storage Resource ID cannot be empty"))
@@ -588,7 +589,7 @@ func (s *service) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotReq
 
 func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
 	ctx, log, rid := GetRunidLog(ctx)
-	log.Debugf("Executing DeleteSnapshot with args: %+v", *req)
+	log.Debugf("Executing DeleteSnapshot with args: %+v", logging.LogRequestFields(req))
 
 	snapID, _, arrayID, unity, err := s.validateAndGetResourceDetails(ctx, req.SnapshotId, snapshotType)
 	if err != nil {
@@ -620,7 +621,7 @@ func (s *service) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotReq
 
 func (s *service) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
 	ctx, log, rid := GetRunidLog(ctx)
-	log.Infof("Executing ListSnapshot with args: %+v", *req)
+	log.Infof("Executing ListSnapshot with args: %+v", logging.LogRequestFields(req))
 
 	var (
 		startToken int
@@ -675,7 +676,7 @@ func (s *service) controllerProbe(ctx context.Context, arrayID string) error {
 // Default supports all capabilities
 func (s *service) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
 	ctx, log, _ := GetRunidLog(ctx)
-	log.Debugf("Executing ControllerGetCapabilities with args: %+v", *req)
+	log.Debugf("Executing ControllerGetCapabilities with args: %+v", logging.LogRequestFields(req))
 	capabilities := []*csi.ControllerServiceCapability{
 		{
 			Type: &csi.ControllerServiceCapability_Rpc{
@@ -774,7 +775,7 @@ func (s *service) ControllerGetCapabilities(ctx context.Context, req *csi.Contro
 
 func (s *service) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
 	ctx, log, rid := GetRunidLog(ctx)
-	log.Debugf("Executing ControllerExpandVolume with args: %+v", *req)
+	log.Debugf("Executing ControllerExpandVolume with args: %+v", logging.LogRequestFields(req))
 
 	if req.VolumeId == "" {
 		return nil, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "volumeId is mandatory parameter"))
@@ -1864,7 +1865,7 @@ func (s *service) ControllerGetVolume(ctx context.Context,
 	req *csi.ControllerGetVolumeRequest,
 ) (*csi.ControllerGetVolumeResponse, error) {
 	ctx, log, rid := GetRunidLog(ctx)
-	log.Debugf("Executing ControllerGetVolume with args: %+v", *req)
+	log.Debugf("Executing ControllerGetVolume with args: %+v", logging.LogRequestFields(req))
 
 	volID, protocol, arrayID, unity, err := s.validateAndGetResourceDetails(ctx, req.GetVolumeId(), volumeType)
 	if err != nil {

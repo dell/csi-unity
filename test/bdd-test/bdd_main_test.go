@@ -25,12 +25,12 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/cucumber/godog"
-	"github.com/cucumber/godog/colors"
 	"github.com/dell/csi-unity/provider"
 	"github.com/dell/csi-unity/service"
 	csiutils "github.com/dell/gocsi/utils/csi"
+	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/cucumber/godog"
+	"github.com/cucumber/godog/colors"
 	"google.golang.org/grpc"
 )
 
@@ -56,12 +56,12 @@ type StorageArrayConfig struct {
 func TestMain(m *testing.M) {
 	os.Setenv("X_CSI_MODE", "")
 
-	file, err := os.ReadFile(os.Getenv("DRIVER_SECRET"))
+	file, err := os.ReadFile(os.Getenv("DRIVER_SECRET")) // #nosec G703
 	if err != nil {
 		panic("Driver Config missing")
 	}
 	arrayIDList := StorageArrayList{}
-	_ = yaml.Unmarshal([]byte(file), &arrayIDList)
+	_ = yaml.Unmarshal([]byte(file), &arrayIDList) // #nosec G709
 	if len(arrayIDList.StorageArrayList) == 0 {
 		panic("Array Info not provided")
 	}

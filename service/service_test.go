@@ -17,7 +17,6 @@ package service
 import (
 	"context"
 	"errors"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -533,7 +532,7 @@ func TestGetNodeLabels(t *testing.T) {
 	defer mockServer.Close()
 
 	// Create kubeconfig file
-	tmpFile, err := ioutil.TempFile("", "kubeconfig")
+	tmpFile, err := os.CreateTemp("", "kubeconfig")
 	require.NoError(t, err)
 	defer os.Remove(tmpFile.Name())
 	kubeconfigContent := `
@@ -555,7 +554,7 @@ users:
   user:
     token: test-token
 `
-	err = ioutil.WriteFile(tmpFile.Name(), []byte(kubeconfigContent), 0o600)
+	err = os.WriteFile(tmpFile.Name(), []byte(kubeconfigContent), 0o600)
 	require.NoError(t, err)
 	testConf.service.opts.KubeConfigPath = tmpFile.Name()
 	testConf.service.opts.LongNodeName = "test-node"

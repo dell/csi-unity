@@ -43,18 +43,19 @@ import (
 
 // Variables that can be used across module
 var (
-	targetMountRecheckSleepTime  = 3 * time.Second
-	disconnectVolumeRetryTime    = 1 * time.Second
-	nodeStartTimeout             = 3 * time.Second
-	lunzMutex                    sync.Mutex
-	nodeMutex                    sync.Mutex
-	sysBlock                     = "/sys/block"
-	syncNodeInfoChan             chan bool
-	connectedSystemID            = make([]string, 0)
-	VolumeNameLengthConstraint   = 63
-	initiatorsValidationAttempts = 30
-	funcGetFCInitiators          = csiutils.GetFCInitiators
-	maxDisconnectRetries         = 3
+	targetMountRecheckSleepTime        = 3 * time.Second
+	disconnectVolumeRetryTime          = 1 * time.Second
+	nodeStartTimeout                   = 3 * time.Second
+	lunzMutex                          sync.Mutex
+	nodeMutex                          sync.Mutex
+	sysBlock                           = "/sys/block"
+	syncNodeInfoChan                   chan bool
+	connectedSystemID                  = make([]string, 0)
+	VolumeNameLengthConstraint         = 63
+	initiatorsValidationAttempts       = 30
+	initiatorsValidationTimePerAttempt = 10
+	funcGetFCInitiators                = csiutils.GetFCInitiators
+	maxDisconnectRetries               = 3
 )
 
 const (
@@ -76,7 +77,7 @@ func (s *service) NodeStageVolume(
 	*csi.NodeStageVolumeResponse, error,
 ) {
 	ctx, log, rid := GetRunidLog(ctx)
-	log.Debugf("Executing NodeStageVolume with args: %+v", *req)
+	log.Debugf("Executing NodeStageVolume with args: %+v", logging.LogRequestFields(req))
 	volID, protocol, arrayID, unity, err := s.validateAndGetResourceDetails(ctx, req.GetVolumeId(), volumeType)
 	if err != nil {
 		return nil, err
@@ -232,7 +233,7 @@ func (s *service) NodeUnstageVolume(
 	*csi.NodeUnstageVolumeResponse, error,
 ) {
 	ctx, log, rid := GetRunidLog(ctx)
-	log.Debugf("Executing NodeUnstageVolume with args: %+v", *req)
+	log.Debugf("Executing NodeUnstageVolume with args: %+v", logging.LogRequestFields(req))
 
 	// Get the VolumeID and parse it
 	volID, protocol, arrayID, unity, err := s.validateAndGetResourceDetails(ctx, req.GetVolumeId(), volumeType)
@@ -360,7 +361,7 @@ func (s *service) NodePublishVolume(
 	*csi.NodePublishVolumeResponse, error,
 ) {
 	ctx, log, rid := GetRunidLog(ctx)
-	log.Debugf("Executing NodePublishVolume with args: %+v", *req)
+	log.Debugf("Executing NodePublishVolume with args: %+v", logging.LogRequestFields(req))
 
 	var ephemeralVolume bool
 	ephemeral, ok := req.VolumeContext["csi.storage.k8s.io/ephemeral"]
@@ -569,7 +570,7 @@ func (s *service) NodeUnpublishVolume(
 	*csi.NodeUnpublishVolumeResponse, error,
 ) {
 	ctx, log, rid := GetRunidLog(ctx)
-	log.Debugf("Executing NodeUnpublishVolume with args: %+v", *req)
+	log.Debugf("Executing NodeUnpublishVolume with args: %+v", logging.LogRequestFields(req))
 
 	var isEphemeralVolume bool
 	volName := req.VolumeId
@@ -709,7 +710,7 @@ func (s *service) NodeGetInfo(
 	*csi.NodeGetInfoResponse, error,
 ) {
 	ctx, log, rid := GetRunidLog(ctx)
-	log.Debugf("Executing NodeGetInfo with args: %+v", *req)
+	log.Debugf("Executing NodeGetInfo with args: %+v", logging.LogRequestFields(req))
 
 	arraysList := s.getStorageArrayList()
 
@@ -738,7 +739,10 @@ func (s *service) NodeGetInfo(
 		}
 	}
 
-	s.validateProtocols(ctx, arraysList)
+	s.validateProtocolOnce.Do(func() {
+		s.validateProtocols(ctx, arraysList)
+	})
+
 	topology := getTopology()
 	// If topology keys are empty then this node is not capable of either iSCSI/FC but can still provision NFS volumes by default
 	log.Debugf("Topology Keys--->%+v", topology)
@@ -781,7 +785,7 @@ func (s *service) NodeGetCapabilities(
 	*csi.NodeGetCapabilitiesResponse, error,
 ) {
 	ctx, log, _ := GetRunidLog(ctx)
-	log.Infof("Executing NodeGetCapabilities with args: %+v", *req)
+	log.Infof("Executing NodeGetCapabilities with args: %+v", logging.LogRequestFields(req))
 	capabilities := []*csi.NodeServiceCapability{
 		{
 			Type: &csi.NodeServiceCapability_Rpc{
@@ -842,7 +846,7 @@ func (s *service) NodeGetVolumeStats(
 	*csi.NodeGetVolumeStatsResponse, error,
 ) {
 	ctx, log, rid := GetRunidLog(ctx)
-	log.Debugf("Executing NodeGetVolumeStats with args: %+v", *req)
+	log.Debugf("Executing NodeGetVolumeStats with args: %+v", logging.LogRequestFields(req))
 
 	if req.VolumeId == "" {
 		return nil, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "volumeId is mandatory parameter"))
@@ -952,7 +956,7 @@ func (s *service) NodeGetVolumeStats(
 
 func (s *service) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
 	ctx, log, rid := GetRunidLog(ctx)
-	log.Debugf("Executing NodeExpandVolume with args: %+v", *req)
+	log.Debugf("Executing NodeExpandVolume with args: %+v", logging.LogRequestFields(req))
 
 	if req.VolumeId == "" {
 		return nil, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "volumeId is mandatory parameter"))
@@ -1945,15 +1949,19 @@ func (s *service) validateProtocols(ctx context.Context, arraysList []*StorageAr
 
 		fcHealthy := false
 		iscsiHealthy := false
-		// Wait for up to 5 minutes for the initiators to appear as logged in on the array
+		// Wait for up to initiatorsValidationTimePerAttemptSec*initiatorsValidationAttempts for the
+		// initiators to appear as logged in on the array.
+		log.Infof("Re-trying initiators health validation for %d seconds.",
+			initiatorsValidationTimePerAttempt*initiatorsValidationAttempts)
 		for attempt := 1; attempt <= initiatorsValidationAttempts; attempt++ {
 			if attempt > 1 { // First attempt does not need to wait
-				// Sleep 10 seconds or until context is closed
+				// Sleep initiatorsValidationTimePerAttemptSec seconds or until context is closed
 				select {
 				case <-ctx.Done():
 					log.Errorf("Context is closed")
 					return
-				case <-time.After(10 * time.Second):
+
+				case <-time.After(time.Duration(initiatorsValidationTimePerAttempt) * time.Second):
 					log.Infof("Re-trying initiators health validation (%d)", attempt)
 				}
 			}

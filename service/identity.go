@@ -15,10 +15,11 @@
 package service
 
 import (
+	"context"
 	"strings"
 
+	"github.com/dell/csi-unity/service/logging"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"golang.org/x/net/context"
 )
 
 func (s *service) Probe(
@@ -27,7 +28,7 @@ func (s *service) Probe(
 	*csi.ProbeResponse, error,
 ) {
 	ctx, log, _ := GetRunidLog(ctx)
-	log.Infof("Executing Probe with args: %+v", *req)
+	log.Infof("Executing Probe with args: %+v", logging.LogRequestFields(req))
 	if strings.EqualFold(s.mode, "controller") {
 		if err := s.controllerProbe(ctx, ""); err != nil {
 			log.Error("Identity probe failed:", err)
@@ -64,7 +65,7 @@ func (s *service) GetPluginCapabilities(
 	*csi.GetPluginCapabilitiesResponse, error,
 ) {
 	ctx, log, _ := GetRunidLog(ctx)
-	log.Infof("Executing GetPluginCapabilities with args: %+v", *req)
+	log.Infof("Executing GetPluginCapabilities with args: %+v", logging.LogRequestFields(req))
 	return &csi.GetPluginCapabilitiesResponse{
 		Capabilities: []*csi.PluginCapability{
 			{

@@ -236,3 +236,320 @@ func TestFormatter_Format(t *testing.T) {
 	assert.NoError(t, err, "Formatter should not return an error")
 	assert.Equal(t, expectedOutput, string(output), "Formatted output should match expected output")
 }
+
+// Test structs for LogRequestFields testing
+type TestSimpleStruct struct {
+	StringField string
+	IntField    int
+	BoolField   bool
+}
+
+type TestStructWithMutex struct {
+	StringField string
+	MutexField  sync.Mutex
+}
+
+type TestStructWithProtoImpl struct {
+	StringField    string
+	ProtoImplField interface{} // This will simulate protoimpl.MessageState
+}
+
+type TestUnexportedFieldsStruct struct {
+	StringField     string
+	unexportedField string
+	UnexportedMutex sync.Mutex
+}
+
+type TestNestedStruct struct {
+	StringField string
+	NestedField struct {
+		InnerField string
+	}
+}
+
+type TestPointerStruct struct {
+	StringField *string
+	IntField    *int
+}
+
+type TestInterfaceStruct struct {
+	StringField    string
+	InterfaceField interface{}
+}
+
+func TestLogRequestFields(t *testing.T) {
+	tests := []struct {
+		name     string
+		req      interface{}
+		expected logrus.Fields
+	}{
+		{
+			name:     "Nil request",
+			req:      nil,
+			expected: logrus.Fields{},
+		},
+		{
+			name: "Simple struct with basic types",
+			req: TestSimpleStruct{
+				StringField: "test",
+				IntField:    42,
+				BoolField:   true,
+			},
+			expected: logrus.Fields{
+				"StringField": "test",
+				"IntField":    42,
+				"BoolField":   true,
+			},
+		},
+		{
+			name: "Struct with mutex field should skip mutex",
+			req: TestStructWithMutex{
+				StringField: "test",
+				MutexField:  sync.Mutex{},
+			},
+			expected: logrus.Fields{
+				"StringField": "test",
+			},
+		},
+		{
+			name: "Struct with protoimpl field should log protoimpl as type name",
+			req: TestStructWithProtoImpl{
+				StringField:    "test",
+				ProtoImplField: struct{}{}, // Simulate protoimpl.MessageState
+			},
+			expected: logrus.Fields{
+				"StringField":    "test",
+				"ProtoImplField": "<interface {}>",
+			},
+		},
+		{
+			name: "Struct with unexported fields should skip unexported",
+			req: TestUnexportedFieldsStruct{
+				StringField:     "test",
+				unexportedField: "hidden",
+				UnexportedMutex: sync.Mutex{},
+			},
+			expected: logrus.Fields{
+				"StringField": "test",
+			},
+		},
+		{
+			name: "Pointer to struct",
+			req: &TestSimpleStruct{
+				StringField: "test",
+				IntField:    42,
+				BoolField:   true,
+			},
+			expected: logrus.Fields{
+				"StringField": "test",
+				"IntField":    42,
+				"BoolField":   true,
+			},
+		},
+		{
+			name:     "Non-struct type should return empty",
+			req:      "just a string",
+			expected: logrus.Fields{},
+		},
+		{
+			name:     "Slice should return empty",
+			req:      []string{"test"},
+			expected: logrus.Fields{},
+		},
+		{
+			name:     "Map should return empty",
+			req:      map[string]string{"key": "value"},
+			expected: logrus.Fields{},
+		},
+		{
+			name: "Struct with pointer fields",
+			req: TestPointerStruct{
+				StringField: func() *string { s := "test"; return &s }(),
+				IntField:    func() *int { i := 42; return &i }(),
+			},
+			expected: logrus.Fields{
+				"StringField": "<*string>",
+				"IntField":    "<*int>",
+			},
+		},
+		{
+			name: "Struct with interface field should log interface as type name",
+			req: TestInterfaceStruct{
+				StringField:    "test",
+				InterfaceField: fmt.Errorf("error interface"),
+			},
+			expected: logrus.Fields{
+				"StringField":    "test",
+				"InterfaceField": "<interface {}>",
+			},
+		},
+		{
+			name:     "Empty struct",
+			req:      struct{}{},
+			expected: logrus.Fields{},
+		},
+		{
+			name: "Struct with zero values",
+			req: TestSimpleStruct{
+				StringField: "",
+				IntField:    0,
+				BoolField:   false,
+			},
+			expected: logrus.Fields{
+				"StringField": "",
+				"IntField":    0,
+				"BoolField":   false,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := LogRequestFields(test.req)
+			assert.Equal(t, test.expected, result, "LogRequestFields should return expected fields for test: %s", test.name)
+		})
+	}
+}
+
+func TestLogRequestFields_SkipProtoImplTypes(t *testing.T) {
+	// Test specific protoimpl type patterns that should be skipped
+	tests := []struct {
+		name     string
+		req      interface{}
+		expected logrus.Fields
+	}{
+		{
+			name: "Skip protoimpl.MessageState",
+			req: struct {
+				SafeField   string
+				UnsafeField interface{} // Simulate protoimpl.MessageState
+			}{
+				SafeField:   "safe",
+				UnsafeField: struct{}{},
+			},
+			expected: logrus.Fields{
+				"SafeField":   "safe",
+				"UnsafeField": "<interface {}>",
+			},
+		},
+		{
+			name: "Skip sync.Mutex",
+			req: struct {
+				SafeField   string
+				UnsafeField sync.Mutex
+			}{
+				SafeField:   "safe",
+				UnsafeField: sync.Mutex{},
+			},
+			expected: logrus.Fields{
+				"SafeField": "safe",
+			},
+		},
+		{
+			name: "Skip sync.RWMutex",
+			req: struct {
+				SafeField   string
+				UnsafeField sync.RWMutex
+			}{
+				SafeField:   "safe",
+				UnsafeField: sync.RWMutex{},
+			},
+			expected: logrus.Fields{
+				"SafeField": "safe",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := LogRequestFields(test.req)
+			assert.Equal(t, test.expected, result, "Should skip unsafe fields for test: %s", test.name)
+		})
+	}
+}
+
+func TestLogRequestFields_ComplexTypes(t *testing.T) {
+	// Test handling of complex nested structures
+	tests := []struct {
+		name     string
+		req      interface{}
+		expected logrus.Fields
+	}{
+		{
+			name: "Nested struct should be logged as type name",
+			req: TestNestedStruct{
+				StringField: "safe",
+				NestedField: struct {
+					InnerField string
+				}{
+					InnerField: "inner",
+				},
+			},
+			expected: logrus.Fields{
+				"StringField": "safe",
+				"NestedField": "<struct { InnerField string }>",
+			},
+		},
+		{
+			name: "Channel field should be logged as type name",
+			req: struct {
+				SafeField   string
+				UnsafeField chan int
+			}{
+				SafeField:   "safe",
+				UnsafeField: make(chan int),
+			},
+			expected: logrus.Fields{
+				"SafeField":   "safe",
+				"UnsafeField": "<chan int>",
+			},
+		},
+		{
+			name: "Function field should be logged as type name",
+			req: struct {
+				SafeField   string
+				UnsafeField func()
+			}{
+				SafeField:   "safe",
+				UnsafeField: func() {},
+			},
+			expected: logrus.Fields{
+				"SafeField":   "safe",
+				"UnsafeField": "<func()>",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := LogRequestFields(test.req)
+			assert.Equal(t, test.expected, result, "Should handle complex types correctly for test: %s", test.name)
+		})
+	}
+}
+
+func TestLogRequestFields_RealWorldScenario(t *testing.T) {
+	// Test with a structure that mimics a real CSI request
+	type MockCSIRequest struct {
+		VolumeID       string
+		Secrets        map[string]string
+		ProtoImplState interface{} // Exported field to test logging
+		SizeCache      sync.Mutex
+		UnknownFields  sync.RWMutex
+	}
+
+	req := &MockCSIRequest{
+		VolumeID:       "vol-123",
+		Secrets:        map[string]string{"key": "value"},
+		ProtoImplState: struct{}{},
+	}
+
+	expected := logrus.Fields{ // #nosec G101
+		"VolumeID":       "vol-123",
+		"Secrets":        "<map[string]string>",
+		"ProtoImplState": "<interface {}>",
+	}
+
+	result := LogRequestFields(req)
+	assert.Equal(t, expected, result, "Should handle real-world CSI request structure correctly")
+}

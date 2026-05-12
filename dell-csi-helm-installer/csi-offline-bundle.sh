@@ -227,12 +227,11 @@ CREATE="false"
 PREPARE="false"
 REGISTRY=""
 DRIVER="csi-unity"
+DEFAULT_VERSION="v2.17.0"
 
 # some directories
 SCRIPTDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 REPODIR="$( dirname "${SCRIPTDIR}" )"
-
-DRIVERVERSION="csi-unity-2.16.0"
 
 while getopts "cprv:h" opt; do
   case $opt in
@@ -264,6 +263,10 @@ while getopts "cprv:h" opt; do
   esac
 done
 
+# Derive DRIVERVERSION from DEFAULT_VERSION (single source of truth)
+DRIVERVERSION="${DRIVER}-${DEFAULT_VERSION#v}"
+
+# Allow override via -v option
 if [ -n "$HELMCHARTVERSION" ]; then
   DRIVERVERSION=$HELMCHARTVERSION
 fi

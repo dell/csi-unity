@@ -876,7 +876,7 @@ func removeWithRetry(ctx context.Context, target string) error {
 		err = os.Remove(target)
 		if err != nil && !os.IsNotExist(err) {
 			log.Warnf("Error removing private mount target: %v", err)
-			cmd := exec.Command("/usr/bin/rmdir", target)
+			cmd := exec.Command("/usr/bin/rmdir", target) // #nosec G204
 			textBytes, err := cmd.CombinedOutput()
 			if err != nil {
 				log.Errorf("error calling rmdir: %v", err)
