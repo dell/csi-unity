@@ -16,7 +16,8 @@ PROG="${0}"
 NODE_VERIFY=1
 VERIFY=1
 MODE="install"
-DEFAULT_VERSION="v2.17.0"
+DEFAULT_VERSION="v2.18.0"
+DRIVER="csi-unity"
 WATCHLIST=""
 
 # usage will print command execution help and then exit
@@ -38,6 +39,8 @@ function usage() {
   echo "  --node-verify-user[=]<username>          Username to SSH to worker nodes as, used to validate node requirements. Default is root"
   echo "  --skip-verify                            Skip the kubernetes configuration verification to use the CSI driver, default will run verification"
   echo "  --skip-verify-node                       Skip worker node verification checks"
+  echo "  --oci-chart[=]<oci-uri>                  OCI registry URI for Helm chart (e.g., oci://registry.example.com/charts/csi-unity)"
+  echo "  --registry-auth-secret[=]<secret-name>   Kubernetes secret containing registry credentials (username/password keys)"
   echo "  -h                                       Help"
   echo
 
@@ -105,6 +108,20 @@ while getopts ":h-:" optchar; do
     node-verify-user=*)
       HODEUSER=${OPTARG#*=}
       ;;
+    oci-chart)
+      OCI_CHART="${!OPTIND}"
+      OPTIND=$((OPTIND + 1))
+      ;;
+    oci-chart=*)
+      OCI_CHART=${OPTARG#*=}
+      ;;
+    registry-auth-secret)
+      REGISTRY_AUTH_SECRET="${!OPTIND}"
+      OPTIND=$((OPTIND + 1))
+      ;;
+    registry-auth-secret=*)
+      REGISTRY_AUTH_SECRET=${OPTARG#*=}
+      ;;
     *)
       echo "Unknown option --${OPTARG}"
       echo "For help, run $PROG -h"
@@ -143,7 +160,6 @@ else
 fi
 
 DRIVERDIR="${SCRIPTDIR}/../helm-charts/charts"
-DRIVER="csi-unity"
 VERIFYSCRIPT="${SCRIPTDIR}/verify.sh"
 
 # export the name of the debug log, so child processes will see it
@@ -155,6 +171,9 @@ source "$SCRIPTDIR"/common.sh
 if [ -f "${DEBUGLOG}" ]; then
   rm -f "${DEBUGLOG}"
 fi
+
+detect_helm_version
+validate_helm_version "${HELM_MAJOR_VERSION}"
 
 # warning, with an option for users to continue
 function warning() {
@@ -225,6 +244,26 @@ function validate_params() {
     usage
     exit 1
   fi
+
+  # OCI chart validation
+  if [ -n "${OCI_CHART}" ]; then
+    if [[ ! "${OCI_CHART}" =~ ^oci:// ]]; then
+      echo "OCI chart URI must start with oci://"
+      usage
+      exit 1
+    fi
+    if [ -z "${REGISTRY_AUTH_SECRET}" ]; then
+      echo "Warning: --registry-auth-secret not specified. Registry login will be skipped."
+      echo "This is only acceptable if the OCI registry does not require authentication."
+    fi
+  fi
+
+  # Registry auth secret requires OCI chart
+  if [ -n "${REGISTRY_AUTH_SECRET}" ] && [ -z "${OCI_CHART}" ]; then
+    echo "--registry-auth-secret can only be used with --oci-chart"
+    usage
+    exit 1
+  fi
 }
 
 #
@@ -242,14 +281,52 @@ function install_driver() {
     source "${SCRIPTDIR}/${SCRIPTNAME}"
   fi
 
-  HELMOUTPUT="/tmp/csi-install.$$.out"
-  run_command helm ${1} \
-    --set openshift=${OPENSHIFT} \
-    --values "${VALUES}" \
-    --namespace ${NS} "${RELEASE}" \
-    "${DRIVERDIR}/${DRIVER}" >"${HELMOUTPUT}" 2>&1
+  # Handle OCI registry authentication if needed
+  if [ -n "${OCI_CHART}" ] && [ -n "${REGISTRY_AUTH_SECRET}" ]; then
+    log section "Authenticating to OCI Registry"
+    extract_registry_credentials_from_secret "${REGISTRY_AUTH_SECRET}" "${NS}"
 
-  if [ $? -ne 0 ]; then
+    local registry_domain
+    registry_domain=$(echo "${OCI_CHART}" | sed -E 's|^oci://([^/]+).*|\1|')
+
+    local use_plain_http="false"
+    if [[ "${registry_domain}" == localhost* ]] || [[ "${registry_domain}" == 127.0.0.1* ]]; then
+      use_plain_http="true"
+    fi
+
+    helm_registry_login "${registry_domain}" "${REGISTRY_USERNAME}" "${REGISTRY_PASSWORD}" "${use_plain_http}"
+    if [ "$?" -ne 0 ]; then
+      log error "Failed to authenticate to OCI registry ${registry_domain}"
+    fi
+    log step_success
+  fi
+
+  # Determine chart source: OCI URI or local filesystem
+  local CHART_SOURCE
+  local HELM_EXTRA_FLAGS=""
+  if [ -n "${OCI_CHART}" ]; then
+    CHART_SOURCE="${OCI_CHART}"
+    log step "Using OCI chart: ${CHART_SOURCE}"
+
+    local registry_domain
+    registry_domain=$(echo "${OCI_CHART}" | sed -E 's|^oci://([^/]+).*|\1|')
+    if [[ "${registry_domain}" == localhost* ]] || [[ "${registry_domain}" == 127.0.0.1* ]]; then
+      HELM_EXTRA_FLAGS="--plain-http"
+    fi
+  else
+    CHART_SOURCE="${DRIVERDIR}/${DRIVER}"
+    log step "Using local chart: ${CHART_SOURCE}"
+  fi
+
+  HELMOUTPUT="/tmp/csi-install.$$.out"
+  run_command helm "${1}" \
+    --set openshift="${OPENSHIFT}" \
+    --values "${VALUES}" \
+    --namespace "${NS}" "${RELEASE}" \
+    "${CHART_SOURCE}" ${HELM_EXTRA_FLAGS} >"${HELMOUTPUT}" 2>&1
+  HELM_RC=$?
+
+  if [ "${HELM_RC}" -ne 0 ]; then
     cat "${HELMOUTPUT}"
     log error "Helm operation failed, output can be found in ${HELMOUTPUT}. The failure should be examined, before proceeding. Additionally, running csi-uninstall.sh may be needed to clean up partial deployments."
   fi
@@ -257,7 +334,7 @@ function install_driver() {
   getWhatToWatch "${NS}" "${RELEASE}"
   # wait for the deployment to finish, use the default timeout
   waitOnRunning "${NS}" "${WATCHLIST}"
-  if [ $? -eq 1 ]; then
+  if [ "$?" -eq 1 ]; then
     warning "Timed out waiting for the operation to complete." \
       "This does not indicate a fatal error, pods may take a while to start." \
       "Progress can be checked by running \"kubectl get pods -n ${NS}\""
@@ -358,6 +435,40 @@ function kubectl_safe() {
 }
 
 #
+# extract_registry_credentials_from_secret
+function extract_registry_credentials_from_secret() {
+  local secret_name="${1}"
+  local namespace="${2}"
+
+  if [ -z "${secret_name}" ] || [ -z "${namespace}" ]; then
+    log error "Secret name and namespace are required for credential extraction"
+  fi
+
+  log step "Extracting registry credentials from secret ${secret_name}"
+
+  local username_b64
+  local password_b64
+
+  username_b64=$(kubectl get secret "${secret_name}" -n "${namespace}" -o jsonpath='{.data.username}' 2>/dev/null)
+  if [ -z "${username_b64}" ]; then
+    log error "Failed to extract username from secret ${secret_name} in namespace ${namespace}"
+  fi
+
+  password_b64=$(kubectl get secret "${secret_name}" -n "${namespace}" -o jsonpath='{.data.password}' 2>/dev/null)
+  if [ -z "${password_b64}" ]; then
+    log error "Failed to extract password from secret ${secret_name} in namespace ${namespace}"
+  fi
+
+  REGISTRY_USERNAME=$(echo "${username_b64}" | base64 -d)
+  REGISTRY_PASSWORD=$(echo "${password_b64}" | base64 -d)
+
+  if [ -z "${REGISTRY_USERNAME}" ] || [ -z "${REGISTRY_PASSWORD}" ]; then
+    log error "Decoded credentials are empty from secret ${secret_name}"
+  fi
+
+  log step_success
+}
+
 # verify_kubernetes
 # will run a driver specific function to verify environmental requirements
 function verify_kubernetes() {
@@ -416,8 +527,8 @@ helm --help >&/dev/null || {
 OPENSHIFT=$(isOpenShift)
 
 # Get the kubernetes major and minor version numbers.
-kMajorVersion=$(run_command kubectl version -o="yaml" | grep -A8 'serverVersion:' | grep 'major'| egrep -o '[0-9]+')
-kMinorVersion=$(run_command kubectl version -o="yaml" | grep -A8 'serverVersion:' | grep 'minor'| egrep -o '[0-9]+')
+kMajorVersion=$(run_command kubectl version | grep 'Server Version' | sed -E 's/.*v([0-9]+)\.[0-9]+\.[0-9]+.*/\1/')
+kMinorVersion=$(run_command kubectl version | grep 'Server Version' | sed -E 's/.*v[0-9]+\.([0-9]+)\.[0-9]+.*/\1/')
 kNonGAVersion=$(run_command kubectl version | grep 'Server Version' | sed -n 's/.*\(-[alpha|beta][^ ]*\).*/\1/p')
 
 # validate the parameters passed in
@@ -428,6 +539,13 @@ check_for_driver "${MODE}"
 verify_kubernetes
 
 # all good, keep processing
+record_helm_telemetry "${MODE}" "${DRIVER}" "pending"
 install_driver "${MODE}"
+if [[ ${HELM_RC:-0} -ne 0 ]]; then
+  detect_ssa_conflict_in_output "${HELMOUTPUT}"
+  record_helm_telemetry "${MODE}" "${DRIVER}" "failure"
+else
+  record_helm_telemetry "${MODE}" "${DRIVER}" "success"
+fi
 
 summary

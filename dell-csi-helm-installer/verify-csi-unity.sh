@@ -23,7 +23,7 @@ function verify-csi-unity() {
   if [ "$snapshot_value" == "true" ]; then
     verify_snap_requirements 
   fi
-  verify_helm_3
+  verify_helm
   verify_helm_values_version "${DRIVER_VERSION}"
 }
 

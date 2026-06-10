@@ -337,25 +337,14 @@ function verify_snap_requirements() {
   check_error error
 }
 
-# verify that helm is v3 or above
-function verify_helm_3() {
+# verify that helm is v3 or above (supports v3 and v4)
+function verify_helm() {
   log step "Verifying helm version"
-
-  error=0
-  # Check helm installer version
-  helm --help >&/dev/null || {
-    found_error "helm is required for installation"
-    log step_failure
-    return
-  }
-
-  run_command helm version | grep "v3." --quiet
-  if [ $? -ne 0 ]; then
-    error=1
-    found_error "Driver installation is supported only using helm 3"
+  if [[ -z "${HELM_MAJOR_VERSION}" ]]; then
+    detect_helm_version
+    validate_helm_version "${HELM_MAJOR_VERSION}"
   fi
-
-  check_error error
+  log step_success
 }
 
 function verify_authorization_proxy_server() {
@@ -581,8 +570,8 @@ kubectl --help >&/dev/null || {
 MINION_NODES=$(run_command kubectl get nodes -o wide | grep -v -e master -e INTERNAL | awk ' { print $6; }')
 MASTER_NODES=$(run_command kubectl get nodes -o wide | awk ' /master/{ print $6; }')
 # Get the kubernetes major and minor version numbers.
-kMajorVersion=$(run_command kubectl version -o="yaml" | grep -A8 'serverVersion:' | grep 'major'| egrep -o '[0-9]+')
-kMinorVersion=$(run_command kubectl version -o="yaml" | grep -A8 'serverVersion:' | grep 'minor'| egrep -o '[0-9]+')
+kMajorVersion=$(run_command kubectl version | grep 'Server Version' | sed -E 's/.*v([0-9]+)\.[0-9]+\.[0-9]+.*/\1/')
+kMinorVersion=$(run_command kubectl version | grep 'Server Version' | sed -E 's/.*v[0-9]+\.([0-9]+)\.[0-9]+.*/\1/')
 kNonGAVersion=$(run_command kubectl version | grep 'Server Version' | sed -n 's/.*\(-[alpha|beta][^ ]*\).*/\1/p')
 
 while getopts ":h-:" optchar; do

@@ -32,7 +32,7 @@ Installing any of the Dell CSI Drivers requires a few utilities to be installed 
 | Dependency    | Usage  |
 | ------------- | ----- |
 | `kubectl`     | Kubectl is used to validate that the Kubernetes system meets the requirements of the driver. |
-| `helm`        | Helm v3 is used as the deployment tool for Charts. See, [Install Helm 3](https://helm.sh/docs/intro/install/) for instructions to install Helm 3. |
+| `helm`        | Helm v3 or v4 is used as the deployment tool for Charts. See, [Install Helm](https://helm.sh/docs/intro/install/) for instructions to install Helm. |
 | `sshpass`     | sshpass is used to check certain pre-requisities in worker nodes (in chosen drivers). |
 
 
@@ -49,7 +49,7 @@ This project provides the following capabilitites, each one is discussed in deta
 
 
 Most of these usages require the creation/specification of a values file. These files specify configuration settings that are passed into the driver and configure it for use. To create one of these files, the following steps should be followed:
-1. Download a template file for the driver to a new location, naming this new file is at the users discretion. The template files are always found at `https://github.com/dell/helm-charts/raw/csi-unity-2.17.0/charts/csi-unity/values.yaml`
+1. Download a template file for the driver to a new location, naming this new file is at the users discretion. The template files are always found at `https://github.com/dell/helm-charts/raw/csi-unity-2.18.0/charts/csi-unity/values.yaml`
 2. Edit the file such that it contains the proper configuration settings for the specific environment. These files are yaml formatted so maintaining the file structure is important.
 
 For example, to create a values file for the Unity XT driver the following steps can be executed
@@ -58,7 +58,7 @@ For example, to create a values file for the Unity XT driver the following steps
 cd dell-csi-helm-installer
 
 # download the template file
-wget -O my-unity-settings.yaml https://github.com/dell/helm-charts/raw/csi-unity-2.17.0/charts/csi-unity/values.yaml
+wget -O my-unity-settings.yaml https://github.com/dell/helm-charts/raw/csi-unity-2.18.0/charts/csi-unity/values.yaml
 
 # edit the newly created values file
 vi my-unity-settings.yaml
@@ -90,8 +90,33 @@ Options:
   --node-verify-user[=]<username>          Username to SSH to worker nodes as, used to validate node requirements. Default is root
   --skip-verify                            Skip the kubernetes configuration verification to use the CSI driver, default will run verification
   --skip-verify-node                       Skip worker node verification checks
+  --oci-chart[=]<oci-uri>                  OCI registry URI for Helm chart (e.g., oci://registry.example.com/charts/csi-unity)
+  --registry-auth-secret[=]<secret-name>   Kubernetes secret containing registry credentials (username/password keys)
   -h                                       Help
 ```
+
+#### Install from OCI Registry
+
+The driver can be installed from an OCI-compliant registry. This requires:
+1. An OCI registry URI (e.g., `oci://registry.example.com/charts/csi-unity`)
+2. A Kubernetes secret containing registry credentials (if authentication is required)
+
+To create the registry authentication secret:
+```bash
+kubectl create secret generic registry-creds \
+  --from-literal=username=<your-username> \
+  --from-literal=password=<your-password> \
+  -n unity
+```
+
+Then install using the OCI chart:
+```bash
+./csi-install.sh --namespace unity --values ./my-unity-settings.yaml \
+  --oci-chart oci://registry.example.com/charts/csi-unity \
+  --registry-auth-secret registry-creds
+```
+
+**Note:** If the OCI registry does not require authentication, you can omit the `--registry-auth-secret` parameter.
 
 ### Upgrade A Driver
 
@@ -117,8 +142,22 @@ Options:
   --node-verify-user[=]<username>          Username to SSH to worker nodes as, used to validate node requirements. Default is root
   --skip-verify                            Skip the kubernetes configuration verification to use the CSI driver, default will run verification
   --skip-verify-node                       Skip worker node verification checks
+  --oci-chart[=]<oci-uri>                  OCI registry URI for Helm chart (e.g., oci://registry.example.com/charts/csi-unity)
+  --registry-auth-secret[=]<secret-name>   Kubernetes secret containing registry credentials (username/password keys)
   -h                                       Help
 ```
+
+#### Upgrade from OCI Registry
+
+To upgrade a driver from an OCI registry, use the `--upgrade` flag along with the OCI parameters:
+
+```bash
+./csi-install.sh --namespace unity --values ./my-unity-settings.yaml --upgrade \
+  --oci-chart oci://registry.example.com/charts/csi-unity \
+  --registry-auth-secret registry-creds
+```
+
+**Note:** The registry authentication secret must exist in the target namespace before upgrading.
 
 ### Uninstall A Driver
 
