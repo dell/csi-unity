@@ -16,7 +16,8 @@ PROG="${0}"
 NODE_VERIFY=1
 VERIFY=1
 MODE="install"
-DEFAULT_VERSION="v2.17.0"
+DEFAULT_VERSION="v2.18.0"
+DRIVER="csi-unity"
 WATCHLIST=""
 
 # usage will print command execution help and then exit
@@ -143,7 +144,6 @@ else
 fi
 
 DRIVERDIR="${SCRIPTDIR}/../helm-charts/charts"
-DRIVER="csi-unity"
 VERIFYSCRIPT="${SCRIPTDIR}/verify.sh"
 
 # export the name of the debug log, so child processes will see it
