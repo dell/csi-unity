@@ -9,6 +9,9 @@ include images.mk
 .PHONY: all
 all: build
 
+generate:
+	cd core && go generate
+
 # This will be overridden during image build.
 IMAGE_VERSION ?= 0.0.0
 LDFLAGS = "-X main.ManifestSemver=$(IMAGE_VERSION)"
@@ -24,6 +27,9 @@ UNIT_TESTED_PACKAGES := \
 build:
 	git config core.hooksPath hooks
 	cd core && go generate
+	CGO_ENABLED=0 GOOS=linux GO111MODULE=on go build -ldflags $(LDFLAGS) -mod=vendor .
+
+build-binary:
 	CGO_ENABLED=0 GOOS=linux GO111MODULE=on go build -ldflags $(LDFLAGS) -mod=vendor .
 
 unit-test:

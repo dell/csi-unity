@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (c) 2020 Dell Inc., or its subsidiaries. All Rights Reserved.
+# Copyright © 2020-2026 Dell Inc., or its subsidiaries. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -10,8 +10,8 @@
 
 # verify-csi-unity method
 function verify-csi-unity() {
-  verify_k8s_versions "1.34" "1.36"
-  verify_openshift_versions "4.18" "4.21"
+  verify_k8s_versions "1.35" "1.37"
+  verify_openshift_versions "4.19" "4.22"
   verify_namespace "${NS}"
   verify_required_secrets "${RELEASE}-creds"
   verify_optional_secrets "${RELEASE}-certs"
@@ -23,7 +23,7 @@ function verify-csi-unity() {
   if [ "$snapshot_value" == "true" ]; then
     verify_snap_requirements 
   fi
-  verify_helm_3
+  verify_helm
   verify_helm_values_version "${DRIVER_VERSION}"
 }
 

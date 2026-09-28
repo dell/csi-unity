@@ -1,5 +1,5 @@
 /*
- Copyright © 2019-2025 Dell Inc. or its subsidiaries. All Rights Reserved.
+ Copyright © 2019-2026 Dell Inc. or its subsidiaries. All Rights Reserved.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -473,13 +473,51 @@ func (s *service) ephemeralNodePublishVolume(
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, csiutils.GetMessageWithRunID(rid, "Unable to parse size. Error: %v", err))
 	}
+	createVolumeParams, hasArrayID, hasNasServer := copyAndValidateEphemeralCreateVolumeParams(req.VolumeContext)
+	if hasArrayID {
+		log.Infof("Ignoring requested arrayId for ephemeral volume; using default array")
+	}
+	if hasNasServer {
+		log.Infof("Ignoring requested nasServer for ephemeral volume; using default nasServer")
+	}
+
+	// Find admin-configured default array and nasServer from driver configuration.
+	var defaultArrayID string
+	var defaultNasServer string
+	list := s.getStorageArrayList()
+	for _, sys := range list {
+		if sys.IsDefaultArray {
+			defaultArrayID = sys.ArrayID
+			defaultNasServer = sys.NasServer
+			break
+		}
+	}
+	if defaultArrayID == "" {
+		return nil, status.Error(codes.Internal,
+			csiutils.GetMessageWithRunID(rid,
+				"ephemeral volume failed: unable to determine default arrayId from driver configuration"))
+	}
+
+	sanitizedParams := sanitizeEphemeralCreateVolumeParams(createVolumeParams)
+	sanitizedParams["arrayId"] = defaultArrayID
+	log.Infof("Injected default arrayId %s for ephemeral volume", defaultArrayID)
+
+	if defaultNasServer != "" {
+		sanitizedParams["nasServer"] = defaultNasServer
+		log.Infof("Injected default nasServer %s for ephemeral volume", defaultNasServer)
+	} else if strings.EqualFold(sanitizedParams["protocol"], NFS) {
+		return nil, status.Error(codes.InvalidArgument,
+			csiutils.GetMessageWithRunID(rid,
+				"`%s` is a required parameter for NFS ephemeral volumes and must be configured on the default array", keyNasServer))
+	}
+
 	createVolResp, err := s.CreateVolume(ctx, &csi.CreateVolumeRequest{
 		Name: volName,
 		CapacityRange: &csi.CapacityRange{
 			RequiredBytes: size,
 		},
 		VolumeCapabilities: []*csi.VolumeCapability{req.VolumeCapability},
-		Parameters:         req.VolumeContext,
+		Parameters:         sanitizedParams,
 		Secrets:            req.Secrets,
 	})
 	if err != nil {
@@ -560,6 +598,35 @@ func (s *service) ephemeralNodePublishVolume(
 	}
 
 	return &csi.NodePublishVolumeResponse{}, nil
+}
+
+func sanitizeEphemeralCreateVolumeParams(params map[string]string) map[string]string {
+	safeParams := make(map[string]string, len(params))
+	for k, v := range params {
+		switch k {
+		case "arrayID", "arrayId", "nasServer":
+			// Placement/isolation parameters - stripped to prevent cross-array/namespace escape
+			continue
+		case "thinProvisioned", "isDataReductionEnabled", "tieringPolicy":
+			// Admin-controlled provisioning policies - stripped to prevent unexpected capacity consumption
+			// Driver has built-in defaults for all three
+			continue
+		default:
+			safeParams[k] = v
+		}
+	}
+	return safeParams
+}
+
+func copyAndValidateEphemeralCreateVolumeParams(params map[string]string) (map[string]string, bool, bool) {
+	safeParams := make(map[string]string, len(params))
+	for k, v := range params {
+		safeParams[k] = v
+	}
+	hasArrayID := safeParams["arrayId"] != "" || safeParams["arrayID"] != ""
+	hasNasServer := safeParams["nasServer"] != ""
+
+	return safeParams, hasArrayID, hasNasServer
 }
 
 // Node Unpublish Volume - Unmounts the volume from the target path and from private directory

@@ -211,6 +211,13 @@ func TestAddNodeInformationIntoArray(t *testing.T) {
 	testConf.service.opts.NodeName = "test-node"
 	testConf.service.opts.LongNodeName = "long-test-node"
 	ctx := context.Background()
+	originalIscsiClient := testConf.service.iscsiClient
+	testConf.service.iscsiClient = goiscsi.NewMockISCSI(map[string]string{
+		goiscsi.MockNumberOfInitiators: "-1",
+	})
+	defer func() {
+		testConf.service.iscsiClient = originalIscsiClient
+	}()
 
 	// Configure storage array with a mocked Unity client
 	arrayID := "testarrayid"
@@ -243,6 +250,11 @@ func TestAddNodeInformationIntoArray(t *testing.T) {
 	// Set up mock expectations
 	mockUnity.On("BasicSystemInfo", mock.Anything, mock.Anything).Return(nil).Once()
 	mockUnity.On("FindHostByName", mock.Anything, "test-node").Return(&host, nil).Once()
+	// addNodeInformationIntoArray may add host initiators based on discovered
+	// local initiators. Allow this in the baseline scenario to avoid depending
+	// on host-specific test environment initiator state.
+	mockUnity.On("CreateHostInitiator", mock.Anything, "id", mock.Anything, mock.Anything).Return(nil, nil)
+	mockUnity.On("ListIscsiIPInterfaces", mock.Anything).Return([]gounitytypes.IPInterfaceEntries{expectedIPInterface}, nil)
 	mockUnity.On("FindHostIPPortByID", mock.Anything, "ip-port-1").Return(hostIPPortPtr, nil).Once()
 	mockUnity.On("CreateHostIPPort", mock.Anything, "id", mock.Anything).Return(&expectedHostIPPort, nil)
 
@@ -257,7 +269,6 @@ func TestAddNodeInformationIntoArray(t *testing.T) {
 	assert.Error(t, err)
 	dropExpectations(mockUnity)
 
-	originalIscsiClient := testConf.service.iscsiClient
 	testConf.service.iscsiClient = goiscsi.NewMockISCSI(nil)
 	mockUnity.On("BasicSystemInfo", mock.Anything, mock.Anything).Return(nil).Once()
 	mockUnity.On("FindHostByName", mock.Anything, "test-node").Return(&host, nil).Once()
@@ -268,7 +279,9 @@ func TestAddNodeInformationIntoArray(t *testing.T) {
 	err = testConf.service.addNodeInformationIntoArray(ctx, array)
 	assert.NoError(t, err)
 	dropExpectations(mockUnity)
-	testConf.service.iscsiClient = originalIscsiClient
+	testConf.service.iscsiClient = goiscsi.NewMockISCSI(map[string]string{
+		goiscsi.MockNumberOfInitiators: "-1",
+	})
 
 	// Case FindHostByName returns ErrorHostNotFound
 	mockUnity.On("BasicSystemInfo", mock.Anything, mock.Anything).Return(nil).Once()

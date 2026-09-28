@@ -97,6 +97,7 @@ func (f *Formatter) Format(entry *logrus.Entry) ([]byte, error) {
 	}
 
 	var funcVal, fileVal string
+	//nolint:govet
 	if entry.HasCaller() {
 		if f.CallerPrettyfier != nil {
 			funcVal, fileVal = f.CallerPrettyfier(entry.Caller)

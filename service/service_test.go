@@ -303,7 +303,7 @@ func TestStorageArrayConfig_String(t *testing.T) {
 		UnityClient:               mockUnity,
 	}
 
-	expected := "ArrayID: array123, Username: user, Endpoint: endpoint, SkipCertificateValidation: <nil>, IsDefaultArray:true, IsProbeSuccess:true, IsHostAdded:true"
+	expected := "ArrayID: array123, Username: user, Endpoint: endpoint, NasServer:, SkipCertificateValidation: <nil>, IsDefaultArray:true, IsProbeSuccess:true, IsHostAdded:true"
 	assert.Equal(t, expected, config.String())
 }
 
