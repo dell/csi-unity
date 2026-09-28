@@ -4,10 +4,11 @@
 # or its subsidiaries. Other trademarks may be trademarks of their respective 
 # owners.
 
-download-csm-common:
-	git clone --depth 1 git@github.com:dell/csm.git temp-repo
-	cp temp-repo/config/csm-common.mk .
-	rm -rf temp-repo
+.PHONY: copy-csm-common vendor
+
+copy-csm-common:
+	cp ../csm/config/csm-common.mk .
 
 vendor:
+	rm -rf vendor
 	GOPRIVATE=github.com go mod vendor

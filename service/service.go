@@ -95,6 +95,7 @@ type StorageArrayList struct {
 // StorageArrayConfig - Storage array configuration
 type StorageArrayConfig struct {
 	ArrayID                   string `yaml:"arrayId"`
+	NasServer                 string `yaml:"nasServer,omitempty"`
 	Username                  string `yaml:"username"`
 	Password                  string `yaml:"password"`
 	Endpoint                  string `yaml:"endpoint"`
@@ -173,8 +174,8 @@ func New() Service {
 
 // To display the StorageArrayConfig content
 func (s *StorageArrayConfig) String() string {
-	return fmt.Sprintf("ArrayID: %s, Username: %s, Endpoint: %s, SkipCertificateValidation: %v, IsDefaultArray:%v, IsProbeSuccess:%v, IsHostAdded:%v",
-		s.ArrayID, s.Username, s.Endpoint, s.SkipCertificateValidation, s.IsDefaultArray, s.IsProbeSuccess, s.IsHostAdded)
+	return fmt.Sprintf("ArrayID: %s, Username: %s, Endpoint: %s, NasServer:%s, SkipCertificateValidation: %v, IsDefaultArray:%v, IsProbeSuccess:%v, IsHostAdded:%v",
+		s.ArrayID, s.Username, s.Endpoint, s.NasServer, s.SkipCertificateValidation, s.IsDefaultArray, s.IsProbeSuccess, s.IsHostAdded)
 }
 
 // BeforeServe allows the SP to participate in the startup
@@ -572,6 +573,7 @@ func (s *service) syncDriverSecret(ctx context.Context) error {
 
 			copyStorage := StorageArrayConfig{
 				ArrayID:                   secret.ArrayID,
+				NasServer:                 secret.NasServer,
 				Username:                  secret.Username,
 				Password:                  secret.Password,
 				Endpoint:                  secret.Endpoint,
