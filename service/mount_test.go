@@ -985,3 +985,30 @@ func TestGetDevMounts_Multipath(t *testing.T) {
 	assert.Equal(t, "/mnt/data", devMnts[0].Path, "Unexpected mount path")
 	assert.Equal(t, "/dev/mapper/mpathX", devMnts[0].Source, "Unexpected mount source")
 }
+
+func TestEnsureNFSSharePermissions(t *testing.T) {
+	tests := []struct {
+		name    string
+		initial os.FileMode
+		want    os.FileMode
+	}{
+		{"restrictive root is opened to 1777", 0o755, os.ModeSticky | os.ModePerm},
+		{"setgid set by kubelet fsGroup is preserved", os.ModeSetgid | 0o770, os.ModeSetgid | os.ModeSticky | os.ModePerm},
+		{"already 3777 is left unchanged", os.ModeSetgid | os.ModeSticky | os.ModePerm, os.ModeSetgid | os.ModeSticky | os.ModePerm},
+		{"already 1777 is left unchanged", os.ModeSticky | os.ModePerm, os.ModeSticky | os.ModePerm},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			assert.NoError(t, os.Chmod(dir, tt.initial))
+			assert.NoError(t, ensureNFSSharePermissions(dir))
+			info, err := os.Stat(dir)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, info.Mode()&(os.ModeSetgid|os.ModeSticky|os.ModePerm))
+		})
+	}
+
+	t.Run("missing path returns an error", func(t *testing.T) {
+		assert.Error(t, ensureNFSSharePermissions(filepath.Join(t.TempDir(), "missing")))
+	})
+}
