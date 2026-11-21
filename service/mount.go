@@ -129,7 +129,7 @@ func stagePublishNFS(ctx context.Context, req *csi.NodeStageVolumeRequest, expor
 	}
 
 	// Update permissions with 1777 in nfs share so every user can use it
-	if err := os.Chmod(stagingTargetPath, os.ModeSticky|os.ModePerm); err != nil {
+	if err := ensureNFSSharePermissions(stagingTargetPath); err != nil {
 		return status.Errorf(codes.Internal, "can't change permissions of folder %s: %s", stagingTargetPath, err.Error())
 	}
 
@@ -943,4 +943,21 @@ func mountBlock(ctx context.Context, device *Device, target string, mntFlags []s
 		return status.Error(codes.Internal, csiutils.GetMessageWithRunID(rid, "Block Mount error: bind mounting to target path: %s", target))
 	}
 	return nil
+}
+
+// ensureNFSSharePermissions makes the NFS share root writable by every user (1777)
+// while preserving the setgid bit. kubelet sets setgid on the volume root when it
+// applies fsGroup, and fsGroupChangePolicy: OnRootMismatch relies on it to skip the
+// recursive ownership change. Clearing it on every stage forces kubelet to walk the
+// whole volume on every pod restart. The mode is only changed when it differs.
+func ensureNFSSharePermissions(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	wanted := os.ModeSticky | os.ModePerm | (info.Mode() & os.ModeSetgid)
+	if info.Mode()&(os.ModeSticky|os.ModePerm|os.ModeSetgid) == wanted {
+		return nil
+	}
+	return os.Chmod(path, wanted)
 }
